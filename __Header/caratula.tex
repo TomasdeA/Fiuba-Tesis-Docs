@@ -1,0 +1,136 @@
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+%% COMANDOS ÚTILES PARA CARÁTULA
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+% COMANDOS DE INFORMACIÓN DE MATERIA
+\newcommand{\titulo}{Captación del entorno y mapeo local}
+\newcommand{\subtitulo}{ Presentación de plan de tesis de Ingeniería Electrónica}
+%\newcommand{\nroTP}{}
+\newcommand{\ano}{2023}
+\newcommand{\primercuatrim}{1\,\textsuperscript{er} cuatrimestre \ano}
+\newcommand{\segundocuatrim}{2\,\textsuperscript{do} cuatrimestre \ano}
+
+% Fecha de entrega del trabajo (si necesitas)
+\newcommand{\fecha}{28/02/2024}
+
+% COMANDOS DE DATOS PERSONALES
+
+\newcommand{\nombre}{Tomás de Aguirre}
+\newcommand{\padron}{103887}
+\newcommand{\mail}{tdeaguirre@fi.uba.ar}
+
+
+\newcommand{\nombreTutor}{Ignacio Mas}
+\newcommand{\legajoTutor}{206872}
+\newcommand{\mailTutor}{imas@fi.uba.ar}
+
+
+\newcommand{\nombreCotutor}{Sergio Lew}
+\newcommand{\legajoCotutor}{128563}
+\newcommand{\mailCotutor}{slew@fi.uba.ar}
+
+% COMANDOS ESTILO CARÁTULA
+\newcommand{\styleI}{
+    \begin{center}
+        \includegraphics[scale=1]{Includes/logofiuba}\\
+    \end{center}
+    \vfill
+}
+\newcommand{\styleII}{
+    \begin{center}
+        \includegraphics[scale=1]{Includes/logofiuba}\\
+        \large{\textsc{Universidad de Buenos Aires}}\\
+        \large{\textsc{Facultad de Ingeniería}}\\
+    \end{center}
+    \vfill
+}
+
+
+%-------------------------------------------------------------------------------------------
+\pagestyle{fancy} % seleccionamos un estilo
+\fancyhead{}
+\fancyfoot{}
+\lhead{\includegraphics[scale = 0.182]{/Includes/logofiuba.png}} % texto izquierda de la cabecera
+\rhead{\titulo} % texto centro de la cabecera
+\cfoot{\thepage}
+
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+% CARÁTULA
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+\begin{titlepage}
+    \thispagestyle{empty}
+    
+%
+% Selecciono Imagen/Estilo
+% Comentar el no deseado, descomentar el deseado
+%
+
+    % Estilo lugfi fiuba:
+    \styleI
+    
+    % Estilo Cardozo:
+    %\styleII
+
+%
+% Título:
+%
+    \begin{center}
+		\Huge{\underline{\titulo}}\\
+		\vspace{0.5cm}
+		\LARGE{\subtitulo}       %Descomentar si necesitas subtitulo
+	\end{center}
+	\vspace{2cm}
+%
+% Integrantes:
+%
+\begin{center}
+    \large{
+        \begin{tabular}{|c|c|c|c|}
+            \hline
+            \textbf{Autor} & \nombre & \padron & \mail\\
+            \hline
+            \textbf{Tutor} & \nombreTutor & \legajoTutor & \mailTutor \\
+            \hline
+            \textbf{Co-tutor} & \nombreCotutor & \legajoCotutor & \mailCotutor\\ % Fila de encabezado
+            \hline
+        \end{tabular}
+    }
+\end{center}
+
+\vfill
+
+%
+% Fecha y cuatrimestre:
+%
+% cambiar \primercuatrim o \segundocuatrim, dependiendo si es primer o % % segundo cuatrimestre.
+
+% Comentar esto si necesitas fecha de entrega + Cuatrimestre de cursada
+%\flushright{\segundocuatrim} 
+
+% Descomentar esto si necesitas indicar fecha de entrega:
+%\begin{minipage}{.4 \linewidth}
+%    \flushleft{Fecha de entrega: \fecha}
+%\end{minipage}
+%\hfill
+%\begin{minipage}{.4 \linewidth}
+%    \flushright{\segundocuatrim}
+%\end{minipage}
+
+\end{titlepage}
+
+%
+% Hago que las páginas se comiencen a contar a partir de aquí:
+%
+\setcounter{page}{1}
+
+%
+% Pongo el índice en una página aparte:
+% Descomentar si necesitas un índice
+
+%\tableofcontents
+\newpage
+
+
+

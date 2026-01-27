@@ -1,0 +1,274 @@
+%------------------------- Carga de paquetes ---------------------------
+%
+% Si no necesitas algún paquete, comentalo.
+%
+\usepackage{indentfirst}
+
+%
+% Definición del tamaño de página y los márgenes:
+%
+%\usepackage[a4paper,headheight=16pt,scale={0.7,0.8},hoffset=0.5cm]{geometry}
+
+%
+% me permite definir los margenes como quiera
+%
+\usepackage{anysize}
+% MARGENES
+\marginsize{2cm}{2cm}{1cm}{1.5cm} %izquierda, derecha, arriba, abajo
+
+%
+% Vamos a escribir en castellano:
+%
+\usepackage[spanish,es-tabla]{babel}
+
+% NO FUNCIONA CON LA VERSION TeX Live 2022 cuando a la vez se compila hyperref. Asi que lo comento
+% Fuente: Arial 12 xD ( https://www.overleaf.com/blog/tex-live-2022-now-available )
+%\usepackage[utf8x]{inputenc}
+
+%
+% Si preferís el tipo de letra Helvetica (Arial), descomentá las siguientes
+% dos lineas (las fórmulas seguirán estando en Times):
+%
+%\usepackage{helvet}
+%\renewcommand\familydefault{\sfdefault}
+
+%
+% El paquete amsmath agrega algunas funcionalidades extra a las fórmulas. 
+% Además defino la numeración de las tablas y figuras al estilo "Figura 2.3", 
+% en lugar de "Figura 7". (Por lo tanto, aunque no uses fórmulas, si querés
+% este tipo de numeración dejá el paquete amsmath descomentado).
+% Todos los paquetes que estan aca agregan funcionalidad a math.
+
+\usepackage{amsmath, amsthm, amssymb}
+\usepackage{mathtools}
+\usepackage{cancel} % Para cancelar en formulas matemáticas
+\usepackage{bbm} %Agrega \mathbbm{} que permite aplicar \mathbb{} números (Función indicadora)
+\usepackage{mathrsfs} % Agrega \mathscr{} que ofrece mas fonts
+\usepackage{mathdots}
+\usepackage[version=4]{mhchem}
+\usepackage{esint}
+\usepackage{stackrel}
+\usepackage{stmaryrd}
+\usepackage{cases}
+
+% Descomenta si lo necesitas
+%\numberwithin{equation}{section}
+
+
+%
+% Para tener cabecera y pie de página con un estilo personalizado:
+%
+\usepackage{fancyhdr}
+
+%
+% Para poner el texto "Figura X" en negrita:
+% (Si no tenés el paquete 'caption2', probá con 'caption').
+%
+\usepackage[bf]{caption}
+
+%
+% Para poder usar subfiguras: (al estilo Figura 2.3(b) )
+%
+%\usepackage{subfig}
+\usepackage{subcaption} % Otra Opción, dicen que es mejor que subfig
+
+%
+% Para poder agregar notas al pie en tablas:
+%
+\usepackage{threeparttable}
+
+%
+% Para poder poner las imagen es donde yo quiero.
+%
+\usepackage{float}
+
+
+%
+% graphicx
+%
+%\input{__Header/graphicx/graphicx} %En teoria esto ya no hace mas falta (MODO BETA)
+\usepackage{graphicx}
+
+%
+% Para poner imagenes .svg [ \includesvg[options]{imagefilename} ] (Se puede usar en figure)
+%
+\usepackage{svg}
+
+%
+% Todas las imágenes están en el directorio _Imagenes:
+%
+\newcommand{\imgdir}{_Imagenes}
+\graphicspath{{\imgdir/}}
+%
+
+
+%
+% extiende el paquete de graphicx
+%
+\usepackage{adjustbox}
+
+
+%
+% para justificar el texto
+%
+\usepackage{ragged2e}
+
+
+
+%
+% letras griegas sin cursiva
+%
+\usepackage{upgreek}
+
+
+%
+% SI
+%
+\usepackage{siunitx}
+\sisetup{
+output-decimal-marker = {,},
+per-mode = fraction, % El que esta por default en el paquete es reciprocal, ej: m.s^-1
+exponent-product = \cdot ,
+output-complex-root=\ensuremath{\mathrm{j}},
+complex-root-position=before-number,
+}
+
+
+%
+% el paquete pone el footnote en el fondo de la pagina
+%
+\usepackage[bottom]{footmisc} 
+\setlength{\headheight}{28pt} %config del paquete
+
+%
+% Permite poner multicolumnas mediantes:  \begin{multicols}{numero_columnas} ...   \end{multicols}
+%
+\usepackage{multicol,multirow}
+
+%
+% parecido a listing pero no pensado para codigo, puede crear el env comment para comentar
+%
+\usepackage{verbatim}
+
+%
+% Paquete para manejo de csv
+%
+\usepackage{csvsimple} 
+
+
+%
+% Paquete para hacer lineas diagonales en tablas
+%
+\usepackage{diagbox}
+
+%
+% Paquete para hacer quotes
+%
+\usepackage{dirtytalk}
+
+%
+% imágenes embebidas
+%
+\usepackage{wrapfig}
+
+
+%
+% Paquete para plotear funciones en latex
+%
+\usepackage{pgfplots}
+\pgfplotsset{compat=newest}
+
+%
+% Paquete para crear figuras gráficas (Poderoso, pero medio complicado de usar)
+%
+\usepackage{tikz,pgf}
+\usetikzlibrary{positioning}
+\usetikzlibrary{circuits.plc.ladder} % L A TEX and plain TEX when using Tik Z
+
+
+%
+%  Create common layout for tabular material.
+%
+\usepackage{makecell}
+
+%
+% Enumerar alfabeticamente (a), (b),... etc
+%
+\usepackage{enumitem}
+
+%
+% https://www.ctan.org/pkg/tabularx
+%
+\usepackage{tabularx}
+
+%----------------------------------------------------------------------------------------
+
+%
+% Para escribir ejercicios en los documentes. Define \begin{exercise}...\end{exercise}
+%
+\usepackage{exercise}
+
+%
+%
+%
+\usepackage{xcolor} % Para los colores
+\input{__Header/xcolor/colors}
+
+
+%--------------------------------------------------------------------------------------
+\usepackage{listings} % Para poner codigo en latex, queda lindo
+% \input{__Header/Listings/AVR}
+% \input{__Header/Listings/PowerShell}
+\input{__Header/Listings/mystyle}
+\usepackage{matlab-prettifier} % Uso → \lstinputlisting[style=Matlab-editor]{sample.m}
+
+%--------------------------------------------------------------------------------------
+% Otro paquete para poner código en látex. Soporta VHDL 
+%\usepackage{minted}
+
+%--------------------------------------------------------------------------------------
+% entornos gráficos encapsulados (para enunciados) 
+\usepackage{framed}
+\usepackage{mdframed} % extensión del paquete framed.
+\input{__Header/mdframed/styles}
+%--------------------------------------------------------------------------------------
+\usepackage{nicematrix}
+
+%--------------------------------------------------------------------------------------
+%Para la bibliografia
+\usepackage[backend=biber,style=ieee]{biblatex}
+\usepackage{csquotes}
+\addbibresource{bibliografia.bib}
+%---------------------------------------------------------------------------------------
+\usepackage{hyperref} %Paquete para hyperlinks
+% Poner siempre este paquete al final.
+%Configuración del paquete hyperref
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=magenta,      
+    urlcolor=cyan}
+
+%---------------------------------------------------------------------------------------
+% Poner este paquete despues de Hyperref SIEMPRE.
+%
+% Mejora y hace mas cómodo hacer referencias con \cref{}
+%
+\usepackage{cleveref}
+
+
+
+%---------------------------------------------------------------------------------------
+%
+% Te deja rotar tablas
+%
+\usepackage{rotating}
+
+
+%
+% Cosas lidas de tablas
+%
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{ragged2e}   % <-- para \RaggedRight
+\newcolumntype{L}[1]{>{\RaggedRight\arraybackslash}p{#1}}
