@@ -4,17 +4,19 @@ Este documento describe el plan de tesis correspondiente a la primera etapa de u
 estructurado en dos etapas complementarias e independientes.
 
 A lo largo del texto, el término \textit{proyecto} hará referencia al desarrollo integral del sistema completo, abarcando ambas etapas. 
-En contraste, el término \textit{tesis} se utilizará para referirse específicamente al trabajo de investigación y desarrollo correspondiente a la primera etapa.
+En contraste, el término \textit{tesis} se utilizará para referirse específicamente al trabajo de investigación y desarrollo 
+correspondiente a la primera etapa.
 
 
 \subsection{Objetivo del proyecto}
 
-El objetivo final del proyecto es desarrollar un sistema portátil de asistencia sensorial que permita a personas con ceguera o baja visión percibir su entorno mediante 
-estímulos táctiles, con el fin de mejorar su seguridad, autonomía y capacidad de desplazamiento independiente.
+El objetivo final del proyecto es desarrollar un sistema portátil de asistencia sensorial que permita a personas con ceguera o baja visión 
+percibir su entorno mediante estímulos táctiles, con el fin de mejorar su seguridad, autonomía y capacidad de desplazamiento independiente.
 
-La base científica del proyecto se apoya en el principio de neuroplasticidad sensorial, según el cual el cerebro es capaz de reorganizarse para explotar de manera más 
-eficiente los sentidos restantes cuando la visión está reducida o ausente. A partir de este principio, el proyecto busca diseñar una interfaz que traduzca información 
-espacial visual en señales hápticas útiles, interpretables y funcionales para la navegación asistida.
+La base científica del proyecto se apoya en el principio de neuroplasticidad sensorial, según el cual el cerebro es capaz de reorganizarse 
+para explotar de manera más eficiente los sentidos restantes cuando la visión está reducida o ausente. A partir de este principio, el 
+proyecto busca diseñar una interfaz que traduzca información espacial visual en señales hápticas útiles, interpretables y funcionales 
+para la navegación asistida.
 
 El proyecto se estructura en dos etapas, que se abordarán en tesis separadas:
 \begin{itemize}
@@ -26,21 +28,24 @@ El proyecto se estructura en dos etapas, que se abordarán en tesis separadas:
 
 \subsubsection{Captación del entorno con mapeo local}
 
-Esta etapa se centra en la adquisición y procesamiento de información tridimensional del entorno en tiempo real, con el objetivo de construir una representación 
-espacial simplificada del espacio inmediato frente al usuario.
+Esta etapa se centra en la adquisición y procesamiento de información tridimensional del entorno en tiempo real, con el objetivo de construir 
+una representación espacial simplificada del espacio inmediato frente al usuario.
 
-El propósito de esta representación es condensar la información visual relevante en un formato estructurado y de baja dimensionalidad, adecuado para su posterior 
-traducción a una interfaz háptica.
+El propósito de esta representación es condensar la información visual relevante en un formato estructurado y de baja dimensionalidad, adecuado 
+para su posterior traducción a una interfaz háptica.
 
-Durante esta etapa se analizarán distintas estrategias de reducción, agregación y estructuración de la información de profundidad, con el fin de preservar los 
-elementos espaciales más relevantes para la detección y evación de obstáculos, manteniendo al mismo tiempo baja latencia y estabilidad temporal.
+Durante esta etapa se analizarán distintas estrategias de reducción, agregación y estructuración de la información de profundidad, con el fin 
+de preservar los elementos espaciales más relevantes para la detección y evación de obstáculos, manteniendo al mismo tiempo baja latencia y 
+estabilidad temporal.
 
 \subsubsection{Traducción del entorno a un mapa táctil}
 
 Consiste en representar la información espacial mediante estímulos hápticos. 
-Estos pueden estar ubicados en distintas zonas del cuerpo y permitirán detectar proximidad u obstáculos a través de variaciones en intensidad, frecuencia o localización de la vibración.
+Estos pueden estar ubicados en distintas zonas del cuerpo y permitirán detectar proximidad u obstáculos a través de variaciones en intensidad, 
+frecuencia o localización de la vibración.
 
-Una vez desarrollados los módulos de percepción y salida háptica, se realizará la integración en un dispositivo portátil y autónomo que funcione en tiempo real.
+Una vez desarrollados los módulos de percepción y salida háptica, se realizará la integración en un dispositivo portátil y autónomo que funcione 
+en tiempo real.
 
 \subsection{Objetivo del plan de tesis}
 
@@ -73,15 +78,19 @@ y pruebas experimentales.
 
 \subsubsection{Preguntas de investigación}
 \begin{enumerate}
-    \item ¿Es posible generar en tiempo real un mapa local compacto de profundidad, derivado de visión estéreo, con latencia suficientemente baja para ser utilizado como entrada de una interfaz háptica de asistencia a la movilidad?
+    \item ¿Es posible generar en tiempo real un mapa local compacto de profundidad, derivado de visión estéreo, con latencia suficientemente 
+    baja para ser utilizado como entrada de una interfaz háptica de asistencia a la movilidad?
 
-    \item ¿Qué estrategia de agregación y compactación de la información de profundidad (promedio, máximo, percentil) preserva mejor la información relevante para la detección de obstáculos en una matriz de baja resolución (\(10 \times 5\))?
+    \item ¿Qué estrategia de agregación y compactación de la información de profundidad (promedio, máximo, percentil) preserva mejor la 
+    información relevante para la detección de obstáculos en una matriz de baja resolución (\(10 \times 5\))?
 
-    \item ¿En qué medida la incorporación de una memoria local de corto alcance mejora la consistencia temporal del mapa frente a oclusiones y cambios de orientación del sensor?
+    \item ¿En qué medida la incorporación de una memoria local de corto alcance mejora la consistencia temporal del mapa frente a oclusiones y 
+    cambios de orientación del sensor?
 
     \item ¿Cómo impacta la fusión de información inercial (IMU) en la estabilidad espacial del mapeo local durante movimientos típicos de la cabeza?
 
-    \item ¿Cuál es la latencia end-to-end y el ancho de banda requeridos por el pipeline completo (captura, procesamiento, compactación y transmisión serial) para garantizar operación en tiempo real sobre una plataforma embebida?
+    \item ¿Cuál es la latencia end-to-end y el ancho de banda requeridos por el pipeline completo (captura, procesamiento, compactación y 
+    transmisión serial) para garantizar operación en tiempo real sobre una plataforma embebida?
 \end{enumerate}
 
 \subsubsection{Métricas y criterios de evaluación}
@@ -125,7 +134,8 @@ destacando algunas propuestas representativas:
     requiriendo movimientos corporales activos para explorar el entorno.
     \item \textbf{Bastón inteligente~\cite{Santos2023}:} detecta obstáculos mediante sensores de corto alcance, dependiendo del movimiento manual y 
     proporcionando información limitada al punto de contacto.
-    \item \textbf{Pulsera ultrasónica~\cite{Petsiuk2019UltrasoundNavigation}:} emite vibraciones al detectar objetos cercanos, con baja resolución espacial y fuerte 
+    \item \textbf{Pulsera ultrasónica~\cite{Petsiuk2019UltrasoundNavigation}:} emite vibraciones al detectar objetos cercanos, con baja resolución 
+    espacial y fuerte 
     dependencia de la orientación del brazo.
 \end{enumerate}
 
