@@ -59,15 +59,16 @@ información de profundidad, optimizada para su uso como entrada de una futura i
 
 El módulo deberá procesar imágenes RGB-D en tiempo real mediante técnicas de filtrado espacial y temporal, aplicar estrategias 
 de agregación y reducción de dimensionalidad, y producir como salida una matriz estructurada de baja resolución (por ejemplo, 
-\(10 \times 5\)) que preserve la información espacial relevante para la detección de obstáculos.
+\(10 \times 5\)) que represente una proyección compacta de la información de profundidad correspondiente al instante actual, 
+preservando la información espacial relevante para la detección de obstáculos.
 
-Asimismo, el sistema publicará los resultados en tópicos ROS~2 estandarizados y proporcionará una interfaz serial para la 
+Asimismo, el sistema publicará los resultados en tópicos ROS2 estandarizados y proporcionará una interfaz serial para la 
 transmisión eficiente de la matriz compacta hacia un microcontrolador encargado del control de los actuadores hápticos, 
 cuya implementación corresponde a la segunda etapa del proyecto y no forma parte de esta tesis.
 
-Adicionalmente, se implementará una capa de mapeo local de corto alcance dentro de un área acotada (del orden de \(5\,\mathrm{m}^2\)), 
-destinada a conservar información reciente de obstáculos y reutilizarla como mecanismo de protección frente a oclusiones 
-temporales y cambios de orientación del sensor.
+Adicionalmente, se implementará una capa de mapeo local de corto alcance, conceptualmente separada de la representación 
+instantánea de profundidad, destinada a conservar información reciente de obstáculos y reutilizarla como mecanismo 
+de protección frente a oclusiones temporales y cambios de orientación del sensor.
 
 Para este propósito se incorporará información proveniente de una unidad de medición inercial (IMU), que permitirá estimar la 
 orientación del sensor y compensar los cambios de pose durante la construcción y actualización del mapa local.
@@ -97,7 +98,7 @@ y pruebas experimentales.
 
 El desempeño del sistema será evaluado mediante métricas cuantitativas orientadas a caracterizar precisión, estabilidad 
 y desempeño temporal, siguiendo criterios habituales en evaluación de sistemas de percepción visual y mapeo local
-~\cite{Sturm2012TUMRGBD}.
+~\cite{sturm12iros}.
 
 En particular, se considerarán: 
 (i) error de profundidad en escenarios controlados mediante referencias geométricas simples 
@@ -232,5 +233,5 @@ Como resultado de esta tesis se espera obtener:
     experimentalmente para baja latencia y estabilidad temporal.
     
     \item Una interfaz de salida definida y documentada para la transmisión eficiente de la representación 
-    compacta y del mapa local hacia módulos externos.
+    compacta instantánea y de la información asociada al mapa local hacia módulos externos.
 \end{itemize}
