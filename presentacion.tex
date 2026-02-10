@@ -1,12 +1,15 @@
-\section{Objetivo}
 
-Este documento describe el plan de tesis correspondiente a la primera etapa de un proyecto de investigación y desarrollo de mayor alcance, 
+\section{Modalidad del Trabajo}
+
+El presente trabajo se encuadra en la modalidad \textbf{Tesis de Ingeniería Electrónica}. Este documento describe 
+el plan de tesis correspondiente a la primera etapa de un proyecto de investigación y desarrollo de mayor alcance, 
 estructurado en dos etapas complementarias e independientes.
 
-A lo largo del texto, el término \textit{proyecto} hará referencia al desarrollo integral del sistema completo, abarcando ambas etapas. 
-En contraste, el término \textit{tesis} se utilizará para referirse específicamente al trabajo de investigación y desarrollo 
-correspondiente a la primera etapa.
+A lo largo del texto, el término \textit{proyecto} hará referencia al desarrollo integral del sistema completo, 
+abarcando ambas etapas. En contraste, el término \textit{tesis} se utilizará para referirse específicamente al 
+trabajo de investigación y desarrollo correspondiente a la primera etapa.
 
+\section{Objetivo}
 
 \subsection{Objetivo del proyecto}
 
@@ -26,17 +29,22 @@ El proyecto se estructura en dos etapas, que se abordarán en tesis separadas:
 
 \subsection{Etapas del proyecto}
 
-\subsubsection{Captación del entorno con mapeo local}
+\subsubsection{Captación del entorno y mapeo local}
 
-Esta etapa se centra en la adquisición y procesamiento de información tridimensional del entorno en tiempo real, con el objetivo de construir 
-una representación espacial simplificada del espacio inmediato frente al usuario.
+Esta etapa se centra en la adquisición y procesamiento de información tridimensional del entorno en tiempo real, 
+con el objetivo de construir una representación espacial simplificada del espacio inmediato frente al usuario.
 
-El propósito de esta representación es condensar la información visual relevante en un formato estructurado y de baja dimensionalidad, adecuado 
-para su posterior traducción a una interfaz háptica.
+El propósito de esta representación es condensar la información visual relevante en un formato 
+estructurado y de baja dimensionalidad, adecuado para su posterior traducción a una interfaz háptica.
 
-Durante esta etapa se analizarán distintas estrategias de reducción, agregación y estructuración de la información de profundidad, con el fin 
-de preservar los elementos espaciales más relevantes para la detección y evación de obstáculos, manteniendo al mismo tiempo baja latencia y 
-estabilidad temporal.
+Durante esta etapa se analizarán distintas estrategias de reducción, agregación y estructuración de la 
+información de profundidad, con el fin de preservar los elementos espaciales más relevantes para la 
+detección y evación de obstáculos, manteniendo al mismo tiempo baja latencia y estabilidad temporal.
+
+En este contexto, el problema de ingeniería abordado en el marco de la tesis consiste en diseñar un 
+sistema embebido capaz de adquirir información tridimensional del entorno, procesarla en tiempo real 
+y generar una representación compacta, estable y de baja latencia, adecuada para ser utilizada como 
+entrada de una interfaz háptica de asistencia a la movilidad.
 
 \subsubsection{Traducción del entorno a un mapa táctil}
 
@@ -47,15 +55,15 @@ frecuencia o localización de la vibración.
 Una vez desarrollados los módulos de percepción y salida háptica, se realizará la integración en un dispositivo portátil y autónomo que funcione 
 en tiempo real.
 
-\subsection{Objetivo del plan de tesis}
+\subsection{Objetivo de tesis}
 
 Esta tesis se centra en la primera etapa: la captación del entorno y generación de un mapeo local compacto y estable en tiempo real.
 
 \subsubsection{Objetivo técnico}
 
-El objetivo técnico principal es desarrollar e implementar un módulo de percepción en ROS2 que, 
-utilizando la cámara Intel RealSense D435i, genere en tiempo real una representación compacta del entorno a partir de 
-información de profundidad, optimizada para su uso como entrada de una futura interfaz háptica de asistencia a la movilidad.
+El objetivo técnico principal es desarrollar e implementar un módulo de percepción en ROS2 que, utilizando la cámara Intel 
+RealSense D435i, genere en tiempo real una representación compacta del entorno a partir de información de profundidad, 
+optimizada para su uso como entrada de una futura interfaz háptica de asistencia a la movilidad.
 
 El módulo deberá procesar imágenes RGB-D en tiempo real mediante técnicas de filtrado espacial y temporal, aplicar estrategias 
 de agregación y reducción de dimensionalidad, y producir como salida una matriz estructurada de baja resolución (por ejemplo, 
@@ -76,24 +84,6 @@ orientación del sensor y compensar los cambios de pose durante la construcción
 Los parámetros numéricos, umbrales y criterios de decisión serán determinados y refinados mediante una fase inicial de calibración 
 y pruebas experimentales.
 
-
-\subsubsection{Preguntas de investigación}
-\begin{enumerate}
-    \item ¿Es posible generar en tiempo real un mapa local compacto de profundidad, derivado de visión estéreo, con latencia suficientemente 
-    baja para ser utilizado como entrada de una interfaz háptica de asistencia a la movilidad?
-
-    \item ¿Qué estrategia de agregación y compactación de la información de profundidad (promedio, máximo, percentil) preserva mejor la 
-    información relevante para la detección de obstáculos en una matriz de baja resolución (\(10 \times 5\))?
-
-    \item ¿En qué medida la incorporación de una memoria local de corto alcance mejora la consistencia temporal del mapa frente a oclusiones y 
-    cambios de orientación del sensor?
-
-    \item ¿Cómo impacta la fusión de información inercial (IMU) en la estabilidad espacial del mapeo local durante movimientos típicos de la cabeza?
-
-    \item ¿Cuál es la latencia end-to-end y el ancho de banda requeridos por el pipeline completo (captura, procesamiento, compactación y 
-    transmisión serial) para garantizar operación en tiempo real sobre una plataforma embebida?
-\end{enumerate}
-
 \subsubsection{Métricas y criterios de evaluación}
 
 El desempeño del sistema será evaluado mediante métricas cuantitativas orientadas a caracterizar precisión, estabilidad 
@@ -110,7 +100,6 @@ En particular, se considerarán:
 
 Estas métricas permitirán determinar la viabilidad del enfoque propuesto como módulo perceptual de un sistema de asistencia sensorial en tiempo real.
 
-
 \section{Contexto y motivación}
 
 \subsection{Problemática}
@@ -122,7 +111,7 @@ y capacidad de anticipación frente a obstáculos no detectables a corta distanc
 En los últimos años han surgido dispositivos electrónicos de asistencia que incorporan sensores activos, sin embargo, la mayoría de estas 
 soluciones se basa en sensores puntuales de corto alcance, lo que restringe la cantidad y calidad de información espacial disponible para el usuario.
 
-En este contexto, resulta relevante explorar el uso de sensores visuales de profundidad como medio para obtener representaciones espaciales 
+Considerando lo anterior, resulta relevante explorar el uso de sensores visuales de profundidad como medio para obtener representaciones espaciales 
 más ricas del entorno inmediato, manteniendo al mismo tiempo portabilidad, baja latencia y simplicidad de interacción.
 
 \subsection{Estado del arte del proyecto}
@@ -151,12 +140,22 @@ que posteriormente puedan ser traducidas a estímulos hápticos.
 El sistema se montará en la cabeza del usuario, aprovechando la dirección natural de la mirada como eje principal de exploración. Esta configuración 
 permite una percepción frontal continua del entorno sin necesidad de utilizar las manos ni modificar el patrón natural de locomoción.
 
-A diferencia de las soluciones existentes, el proyecto se enfoca en obtener un  mapa denso de profundidad mediante visión estéreo, con 
+A diferencia de las soluciones existentes, el proyecto se enfoca en obtener un mapa denso de profundidad mediante visión estéreo, con 
 el objetivo de proporcionar una representación espacial más rica y estructurada, adecuada para una futura traducción háptica.
 
 \section{Descripción de la Tesis}
 
+\subsection{Áreas Profesionales de Relevancia}
+
+El trabajo se encuadra principalmente dentro del área de Automatización y Control, debido a su enfoque en el desarrollo de 
+sistemas de percepción y procesamiento en tiempo real, basados en tecnologías habitualmente utilizadas en robótica y navegación asistida.
+
+Asimismo, el desarrollo propuesto involucra otras áreas propias de la Ingeniería Electrónica, tales como Sistemas Embebidos 
+y Procesamiento de Señales e Imágenes, en tanto requiere el diseño e integración de hardware y software bajo restricciones 
+de tiempo real, consumo y portabilidad.
+
 \subsection{Arquitectura}
+
 La tesis se desarrollará sobre el framework ROS2, aprovechando su modelo de comunicación basado en tópicos, servicios y 
 acciones, y su ecosistema de herramientas para sensado, procesamiento en tiempo real y experimentación reproducible. 
 Esto permite modularizar el sistema en nodos con responsabilidades bien definidas, facilitar el registro y análisis de 
@@ -178,7 +177,7 @@ soporte Linux y compatibilidad con ROS2. No obstante, la elección final depende
 (CPU, memoria y latencia) durante la fase de prototipado: si el procesamiento en la Raspberry Pi no satisface los 
 requisitos temporales, se considerará el uso de una plataforma más potente (p. ej. NVIDIA Jetson Nano).
 
-La arquitectura prevista separa el módulo de percepción y el microcontrolador que gestione los actuadores hápticos. 
+La arquitectura prevista separa el módulo de percepción y el microcontrolador que gestiona los actuadores hápticos. 
 El protocolo serial y el formato de datos se definirán tras las pruebas de rendimiento y ancho de banda.
 
 \section{Mejoras y Aportes al Proyecto}
@@ -192,10 +191,10 @@ integrar la percepción visual con módulos hápticos en futuras fases del proye
 En el ámbito de la robótica móvil y la navegación asistida, la percepción basada en profundidad mediante sensores RGB-D 
 se ha consolidado como una herramienta fundamental para la construcción de representaciones espaciales locales del entorno.
 
-Diversos trabajos han demostrado que, para aplicaciones de evitación de obstáculos y navegación reactiva, resulta suficiente 
-emplear mapas locales de corto alcance, actualizados en tiempo real, sin necesidad de construir mapas globales consistentes. 
-Este enfoque prioriza baja latencia, estabilidad temporal y simplicidad computacional, características esenciales para su 
-implementación en plataformas portátiles.
+Diversos trabajos han demostrado que, para aplicaciones de navegación reactiva y evitación de obstáculos en tiempo real, 
+son suficientes y preferibles representaciones locales del entorno centradas en el robot (que responden rápidamente a 
+cambios cercanos) frente a mapas globales consistentes, que requieren mayor procesamiento y pueden no ser necesarios 
+para tareas inmediatas de reacción \cite{brock1999high}.
 
 Asimismo, la disponibilidad de sensores estéreo compactos con IMU integrada ha permitido mejorar la estabilidad de las 
 representaciones locales frente a movimientos rápidos y vibraciones, favoreciendo su uso en sistemas embarcados orientados 
@@ -204,6 +203,20 @@ a interacción directa con el entorno.
 En este contexto, la presente tesis se inscribe en la línea de generación de representaciones espaciales locales de baja 
 dimensionalidad a partir de información de profundidad, orientadas a aplicaciones de navegación asistida en tiempo real 
 sobre plataformas embebidas.
+
+\section{Plan de Trabajo y Entregables}
+
+El plan de trabajo se organiza en las siguientes etapas, con una estimación aproximada de dedicación horaria para cada una:
+\begin{itemize}
+    \item Relevamiento bibliográfico y definición de métricas (70--80 horas).
+    \item Implementación del pipeline de percepción (130--150 horas).
+    \item Desarrollo del mapeo local y memoria temporal (110--130 horas).
+    \item Integración de información inercial y compensación de orientación (45--55 horas).
+    \item Evaluación experimental y análisis de resultados (90--110 horas).
+    \item Redacción final de la tesis (100--120 horas).
+\end{itemize}
+
+La planificación propuesta es tentativo y podrá ajustarse en función de los resultados obtenidos durante el desarrollo del trabajo.
 
 \section{Resultados esperados}
 
@@ -220,18 +233,20 @@ autónoma, validada experimentalmente en escenarios representativos de uso cotid
 
 Como resultado de esta tesis se espera obtener:
 
-
 \begin{itemize}
-    \item Un módulo de percepción visual capaz de generar en tiempo real una representación compacta del 
-    entorno inmediato a partir de imágenes RGB-D.
+    \item Un módulo de percepción visual capaz de generar, en tiempo real, una representación compacta y 
+    de baja dimensionalidad del entorno inmediato a partir de información de profundidad obtenida mediante sensores RGB-D.
     
-    \item Un mecanismo de mapeo local de corto alcance que permita mantener una memoria espacial 
-    estable de obstáculos recientemente observados, mejorando la consistencia temporal frente a oclusiones y 
-    cambios de orientación del sensor.
+    \item Un mecanismo de mapeo local de corto alcance que permita mantener una memoria espacial estable de 
+    obstáculos recientemente observados, mejorando la consistencia temporal de la representación frente a 
+    oclusiones y variaciones en la orientación del sensor.
     
-    \item Un conjunto de estrategias de filtrado, agregación y compactación de profundidad validadas 
-    experimentalmente para baja latencia y estabilidad temporal.
+    \item Un conjunto de estrategias de filtrado, agregación y compactación de información de profundidad, 
+    diseñadas y validadas experimentalmente con el objetivo de lograr baja latencia y estabilidad temporal.
     
-    \item Una interfaz de salida definida y documentada para la transmisión eficiente de la representación 
+    \item Una interfaz de salida claramente definida y documentada para la transmisión eficiente de la representación 
     compacta instantánea y de la información asociada al mapa local hacia módulos externos.
+    
+    \item La integración de todos los desarrollos previos en una arquitectura modular basada en ROS2, orientada a su 
+    reutilización y extensión en futuros trabajos.
 \end{itemize}
