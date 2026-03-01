@@ -1,0 +1,73 @@
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+% Cosas misceláneas que no sabia donde meter
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+% Evitar warnings de underfull
+\hbadness=99999
+
+% Define el comando \nota{#} el cual pone "#" en texto rojo automaticamente. Me sirve para dejar notas por el trabajo para que no pasen desapercibidas.
+\newcommand{\nota}[1]{ \textcolor{red}{#1} }
+
+\newcommand{\ladderlabel}[1]{ \scriptsize{\texttt{\%#1}} }
+
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+% Comandos útiles
+%:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+
+% Paréntesis: \pa{algo}, tamaño variable: \pa*{}
+\DeclarePairedDelimiter{\pa}{\lparen}{\rparen}
+% Corchetes: \br{algo}, tamaño variable: \br*{}
+\DeclarePairedDelimiter{\br}{[}{]}
+% Llaves: \cbr{algo}, tamaño variable: \cbr*{}
+\DeclarePairedDelimiter{\cbr}{\{}{\}}
+%
+\DeclarePairedDelimiter{\expval}{\langle}{\rangle}
+% Otros
+\DeclarePairedDelimiter{\eval}{ . }{\rvert}
+\DeclarePairedDelimiter{\floor}{\lfloor}{\rfloor}
+\DeclarePairedDelimiter{\ceil}{\lceil}{\rceil}
+
+%% Operadores
+\DeclarePairedDelimiter{\abs}{\lvert}{\rvert} % Modulo, tamaño variable: \abs*{}
+\DeclarePairedDelimiter{\dabs}{\|}{\|} % Norma, tamaño variable: \dabs*{}
+\newcommand{\E}[1]{\ensuremath{\operatorname{\mathbb{E}}\left[ #1 \right]}} % Esperanza
+\newcommand{\var}[1]{\ensuremath{\operatorname{Var}\left( #1\right)}} % Varianza
+\newcommand{\cov}[1]{\ensuremath{\operatorname{C}\left( #1\right)}} % Covarianza
+\newcommand{\prob}[1]{\ensuremath{\operatorname{\mathbb{P}}\left( #1 \right)}} %Probabilidad
+
+%% Matrices
+\newcommand{\m}[1]{\ensuremath{\begin{matrix} #1 \end{matrix}}}
+\newcommand{\sm}[1]{\ensuremath{\begin{smallmatrix} #1 \end{smallmatrix}}}
+\newcommand{\bm}[1]{\ensuremath{\begin{bmatrix} #1 \end{bmatrix}}} % Para crear matrices con []
+\newcommand{\bsm}[1]{\ensuremath{\begin{bsmallmatrix} #1 \end{bsmallmatrix}}} % Para crear matrices con [] chicas
+\newcommand{\ppm}[1]{\ensuremath{\begin{pmatrix} #1 \end{pmatrix}}} % Para crear matrices con ()
+\newcommand{\psm}[1]{\ensuremath{\begin{psmallmatrix} #1 \end{psmallmatrix}}} % Para crear matrices con () chicas
+
+%% Sumatoria (\sumatoria{desde}{hasta}{expresión})
+\newcommand{\sumatoria}[3]{\ensuremath{\sum_{#1}^{#2} #3}}
+
+%% Productoria (\productoria{desde}{hasta}{expresión})
+\newcommand{\productoria}[3]{\ensuremath{\prod_{#1}^{#2} #3}}
+
+%% Otros
+\newcommand{\ds}{\displaystyle}
+\newcommand{\on}{\operatorname}
+\newcommand{\p}{\partial}
+\newcommand{\dd}{\mathop{}\!\mathrm{d}}
+\newcommand{\ts}{\textsuperscript}
+\newcommand{\tsub}{\textsubscript}
+
+% Derivadas totales
+\newcommand{\dv}[3][]{\frac{\dd^{#1} #2}{\dd #3^{#1}}} % Ej: $\dv[orden]{f}{respecto de}$
+% Derivadas parciales
+\newcommand{\pdv}[3][]{\frac{\p^{#1} #2}{\p #3^{#1}}} % Ej: $\pdv[orden]{f}{respecto de}$
+
+% Agregar numero de ecuacion inline
+\newcommand\inlineeqno{\stepcounter{equation}\ (\theequation)}
+% uso: $ e_{33} = 0 \inlineeqno $
+
+% Macro para el simbolo del electron
+\newcommand{\el}{e^{\text{-}}}
+
+

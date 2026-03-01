@@ -1,0 +1,27 @@
+
+\section{Arquitectura general}
+% GUIA:
+% - Diagrama de bloques:
+%   D435i -> ROS2 (driver) -> pipeline percepción -> matriz compacta + mapa local -> tópicos -> serial -> (MCU etapa 2)
+% - Aclarar que MCU/háptica es futura.
+
+\section{Adquisición de datos con Intel RealSense D435i}
+% GUIA:
+% - Cómo se integra en ROS2 (paquete Intel).
+% - Qué tópicos se usan (genérico si aún no fijaste nombres).
+
+\section{Plataforma embebida}
+% GUIA:
+% - Raspberry Pi (modelo a determinar) como referencia.
+% - Criterio de fallback a plataforma más potente si no cumple (ej Jetson Nano, como en tu plan).
+
+\section{Diseño de interfaces}
+\subsection{Interfaces ROS2}
+% GUIA:
+% - Tópicos publicados (matriz compacta, estado, debug, etc).
+% - Logging/rosbags para reproducibilidad.
+
+\subsection{Interfaz serial hacia microcontrolador}
+% GUIA:
+% - Formato general (matriz + timestamp/metadata si aplica).
+% - Restricciones de ancho de banda y frecuencia.

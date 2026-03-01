@@ -1,0 +1,27 @@
+%------------------------------ graphicx ----------------------------------
+%
+% Para incluir imágenes, el siguiente código carga el paquete graphicx 
+% según se esté generando un archivo dvi o un pdf (con pdflatex). 
+%
+\newif\ifpdf
+\ifx\pdfoutput\undefined
+	\pdffalse
+\else
+	\pdfoutput=1
+	\pdftrue
+\fi
+
+\ifpdf
+	\usepackage[pdftex]{graphicx}
+	\pdfcompresslevel=9
+\else
+	\usepackage[dvips]{graphicx}
+\fi
+
+%
+% Todas las imágenes están en el directorio Imagenes:
+%
+\newcommand{\imgdir}{_Imagenes}
+\graphicspath{{\imgdir/}}
+%
+%------------------------------ graphicx ----------------------------------

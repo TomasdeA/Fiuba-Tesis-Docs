@@ -1,0 +1,245 @@
+% ==========================================================
+% CUERPO PRINCIPAL DE LA TESIS
+% Contenido alineado con el alcance/objetivos que definiste.
+% ==========================================================
+
+\chapter*{Resumen}
+\addcontentsline{toc}{chapter}{Resumen}
+% GUIA (tu proyecto):
+% - Problema: movilidad con ceguera/baja visión, limitaciones herramientas tradicionales y sensores puntuales.
+% - Objetivo de tesis: etapa 1 (captación + mapeo local compacto y estable en tiempo real).
+% - Sensor: Intel RealSense D435i (RGB-D + IMU).
+% - Output: matriz compacta baja resolución (ej 10x5) + tópicos ROS2 + interfaz serial.
+% - Mapeo local con memoria temporal + compensación por orientación usando IMU.
+% - Métricas: RMS error plano, latencia end-to-end, precisión/recall obstáculos, estabilidad temporal por celda, CPU/memoria.
+% - Cierre: viabilidad como módulo perceptual para futura interfaz háptica (etapa 2, fuera de alcance).
+
+\chapter{Introducción}
+
+\section{Contexto y motivación}
+% GUIA:
+% - Describir problemática y motivación (como en tu texto).
+% - Ventajas de profundidad vs sensores puntuales.
+% - Idea general del proyecto en dos etapas y dónde cae esta tesis.
+
+\section{Planteo del problema}
+% GUIA:
+% - Escribir el problema de ingeniería tal cual lo definiste:
+%   sistema embebido + tiempo real + baja latencia + representación compacta estable.
+% - Aclarar restricciones: portabilidad, cómputo limitado, estabilidad temporal.
+
+\section{Objetivos}
+\subsection{Objetivo del proyecto}
+% GUIA:
+% - Mencionar proyecto completo (2 etapas) solo para contexto.
+
+\subsection{Objetivo de la tesis}
+% GUIA:
+% - Enunciar que esta tesis cubre "captación del entorno y mapeo local" únicamente.
+
+\subsection{Objetivos técnicos}
+% GUIA:
+% - Pipeline RGB-D en ROS2 con D435i
+% - Filtrado espacial/temporal
+% - Agregación/reducción (matriz baja res)
+% - Publicación ROS2 + salida serial
+% - Mapa local con memoria + IMU para compensación orientación
+% - Calibración/ajuste de parámetros por pruebas experimentales
+
+\section{Alcance y exclusiones}
+% GUIA:
+% - IN: percepción + representación compacta + mapa local + IMU + publicación + serial.
+% - OUT: diseño/implementación de interfaz háptica, actuadores, validación con usuarios finales, integración final portátil completa.
+% - Plataforma: Raspberry Pi (modelo a determinar) o alternativa si no da tiempos.
+
+\section{Organización del documento}
+% GUIA:
+% - Resumen de capítulos.
+
+\chapter{Marco teórico}
+
+\section{Percepción de profundidad por visión estéreo (RGB-D)}
+% GUIA:
+% - Conceptos de disparidad, profundidad, ruido, limitaciones típicas.
+% - Qué entrega la D435i a nivel datos (sin entrar en datasheet si no querés).
+
+\section{Representaciones espaciales locales para evitación de obstáculos}
+% GUIA:
+% - Mapas locales vs globales
+% - Motivación de local/reactivo (mencionar línea Brock \& Khatib si corresponde a tu biblio).
+
+\section{Filtrado espacial y temporal en mapas de profundidad}
+% GUIA:
+% - Qué se busca: reducción de ruido + estabilidad.
+% - Principios generales (sin comprometerte a un filtro específico si todavía no lo cerraste).
+
+\section{Compensación por orientación e integración IMU}
+% GUIA:
+% - Rol de la IMU: estimar orientación del sensor y compensar cambios de pose.
+% - Conceptos generales: frames, rotaciones, alineación temporal.
+
+\section{Métricas de evaluación para sistemas de percepción/mapeo}
+% GUIA:
+% - RMS en plano/geométrico, latencia end-to-end, precisión/recall, estabilidad temporal, consumo CPU/mem.
+
+\chapter{Estado del arte}
+
+\section{Dispositivos de asistencia con retroalimentación háptica}
+% GUIA:
+% - Los 3 que listaste (chaleco, bastón, pulsera).
+% - Enfatizar limitaciones: resolución espacial, dependencia del brazo/cuerpo, alcance.
+
+\section{Mapeo local y evitación de obstáculos en robótica móvil}
+% GUIA:
+% - Trabajos/ideas de uso de mapas locales, representaciones compactas.
+% - Sensores RGB-D/estéreo con IMU y estabilidad ante movimiento.
+
+\section{Discusión comparativa y posicionamiento}
+% GUIA:
+% - ¿Qué aporta tu tesis?: validación/adaptación de métodos robóticos al contexto de asistencia sensorial.
+% - Por qué representación compacta (10x5 ej) es útil como interfaz hacia actuadores.
+
+\chapter{Arquitectura del sistema}
+
+\section{Arquitectura general}
+% GUIA:
+% - Diagrama de bloques:
+%   D435i -> ROS2 (driver) -> pipeline percepción -> matriz compacta + mapa local -> tópicos -> serial -> (MCU etapa 2)
+% - Aclarar que MCU/háptica es futura.
+
+\section{Adquisición de datos con Intel RealSense D435i}
+% GUIA:
+% - Cómo se integra en ROS2 (paquete Intel).
+% - Qué tópicos se usan (genérico si aún no fijaste nombres).
+
+\section{Plataforma embebida}
+% GUIA:
+% - Raspberry Pi (modelo a determinar) como referencia.
+% - Criterio de fallback a plataforma más potente si no cumple (ej Jetson Nano, como en tu plan).
+
+\section{Diseño de interfaces}
+\subsection{Interfaces ROS2}
+% GUIA:
+% - Tópicos publicados (matriz compacta, estado, debug, etc).
+% - Logging/rosbags para reproducibilidad.
+
+\subsection{Interfaz serial hacia microcontrolador}
+% GUIA:
+% - Formato general (matriz + timestamp/metadata si aplica).
+% - Restricciones de ancho de banda y frecuencia.
+
+\chapter{Diseño del método (pipeline de percepción)}
+
+\section{Preprocesamiento de profundidad}
+% GUIA:
+% - ROI (si aplica), recorte por rango, manejo de valores inválidos.
+% - Filtrado espacial (genérico si no definiste cuál).
+
+\section{Agregación y reducción de dimensionalidad}
+% GUIA:
+% - Cómo pasás de mapa denso a matriz baja res (ej 10x5).
+% - Qué representa cada celda (mínimo/mediana/promedio/etc) -> si no está decidido, dejar como "estrategias evaluadas".
+
+\section{Representación compacta instantánea}
+% GUIA:
+% - Definición formal del output instantáneo por frame.
+
+\section{Mapa local de corto alcance (memoria temporal)}
+% GUIA:
+% - Separación conceptual entre instantáneo y memoria.
+% - Estrategia de fusión temporal y decaimiento/olvido.
+% - Objetivo: robustez ante oclusiones y cambios de orientación.
+
+\section{Integración de IMU para compensación}
+% GUIA:
+% - Cómo usás orientación para compensar/estabilizar el mapa local.
+% - Alineación temporal IMU vs depth.
+
+\section{Parámetros y calibración}
+% GUIA:
+% - Umbrales numéricos y criterios de decisión.
+% - Cómo los vas a ajustar en etapa de calibración y pruebas.
+
+\chapter{Implementación en ROS2}
+
+\section{Estructura de paquetes y nodos}
+% GUIA:
+% - Paquete(s) implementados.
+% - Nodos y responsabilidades (adquisición, procesamiento, serial, etc).
+% - Configuración (params YAML) si aplica.
+
+\section{Publicación y herramientas de experimentación}
+% GUIA:
+% - Uso de rosbag para registrar.
+% - Trazabilidad de experimentos (versionado, configs).
+
+\section{Implementación de la transmisión serial}
+% GUIA:
+% - Serialización de matriz.
+% - Frecuencia, buffering, validación básica.
+
+\chapter{Metodología experimental}
+
+\section{Escenarios controlados}
+% GUIA:
+% - Referencias geométricas simples (plano) para error de profundidad.
+% - Escenarios de obstáculos controlados (definir "obstáculo" operativamente).
+
+\section{Métricas y criterios de evaluación}
+% GUIA:
+% (i) RMS en plano
+% (ii) latencia end-to-end
+% (iii) precisión/recall obstáculos
+% (iv) estabilidad temporal por celda (variación)
+% (v) consumo CPU/mem
+
+\section{Instrumentación y procedimiento}
+% GUIA:
+% - Cómo medís latencia (timestamps, profiling).
+% - Cómo medís CPU/mem (herramientas Linux).
+% - Cómo rotulás ground truth en escenarios simples (sin inventar: describir metodología elegida).
+
+\chapter{Resultados}
+
+\section{Precisión de profundidad en escenarios controlados}
+% GUIA:
+% - Tablas/gráficos RMS por condición.
+
+\section{Latencia end-to-end}
+% GUIA:
+% - Distribución/estadísticos y discusión vs requisitos.
+
+\section{Detección de obstáculos}
+% GUIA:
+% - Precisión/recall, casos de falla.
+
+\section{Estabilidad temporal del mapa local}
+% GUIA:
+% - Métrica por celda y ejemplos.
+
+\section{Consumo de recursos}
+% GUIA:
+% - CPU/mem en plataforma objetivo.
+
+\chapter{Discusión}
+% GUIA:
+% - Trade-offs: estabilidad vs latencia vs pérdida de detalle por reducción.
+% - Limitaciones (hardware, ruido, movimiento).
+% - Qué se demostró viable y qué queda abierto.
+
+\chapter{Conclusiones}
+% GUIA:
+% - Resumen de aportes concretos:
+%   (1) pipeline percepción en ROS2 con salida compacta
+%   (2) mapa local con memoria + IMU
+%   (3) evaluación cuantitativa con métricas
+% - Conclusión de viabilidad para etapa 2.
+
+\chapter{Trabajo futuro}
+% GUIA:
+% - Traducción a interfaz háptica (etapa 2)
+% - Integración portátil completa
+% - Validación con usuarios
+% - Optimización/porting a hardware definitivo
+
+% Fin del contenido principal

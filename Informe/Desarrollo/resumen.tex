@@ -1,0 +1,15 @@
+% GUIA (tu proyecto):
+% - Problema: movilidad con ceguera/baja visión, limitaciones herramientas tradicionales y sensores puntuales.
+% - Objetivo de tesis: etapa 1 (captación + mapeo local compacto y estable en tiempo real).
+% - Sensor: Intel RealSense D435i (RGB-D + IMU).
+% - Output: matriz compacta baja resolución (ej 10x5) + tópicos ROS2 + interfaz serial.
+% - Mapeo local con memoria temporal + compensación por orientación usando IMU.
+% - Métricas: RMS error plano, latencia end-to-end, precisión/recall obstáculos, estabilidad temporal por celda, CPU/memoria.
+% - Cierre: viabilidad como módulo perceptual para futura interfaz háptica (etapa 2, fuera de alcance).
+Este trabajo se encuadra en la modalidad \textit{Tesis de Ingeniería Electrónica} y corresponde a la primera etapa de un proyecto de investigación y desarrollo estructurado en dos fases complementarias: (i) captación del entorno y mapeo local, y (ii) traducción de dicha representación a una interfaz háptica. La presente tesis aborda exclusivamente la primera etapa.
+
+El objetivo técnico es desarrollar e implementar un módulo de percepción en ROS2 que, utilizando una cámara Intel RealSense D435i, genere en tiempo real una representación compacta del entorno a partir de información de profundidad. El sistema procesa datos RGB-D mediante filtrado espacial y temporal, aplica estrategias de agregación y reducción de dimensionalidad y produce como salida una matriz estructurada de baja resolución (por ejemplo, \(10 \times 5\)) que preserva información espacial relevante para la detección de obstáculos. Asimismo, el módulo publica resultados en tópicos ROS2 estandarizados y provee una interfaz serial para transmitir la matriz compacta a un microcontrolador encargado del control de actuadores hápticos, cuya implementación corresponde a la segunda etapa del proyecto.
+
+Adicionalmente, se implementa una capa de mapeo local de corto alcance destinada a conservar información reciente de obstáculos y reutilizarla como mecanismo de protección frente a oclusiones temporales y cambios de orientación del sensor. Para ello se incorpora información de una unidad de medición inercial (IMU) integrada en el sensor, con el fin de estimar la orientación y compensar cambios de pose durante la construcción y actualización del mapa local.
+
+El desempeño del sistema se evalúa mediante métricas cuantitativas orientadas a caracterizar precisión, estabilidad y desempeño temporal: error de profundidad en escenarios controlados mediante referencias geométricas simples, latencia end-to-end (captura \(\rightarrow\) procesamiento \(\rightarrow\) transmisión), desempeño en detección de obstáculos (precisión y \textit{recall}), estabilidad temporal del mapa local y consumo de recursos computacionales (CPU y memoria).
