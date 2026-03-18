@@ -1,98 +1,139 @@
-@misc{RS-D457,
-  title        = "Intel® RealSenseTM Product Family D457 -Datasheet",
-  author       = "Intel® RealSenseTM",
-  edition      = "Revision 004",
-  year         = "March 2024",
-  note         = "\href{https://www.intelrealsense.com/depth-camera-d457/}{Link}"
+% ----- Referencias agregadas para el capítulo de estado del arte -----
+
+% Trabajo seminal sobre sustitución sensorial táctil (tacto-visión).
+% Buscar PDF en: https://scholar.google.com/scholar?q=Bach-y-Rita+Vision+Substitution+Tactile+1969
+@article{BachyRita1969,
+  author  = {Paul Bach-y-Rita and Carter C. Collins and Frank A. Saunders and Benjamin White and Lawrence Scadden},
+  title   = {Vision Substitution by Tactile Image Projection},
+  journal = {Nature},
+  volume  = {221},
+  number  = {5184},
+  pages   = {963--964},
+  year    = {1969},
+  doi     = {10.1038/221963a0}
+}
+
+% Survey exhaustivo de dispositivos electrónicos de ayuda a la movilidad para ciegos.
+% Buscar PDF en: https://scholar.google.com/scholar?q=Dakopoulos+Bourbakis+Wearable+Obstacle+Avoidance+2010
+@article{Dakopoulos2010,
+  author  = {Dimitrios Dakopoulos and Nikolaos G. Bourbakis},
+  title   = {Wearable Obstacle Avoidance Electronic Travel Aids for Blind: A Survey},
+  journal = {IEEE Transactions on Systems, Man, and Cybernetics, Part C: Applications and Reviews},
+  volume  = {40},
+  number  = {1},
+  pages   = {25--35},
+  year    = {2010},
+  doi     = {10.1109/TSMCC.2009.2021255}
+}
+
+% Expansión del área transitable detectada con sensor Intel RealSense para asistencia a invidentes.
+% Artículo verificado en: https://doi.org/10.3390/s16111954
+@article{Yang2016,
+  author  = {Kailun Yang and Kaiwei Wang and Weijian Hu and Jian Bai},
+  title   = {Expanding the Detection of Traversable Area with {RealSense} for the Visually Impaired},
+  journal = {Sensors},
+  volume  = {16},
+  number  = {11},
+  pages   = {1954},
+  year    = {2016},
+  doi     = {10.3390/s16111954}
+}
+
+@misc{RS-D400,
+  title   = {D400 Series Product Family - Datasheet},
+  author  = {Intel® RealSenseTM},
+  edition = {Revision 005},
+  year    = {2019},
+  note    = {\href{https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://cdrdv2-public.intel.com/841984/Intel-RealSense-D400-Series-Datasheet.pdf&ved=2ahUKEwiD1LXhiqiTAxWvGbkGHUPRLqcQFnoECA4QAQ&usg=AOvVaw1TZUq5vTGmxqseVjVH-2oi}{download-datasheet}}
 }
 
 @article{Durrant-Whyte2006,
-  author = {Hugh Durrant-Whyte and Tim Bailey},
-  title = {Simultaneous Localization and Mapping: Part I},
+  author  = {Hugh Durrant-Whyte and Tim Bailey},
+  title   = {Simultaneous Localization and Mapping: Part I},
   journal = {IEEE Robotics and Automation Magazine},
-  year = {2006},
-  volume = {13},
-  number = {2},
-  pages = {99--110},
-  doi = {10.1109/MRA.2006.1638022}
+  year    = {2006},
+  volume  = {13},
+  number  = {2},
+  pages   = {99--110},
+  doi     = {10.1109/MRA.2006.1638022}
 }
 
 @misc{ROS,
-  author = {{Open Source Robotics Foundation}},
-  title = {{ROS: Robot Operating System}},
-  year = {2007},
+  author       = {{Open Source Robotics Foundation}},
+  title        = {{ROS: Robot Operating System}},
+  year         = {2007},
   howpublished = {\url{https://www.ros.org/}},
-  note = {Accessed: 2024-10-04}
+  note         = {Accessed: 2024-10-04}
 }
 
 @article{Bhat2023,
-  title={ZoeDepth: Zero-shot Transfer by Combining Relative and Metric Depth},
-  author={Shariq Farooq Bhat and Ibraheem Alhashim and Peter Wonka},
-  journal={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-  year={2023},
-  url={https://arxiv.org/abs/2302.12288},
+  title   = {ZoeDepth: Zero-shot Transfer by Combining Relative and Metric Depth},
+  author  = {Shariq Farooq Bhat and Ibraheem Alhashim and Peter Wonka},
+  journal = {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+  year    = {2023},
+  url     = {https://arxiv.org/abs/2302.12288}
 }
 
 @article{Ranftl2020,
-  title={Towards Robust Monocular Depth Estimation: Mixing Datasets for Zero-shot Cross-dataset Transfer},
-  author={René Ranftl and Katrin Lasinger and David Hafner and Konrad Schindler and Vladlen Koltun},
-  journal={IEEE Transactions on Pattern Analysis and Machine Intelligence},
-  year={2022},
-  url={https://arxiv.org/abs/1907.01341},
+  title   = {Towards Robust Monocular Depth Estimation: Mixing Datasets for Zero-shot Cross-dataset Transfer},
+  author  = {René Ranftl and Katrin Lasinger and David Hafner and Konrad Schindler and Vladlen Koltun},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  year    = {2022},
+  url     = {https://arxiv.org/abs/1907.01341}
 }
 
 @article{Yuan2022,
-  title={NeWCRFs: Neural Window Fully-connected CRFs for Monocular Depth Estimation},
-  author={Weihao Yuan and Yuchao Dai and Zhenyu Li and Bo Li},
-  journal={Advances in Neural Information Processing Systems (NeurIPS)},
-  year={2022},
-  url={https://arxiv.org/abs/2203.01502},
+  title   = {NeWCRFs: Neural Window Fully-connected CRFs for Monocular Depth Estimation},
+  author  = {Weihao Yuan and Yuchao Dai and Zhenyu Li and Bo Li},
+  journal = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year    = {2022},
+  url     = {https://arxiv.org/abs/2203.01502}
 }
 
 
 @misc{JetsonNano,
-  title        = {NVIDIA Jetson Nano Developer Kit},
-  author       = {NVIDIA Corporation},
-  year         = {2019},
-  url          = {https://developer.nvidia.com/embedded/jetson-nano-developer-kit},
-  note         = {Accessed: 2024-10-04}
+  title  = {NVIDIA Jetson Nano Developer Kit},
+  author = {NVIDIA Corporation},
+  year   = {2019},
+  url    = {https://developer.nvidia.com/embedded/jetson-nano-developer-kit},
+  note   = {Accessed: 2024-10-04}
 }
 
 @misc{RaspberryPi,
-  title        = {Raspberry Pi Documentation},
-  author       = {Raspberry Pi Foundation},
-  year         = {2012},
-  url          = {https://www.raspberrypi.org/documentation/},
-  note         = {Accessed: 2024-10-04}
+  title  = {Raspberry Pi Documentation},
+  author = {Raspberry Pi Foundation},
+  year   = {2012},
+  url    = {https://www.raspberrypi.org/documentation/},
+  note   = {Accessed: 2024-10-04}
 }
 
 @article{Lafferty2001,
-  title={Conditional Random Fields: Probabilistic Models for Segmenting and Labeling Sequence Data},
-  author={John D. Lafferty, Andrew McCallum, and Fernando C.N. Pereira},
-  journal={Proceedings of the 18th International Conference on Machine Learning (ICML)},
-  year={2001},
-  pages={282--289},
-  url={https://repository.upenn.edu/cis_papers/159/}
+  title   = {Conditional Random Fields: Probabilistic Models for Segmenting and Labeling Sequence Data},
+  author  = {John D. Lafferty, Andrew McCallum, and Fernando C.N. Pereira},
+  journal = {Proceedings of the 18th International Conference on Machine Learning (ICML)},
+  year    = {2001},
+  pages   = {282--289},
+  url     = {https://repository.upenn.edu/cis_papers/159/}
 }
 
 @article{Novich2015,
-  author    = {Scott D. Novich and David M. Eagleman},
-  title     = {Using space and time to encode vibrotactile information: toward an estimate of the skin's achievable throughput},
-  journal   = {Experimental Brain Research},
-  year      = {2015},
-  volume    = {233},
-  number    = {10},
-  pages     = {2777--2788},
-  doi       = {10.1007/s00221-015-4346-1},
-  url       = {https://eagleman.com/papers/novich_eagleman_2015.pdf}
+  author  = {Scott D. Novich and David M. Eagleman},
+  title   = {Using space and time to encode vibrotactile information: toward an estimate of the skin's achievable throughput},
+  journal = {Experimental Brain Research},
+  year    = {2015},
+  volume  = {233},
+  number  = {10},
+  pages   = {2777--2788},
+  doi     = {10.1007/s00221-015-4346-1},
+  url     = {https://eagleman.com/papers/novich_eagleman_2015.pdf}
 }
 
 @article{Santos2023,
-  author    = {Vagner Santos and Raphael B. Medeiros and Maurício T. Rocha and Danilo S. Oliveira and Thiago P. Gonçalves and Kleber T. Sousa and Valdir Grassi},
-  title     = {Wearable Haptic Device as Mobility Aid for Blind People: Electronic Cane - Wearable Device for Mobility of Blind People},
-  journal   = {ResearchGate},
-  year      = {2023},
-  url       = {https://www.researchgate.net/profile/Vagner-Dos-Santos-3/publication/367149471_Wearable_Haptic_Device_as_Mobility_Aid_for_Blind_People_Electronic_Cane_-Wearable_Device_for_Mobility_of_Blind_People/links/63ceccf66fe15d6a57426662/Wearable-Haptic-Device-as-Mobility-Aid-for-Blind-People-Electronic-Cane-Wearable-Device-for-Mobility-of-Blind-People.pdf}
+  author  = {Vagner Santos and Raphael B. Medeiros and Maurício T. Rocha and Danilo S. Oliveira and Thiago P. Gonçalves and Kleber T. Sousa and Valdir Grassi},
+  title   = {Wearable Haptic Device as Mobility Aid for Blind People: Electronic Cane - Wearable Device for Mobility of Blind People},
+  journal = {ResearchGate},
+  year    = {2023},
+  url     = {https://www.researchgate.net/profile/Vagner-Dos-Santos-3/publication/367149471_Wearable_Haptic_Device_as_Mobility_Aid_for_Blind_People_Electronic_Cane_-Wearable_Device_for_Mobility_of_Blind_People/links/63ceccf66fe15d6a57426662/Wearable-Haptic-Device-as-Mobility-Aid-for-Blind-People-Electronic-Cane-Wearable-Device-for-Mobility-of-Blind-People.pdf}
 }
 
 @article{Petsiuk2019UltrasoundNavigation,
@@ -119,7 +160,7 @@
 
 %Nuevas
 
-@InProceedings{sturm12iros,
+@inproceedings{sturm12iros,
   author    = {J. Sturm and N. Engelhard and F. Endres and W. Burgard and D. Cremers},
   title     = {A Benchmark for the Evaluation of RGB-D SLAM Systems},
   booktitle = {Proc. of the International Conference on Intelligent Robot Systems (IROS)},
@@ -169,13 +210,187 @@
   doi     = {10.1109/TRO.2015.2463671}
 }
 
+% ---- Referencias agregadas para el análisis del mapper local ----
+
+@article{Elfes1989,
+  author  = {Alberto Elfes},
+  title   = {Using Occupancy Grids for Mobile Robot Perception and Navigation},
+  journal = {Computer},
+  volume  = {22},
+  number  = {6},
+  pages   = {46--57},
+  year    = {1989},
+  doi     = {10.1109/2.30720}
+}
+
+@book{Thrun2005,
+  author    = {Sebastian Thrun and Wolfram Burgard and Dieter Fox},
+  title     = {Probabilistic Robotics},
+  publisher = {MIT Press},
+  year      = {2005},
+  isbn      = {978-0-262-20162-9}
+}
+%https://ohiostate.pressbooks.pub/app/uploads/sites/45/2017/09/bresenham.pdf
+@article{Bresenham1965,
+  author  = {Jack E. Bresenham},
+  title   = {Algorithm for Computer Control of a Digital Plotter},
+  journal = {IBM Systems Journal},
+  volume  = {4},
+  number  = {1},
+  pages   = {25--30},
+  year    = {1965},
+  doi     = {10.1147/sj.41.0025}
+}
+
+@article{Madgwick2010,
+  author  = {Sebastian O. H. Madgwick and Andrew J. L. Harrison and Ravi Vaidyanathan},
+  title   = {Estimation of {IMU} and {MARG} orientation using a gradient descent algorithm},
+  journal = {2011 IEEE International Conference on Rehabilitation Robotics},
+  pages   = {1--7},
+  year    = {2011},
+  doi     = {10.1109/ICORR.2011.5975346}
+}
+
+@inproceedings{Besl1992,
+  author    = {Paul J. Besl and Neil D. McKay},
+  title     = {A Method for Registration of 3-{D} Shapes},
+  booktitle = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume    = {14},
+  number    = {2},
+  pages     = {239--256},
+  year      = {1992},
+  doi       = {10.1109/34.121791}
+}
+
+@techreport{Woodman2007,
+  author      = {Oliver J. Woodman},
+  title       = {An introduction to inertial navigation},
+  institution = {University of Cambridge, Computer Laboratory},
+  number      = {UCAM-CL-TR-696},
+  year        = {2007},
+  url         = {https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-696.pdf}
+}
+
+@inproceedings{Mourikis2007,
+  author    = {Anastasios I. Mourikis and Stergios I. Roumeliotis},
+  title     = {A Multi-State Constraint {Kalman} Filter for Vision-aided Inertial Navigation},
+  booktitle = {Proceedings of the IEEE International Conference on Robotics and Automation (ICRA)},
+  pages     = {3565--3572},
+  year      = {2007},
+  doi       = {10.1109/ROBOT.2007.364024}
+}
+
+@article{Qin2018,
+  author  = {Tong Qin and Peiliang Li and Shaojie Shen},
+  title   = {{VINS-Mono}: A Robust and Versatile Monocular Visual-Inertial State Estimator},
+  journal = {IEEE Transactions on Robotics},
+  volume  = {34},
+  number  = {4},
+  pages   = {1004--1020},
+  year    = {2018},
+  doi     = {10.1109/TRO.2018.2853729}
+}
+
+@article{Engel2018,
+  author  = {Jakob Engel and Vladlen Koltun and Daniel Cremers},
+  title   = {Direct Sparse Odometry},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {40},
+  number  = {3},
+  pages   = {611--625},
+  year    = {2018},
+  doi     = {10.1109/TPAMI.2017.2658577}
+}
+
+@book{Hartley2004,
+  author    = {Richard Hartley and Andrew Zisserman},
+  title     = {Multiple View Geometry in Computer Vision},
+  edition   = {2},
+  publisher = {Cambridge University Press},
+  year      = {2004},
+  isbn      = {978-0-521-54051-3}
+}
+% http://www.r-5.org/files/books/computers/algo-list/image-processing/vision/Richard_Hartley_Andrew_Zisserman-Multiple_View_Geometry_in_Computer_Vision-EN.pdf
+
+@article{Scharstein2002,
+  author  = {Daniel Scharstein and Richard Szeliski},
+  title   = {A Taxonomy and Evaluation of Dense Two-Frame Stereo Correspondence Algorithms},
+  journal = {International Journal of Computer Vision},
+  year    = {2002},
+  volume  = {47},
+  number  = {1-3},
+  pages   = {7--42},
+  doi     = {10.1023/A:1014573219977},
+  url     = {https://link.springer.com/article/10.1023/A:1014573219977}
+}
+% https://vision.middlebury.edu/stereo/taxonomy-IJCV.pdf
+
+@misc{REP103,
+  author       = {{ROS Enhancement Proposals}},
+  title        = {{REP-103}: Standard Units of Measure and Coordinate Conventions},
+  year         = {2010},
+  howpublished = {\url{https://www.ros.org/reps/rep-0103.html}},
+  note         = {Accessed: 2026}
+}
+
 %Justifica porque es mejor usar un mapa local:
 @inproceedings{brock1999high,
-  title={High-Speed Navigation Using the Global Dynamic Window Approach},
-  author={Brock, Oliver and Khatib, Oussama},
-  booktitle={Proceedings of the IEEE International Conference on Robotics and Automation (ICRA)},
-  pages={341--346},
-  year={1999},
-  doi={10.1109/ROBOT.1999.770002},
-  url={https://khatib.stanford.edu/publications/pdfs/Brock_1999_ICRA.pdf}
+  title     = {High-Speed Navigation Using the Global Dynamic Window Approach},
+  author    = {Brock, Oliver and Khatib, Oussama},
+  booktitle = {Proceedings of the IEEE International Conference on Robotics and Automation (ICRA)},
+  pages     = {341--346},
+  year      = {1999},
+  doi       = {10.1109/ROBOT.1999.770002},
+  url       = {https://khatib.stanford.edu/publications/pdfs/Brock_1999_ICRA.pdf}
+}
+
+% Reducción espacial y estadísticas de celda
+@book{gonzalez2018digital,
+  author    = {Rafael C. Gonzalez and Richard E. Woods},
+  title     = {Digital Image Processing},
+  publisher = {Pearson},
+  year      = {2018},
+  edition   = {4th},
+  isbn      = {978-0133356724}
+}
+
+% Agregación mínima en mapas de ocupación
+@inproceedings{hornung2013octomap,
+  author    = {Armin Hornung and Kai M. Wurm and Maren Bennewitz and Cyrill Stachniss and Wolfram Burgard},
+  title     = {{OctoMap}: An Efficient Probabilistic 3D Mapping Framework Based on Octrees},
+  booktitle = {Autonomous Robots},
+  year      = {2013},
+  volume    = {34},
+  pages     = {189--206},
+  doi       = {10.1007/s10514-012-9321-0},
+  url       = {https://octomap.github.io}
+}
+
+% Convención row-major C++
+@book{stroustrup2013cpp,
+  author    = {Bjarne Stroustrup},
+  title     = {The C++ Programming Language},
+  publisher = {Addison-Wesley},
+  year      = {2013},
+  edition   = {4th},
+  isbn      = {978-0321563842}
+}
+
+% CRC-8 SMBUS
+@techreport{smbus2000,
+  author      = {{SBS Implementers Forum}},
+  title       = {System Management Bus ({SMBus}) Specification, Version 2.0},
+  institution = {SBS Implementers Forum},
+  year        = {2000},
+  url         = {http://smbus.org/specs/smbus20.pdf},
+  note        = {Sección 4.1.1: Packet Error Code (CRC-8)}
+}
+
+% ESP32 UART baudrate y oscilador
+@manual{espressif2023esp32,
+  author = {{Espressif Systems}},
+  title  = {{ESP32} Technical Reference Manual, Version 5.1},
+  year   = {2023},
+  url    = {https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf},
+  note   = {Cap.\ 13: UART Controller}
 }

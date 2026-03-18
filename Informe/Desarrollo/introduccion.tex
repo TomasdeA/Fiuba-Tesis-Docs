@@ -1,80 +1,108 @@
-\chapter{Introducción}
-
 \section{Contexto y motivación}
-% GUIA:
-% - Describir problemática y motivación (como en tu texto).
-% - Ventajas de profundidad vs sensores puntuales.
-% - Idea general del proyecto en dos etapas y dónde cae esta tesis.
 
 Las personas con ceguera o baja visión enfrentan dificultades significativas al desplazarse por entornos desconocidos o dinámicos.
-Las herramientas de asistencia tradicionales, como el bastón blanco o los perros guía, presentan limitaciones en alcance, resolución espacial
-y capacidad de anticipación frente a obstáculos no detectables a corta distancia.
+Las herramientas de asistencia tradicionales, como el bastón blanco o los perros guía, presentan limitaciones en alcance,
+resolución espacial y capacidad de anticipación frente a obstáculos no detectables a corta distancia.
+En particular, estos métodos no advierten eficazmente objetos a altura de cabeza (ramas, cables, señales colgantes u otros
+elementos sobresalientes) cuya detección requiere cobertura vertical que los sensores puntuales no pueden proveer.
 
-En los últimos años han surgido dispositivos electrónicos de asistencia que incorporan sensores activos; sin embargo, gran parte de las
-soluciones existentes se basa en sensores puntuales de corto alcance, lo que restringe la cantidad y calidad de información espacial
-disponible para el usuario. En este contexto, resulta relevante explorar el uso de sensores visuales de profundidad como medio para obtener
-representaciones espaciales más ricas del entorno inmediato, manteniendo al mismo tiempo portabilidad, baja latencia y simplicidad de interacción.
+En los últimos años han surgido dispositivos electrónicos de asistencia que incorporan sensores activos
+\cite{Novich2015, Santos2023, Petsiuk2019UltrasoundNavigation}.
+Sin embargo, gran parte de esas soluciones se basa en sensores puntuales de corto alcance, lo que restringe la cantidad
+y calidad de información espacial disponible para el usuario.
+En contraste, los sensores de profundidad por visión estéreo activa, como la familia Intel RealSense \cite{RS-D400},
+permiten obtener un mapa denso del entorno con cobertura bidimensional del campo visual, manteniendo al mismo tiempo portabilidad y baja latencia.
+
+El presente trabajo se enmarca en el principio de neuroplasticidad sensorial, según el cual el cerebro puede reorganizarse
+para explotar de manera más eficiente los sentidos restantes cuando la visión está reducida o ausente.
+Sobre esa base, el proyecto global del que forma parte esta tesis busca diseñar un sistema portátil capaz de traducir
+información espacial visual en estímulos hápticos interpretables para la navegación asistida.
 
 \section{Planteo del problema}
-% GUIA:
-% - Escribir el problema de ingeniería tal cual lo definiste:
-%   sistema embebido + tiempo real + baja latencia + representación compacta estable.
-% - Aclarar restricciones: portabilidad, cómputo limitado, estabilidad temporal.
 
-En el marco de la primera etapa del proyecto, el problema de ingeniería abordado consiste en diseñar un sistema embebido capaz de adquirir
-información tridimensional del entorno, procesarla en tiempo real y generar una representación compacta, estable y de baja latencia, adecuada
-para ser utilizada como entrada de una futura interfaz háptica de asistencia a la movilidad.
+El problema de ingeniería abordado en esta tesis consiste en diseñar un sistema embebido capaz de:
+\begin{enumerate}
+  \item adquirir información tridimensional del entorno mediante una cámara RGB-D con IMU integrada
+  \item procesarla en tiempo real sobre hardware de cómputo limitado
+  \item generar una representación compacta, estable y de baja latencia del espacio inmediato frente al usuario, adecuada para ser consumida por una futura interfaz háptica.
+\end{enumerate}
+
+Las restricciones determinantes del diseño son: portabilidad (el dispositivo se porta en la cabeza del usuario), cómputo embebido limitado (plataforma del orden de una Raspberry Pi 5 \cite{RaspberryPi}), latencia extremo a extremo reducida y estabilidad temporal de la representación frente a oclusiones cambios de orientación del sensor.
 
 \section{Objetivos}
+
 \subsection{Objetivo del proyecto}
-% GUIA:
-% - Mencionar proyecto completo (2 etapas) solo para contexto.
 
-El objetivo final del proyecto es desarrollar un sistema portátil de asistencia sensorial que permita a personas con ceguera o baja visión
-percibir su entorno mediante estímulos táctiles, con el fin de mejorar su seguridad, autonomía y capacidad de desplazamiento independiente.
-
-El proyecto se estructura en dos etapas independientes: (i) captación del entorno y mapeo local (esta tesis) y (ii) traducción del mapa a una
-interfaz háptica.
+El objetivo final del proyecto es desarrollar un sistema portátil de asistencia sensorial que permita a personas con ceguera
+o baja visión percibir su entorno mediante estímulos táctiles, mejorando su seguridad, autonomía
+y capacidad de desplazamiento independiente.
+El proyecto se estructura en dos etapas complementarias: (i)~captación del entorno y mapeo local (objeto de esta tesis) y
+(ii)~traducción de dicha representación a una interfaz háptica, que constituirá un trabajo separado.
 
 \subsection{Objetivo de la tesis}
-% GUIA:
-% - Enunciar que esta tesis cubre "captación del entorno y mapeo local" únicamente.
 
-Esta tesis se centra en la primera etapa: la captación del entorno y la generación de un mapeo local compacto y estable en tiempo real.
+Esta tesis aborda exclusivamente la primera etapa: la captación del entorno y la generación de un mapeo local compacto
+y estable en tiempo real a partir de percepción RGB-D.
 
 \subsection{Objetivo técnico}
-% GUIA:
-% - Pipeline RGB-D en ROS2 con D435i
-% - Filtrado espacial/temporal
-% - Agregación/reducción (matriz baja res)
-% - Publicación ROS2 + salida serial
-% - Mapa local con memoria + IMU para compensación orientación
-% - Calibración/ajuste de parámetros por pruebas experimentales
 
-El objetivo técnico principal es desarrollar e implementar un módulo de percepción en ROS2 que, utilizando la cámara Intel RealSense D435i,
-genere en tiempo real una representación compacta del entorno a partir de información de profundidad, optimizada para su uso como entrada de
-una futura interfaz háptica de asistencia a la movilidad.
+El objetivo técnico es desarrollar e implementar en ROS2 \cite{ROS} un módulo de percepción que, utilizando la cámara
+Intel RealSense D435i \cite{RS-D400}, genere en tiempo real una representación compacta del entorno a partir de información
+de profundidad, optimizada para su uso como entrada de una futura interfaz háptica de asistencia a la movilidad.
+
+Específicamente, el módulo deberá:
+\begin{itemize}
+  \item procesar imágenes de profundidad \texttt{16UC1} mediante filtrado y reducción de dimensionalidad,
+        produciendo como salida una grilla estructurada de baja resolución (por ejemplo, $10\times5$ celdas) con estadísticas
+        por celda (media, mínimo, conteo de puntos válidos);
+  \item publicar resultados en tópicos ROS2 estandarizados y proveer una interfaz serial para la transmisión eficiente
+        de la grilla compacta hacia un microcontrolador externo;
+  \item implementar una capa de mapeo local de corto alcance basada en grillas de ocupación log-odds \cite{Elfes1989,Thrun2005},
+        con memoria temporal de obstáculos y mecanismo de desplazamiento egocéntrico (\emph{scroll});
+  \item incorporar información de la IMU integrada del sensor para estimar la orientación y compensar cambios de pose
+        durante la actualización del mapa local.
+\end{itemize}
+
+Los parámetros numéricos y umbrales de decisión se refinarán mediante una fase de calibración y pruebas experimentales.
 
 \section{Alcance}
-% GUIA:
-% - IN: percepción + representación compacta + mapa local + IMU + publicación + serial.
-% - OUT: diseño/implementación de interfaz háptica, actuadores, validación con usuarios finales, integración final portátil completa.
-% - Plataforma: Raspberry Pi (modelo a determinar) o alternativa si no da tiempos.
 
-La tesis incluye el desarrollo del módulo de percepción y la generación de una representación compacta instantánea de profundidad, junto con
-una capa de mapeo local de corto alcance con memoria temporal e integración de información inercial para compensación de orientación.
-Asimismo, se incluye la publicación de resultados en ROS2 y una interfaz serial para la transmisión eficiente de la matriz hacia un módulo externo.
+El alcance de esta tesis comprende:
+\begin{itemize}
+  \item el desarrollo del módulo de percepción y la generación de la representación compacta instantánea de profundidad
+  \item la capa de mapeo local de corto alcance con memoria temporal e integración de información inercial
+  \item la publicación de resultados en ROS2 y la interfaz serial hacia módulos externos
+  \item la evaluación experimental del sistema mediante métricas cuantitativas de precisión, latencia y consumo de recursos
+\end{itemize}
 
-Quedan fuera del alcance de esta tesis el diseño, implementación e integración de la interfaz háptica y los actuadores, así como la validación
-con usuarios finales. La plataforma embebida objetivo se definirá a partir de mediciones de rendimiento (CPU, memoria y latencia) durante el prototipado.
+Quedan \emph{fuera} del alcance de esta tesis el diseño, la implementación y la integración de la interfaz háptica
+y sus actuadores, así como la validación con usuarios finales.
+La plataforma embebida objetivo se seleccionará a partir de las mediciones de rendimiento (CPU, memoria y latencia)
+obtenidas durante el prototipado; la referencia inicial es una Raspberry Pi 5, con una plataforma alternativa
+(NVIDIA Jetson Nano \cite{JetsonNano}) en caso de que los requisitos temporales no sean satisfechos.
 
 \section{Organización del documento}
-% GUIA:
-% - Resumen de capítulos.
-El Capítulo~\ref{chap:marco-teorico} presenta los fundamentos teóricos relevantes.
-El Capítulo~\ref{chap:estado-arte} resume el estado del arte en dispositivos de asistencia y mapeo local.
-El Capítulo~\ref{chap:arquitectura} describe la arquitectura del sistema y su implementación en ROS2.
-El Capítulo~\ref{chap:metodo} detalla el diseño del pipeline de percepción y la generación del mapa local.
-El Capítulo~\ref{chap:experimentos} presenta la metodología experimental y métricas.
-El Capítulo~\ref{chap:resultados} expone los resultados obtenidos y su análisis.
-Finalmente, los Capítulos~\ref{chap:discusion}, ~\ref{chap:conclusiones} y ~\ref{chap:futuros}discuten las limitaciones, conclusiones y líneas de trabajo futuro.
+
+El presente documento se organiza de la siguiente manera.
+El Capítulo~\ref{chap:marco-teorico} desarrolla los fundamentos teóricos del sistema:
+percepción de profundidad por estereoscopía activa, modelo de cámara \emph{pinhole}, reducción espacial
+mediante partición en regiones de interés, grillas de ocupación log-odds, algoritmo de Bresenham,
+estimación de orientación con IMU y protocolo de comunicación serie.
+El Capítulo~\ref{chap:estado-arte} revisa el estado del arte en dispositivos de asistencia sensorial con
+retroalimentación háptica y en técnicas de mapeo local y evitación de obstáculos en robótica móvil,
+posicionando la contribución de esta tesis respecto de las soluciones existentes.
+El Capítulo~\ref{chap:arquitectura} describe la arquitectura modular del sistema implementada en ROS2,
+con sus dos \emph{pipelines} paralelos —captación compacta directa y mapeo local— y la topología de tópicos.
+El Capítulo~\ref{chap:metodo} detalla el diseño del \emph{pipeline} de percepción: preprocesamiento,
+agregación y reducción de dimensionalidad, representación instantánea, mapa local con grilla de ocupación
+y mecanismo de \emph{scroll} egocéntrico, compensación gravitacional y estimación de altura del suelo.
+El Capítulo~\ref{chap:implementacion} expone la implementación concreta en C++ y Python sobre ROS2,
+describiendo los nodos principales (\texttt{depth\_to\_matrix\_node}, \texttt{local\_mapper\_node},
+\texttt{haptic\_grid\_generator}, \texttt{hardware\_manager}) y las interfaces definidas.
+El Capítulo~\ref{chap:experimentos} presenta la metodología experimental, los escenarios de prueba y
+las métricas de evaluación utilizadas: error RMS de profundidad, latencia \emph{end-to-end},
+precisión y \textit{recall} de detección de obstáculos, estabilidad temporal por celda y consumo de recursos.
+El Capítulo~\ref{chap:resultados} expone los resultados empíricos obtenidos y su análisis cuantitativo.
+Finalmente, los Capítulos~\ref{chap:discusion}, \ref{chap:conclusiones} y~\ref{chap:futuro} discuten
+las limitaciones del enfoque, formulan las conclusiones del trabajo y proponen líneas de trabajo futuro,
+respectivamente.

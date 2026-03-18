@@ -1,32 +1,61 @@
 
-\section{Dispositivos de asistencia con retroalimentación háptica}
-% GUIA:
-% - Los 3 que listaste (chaleco, bastón, pulsera).
-% - Enfatizar limitaciones: resolución espacial, dependencia del brazo/cuerpo, alcance.
+\section{Fundamentos de la sustitución sensorial}
+\label{sec:ea-sustitucion}
 
-\section{Dispositivos de asistencia sensorial}
+El concepto de sustitución sensorial fue introducido por Bach-y-Rita et al.\ \cite{BachyRita1969}, quienes demostraron que información visual puede transmitirse al cerebro a través del canal táctil: una cámara proyectaba patrones de estimulación sobre la espalda del usuario mediante una matriz de actuadores mecánicos, permitiendo a personas ciegas reconocer objetos y figuras. Este resultado estableció la base experimental del principio de neuroplasticidad sensorial: el cerebro puede reorganizarse y aprender a interpretar señales de modalidades no originales cuando recibe información espacial consistente.
 
-Se analizaron trabajos previos relacionados con dispositivos de asistencia sensorial para personas con discapacidad visual.
-Entre propuestas representativas se destacan:
+La relevancia de este resultado para el presente proyecto reside en que la factibilidad de sustituir información visual por háptica no es una hipótesis, sino un hecho empíricamente establecido. Sin embargo, el trabajo de Bach-y-Rita empleaba una resolución de $20\times20$ taxeles y no era portátil; los dispositivos posteriores intentaron reducir esa brecha entre resolución, portabilidad y latencia, con distintos compromisos de diseño.
+
+\section{Dispositivos de asistencia sensorial para personas ciegas}
+\label{sec:ea-dispositivos}
+
+A partir del trabajo seminal de Bach-y-Rita, se desarrolló una amplia variedad de dispositivos electrónicos de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourbakis \cite{Dakopoulos2010} presentan un survey exhaustivo de estos sistemas, clasificándolos según el tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación (auditivo, háptico, voz) y la zona del cuerpo que instruyen (mano, muñeca, torso, cabeza). Los autores concluyen que ningún sistema disponible ofrece simultáneamente alta resolución espacial, amplio campo de detección, portabilidad y bajo costo computacional, y que la combinación de sensores de profundidad con retroalimentación háptica distribuida aparece como una dirección prometedora.
+
+Entre las propuestas más representativas de la literatura reciente se distinguen tres enfoques:
 
 \begin{enumerate}
-    \item \textbf{Chaleco vibrotáctil~\cite{Novich2015}:} utiliza arreglos de actuadores de vibración para transmitir patrones espaciales al usuario,
-    requiriendo movimientos corporales activos para explorar el entorno.
-    \item \textbf{Bastón inteligente~\cite{Santos2023}:} detecta obstáculos mediante sensores de corto alcance, dependiendo del movimiento manual y
-    proporcionando información limitada al punto de contacto.
-    \item \textbf{Pulsera ultrasónica~\cite{Petsiuk2019UltrasoundNavigation}:} emite vibraciones al detectar objetos cercanos, con baja resolución espacial
-    y dependencia de la orientación del brazo.
+    \item \textbf{Arreglos vibrotáctiles corporales~\cite{Novich2015}:} Novich y Eagleman estudiaron los límites perceptuales de la piel como canal de información y concluyeron que un arreglo de actuadores sobre el torso puede alcanzar tasas de transferencia de información del orden de bits por segundo, suficientes para codificar patrones espaciales rudimentarios. Sin embargo, el sistema requiere movimientos corporales activos para explorar el entorno, lo que no resulta práctico durante la marcha.
+
+    \item \textbf{Bastones inteligentes~\cite{Santos2023}:} Santos et al.\ proponen un bastón instrumentado con sensores de corto alcance que retransmite la información de proximidad mediante vibración en el mango. La limitación estructural es que la detección queda restringida a la zona barrida por el bastón, sin cobertura vertical ni capacidad de anticipación a distancias mayores que el alcance del sensor.
+
+    \item \textbf{Dispositivos ultrasónicos portátiles~\cite{Petsiuk2019UltrasoundNavigation}:} Petsiuk y Pearce describen una pulsera ultrasónica de bajo costo que emite vibraciones al detectar objetos en un cono estrecho frente al brazo. La resolución espacial es esencialmente nula (un único lóbulo de detección), y la información disponible para el usuario se reduce a la distancia aproximada al obstáculo más próximo en la dirección del brazo.
 \end{enumerate}
 
-Estas propuestas evidencian la viabilidad de la retroalimentación háptica como canal sensorial alternativo, pero también ponen de manifiesto
-las limitaciones de soluciones basadas en sensores puntuales y de baja resolución espacial.
+Los tres enfoques comparten una limitación fundamental: utilizan sensores puntuales o de muy bajo número de haces, lo que impide representar la distribución espacial del entorno. Esta restricción dificulta la detección de obstáculos a altura de cabeza, la anticipación a geometrías complejas y la transmisión de información de dirección sin movimiento activo del usuario.
+
+A modo de marco de evaluación, Dakopoulos y Bourbakis \cite{Dakopoulos2010} cierran su survey enumerando los cuatro criterios que un dispositivo portátil de asistencia debería cumplir para resultar adoptable en la práctica: (1)~\emph{manos libres}, sin requerir que el usuario sostenga el dispositivo, dado que conservará el bastón blanco como ayuda primaria; (2)~\emph{oídos libres}, sin interferir con la capacidad de escucha del entorno, que es una fuente de información crítica para la persona ciega; (3)~\emph{wearable}, para ofrecer flexibilidad y aprovechar las ventajas de las tecnologías portátiles; y (4)~\emph{simple}, de operación intuitiva y sin necesidad de entrenamiento extenso. Estos criterios sirven de referencia para evaluar los sistemas revisados en las secciones siguientes y para encuadrar las decisiones de diseño de la presente tesis.
+
+\section{Sensores de profundidad RGB-D en sistemas de asistencia}
+\label{sec:ea-rgbd}
+
+Los sensores de profundidad por estereoscopía activa permiten obtener un mapa denso del entorno con cobertura bidimensional del campo visual, superando las limitaciones de resolución de los sensores puntuales. Yang et al.\ \cite{Yang2016} proponen un sistema portátil basado en el sensor Intel RealSense R200 que detecta el área transitable y comunica la información al usuario mediante retroalimentación sonora estereofónica. Su trabajo demuestra que la densidad espacial del sensor RGB-D se puede explotar en tiempo real sobre hardware embebido para mejorar significativamente la cobertura de detección respecto de sistemas ultrasónicos, siendo validado con participantes invidentes en entornos interiores y exteriores.
+
+No obstante, el trabajo de Yang et al.\ no aborda la estabilidad temporal de la representación ante movimientos del usuario, ni integra información inercial para compensar la orientación del sensor. Además, la representación final transmitida al usuario se obtiene directamente de la imagen de profundidad sin etapa de mapeo local, lo que la hace susceptible a falsas detecciones por ruido y a pérdida de información en oclusiones momentáneas.
+
+La familia Intel RealSense \cite{RS-D400} representa el estado del arte en sensores RGB-D compactos y portátiles, con alcance de hasta 10\,m, resolución de profundidad sub-centimétrica en el rango cercano y una IMU integrada que facilita la compensación de orientación. Estas características la hacen adecuada para sistemas de asistencia portátiles, siempre que el procesamiento asociado pueda ejecutarse con la latencia y el consumo energético propios de plataformas embebidas \cite{IntelRealSenseDepthTuning}.
 
 \section{Mapeo local y evitación de obstáculos en robótica móvil}
-% GUIA:
-% - Trabajos/ideas de uso de mapas locales, representaciones compactas.
-% - Sensores RGB-D/estéreo con IMU y estabilidad ante movimiento.
+\label{sec:ea-mapeo}
 
-\section{Discusión comparativa y posicionamiento}
-% GUIA:
-% - ¿Qué aporta tu tesis?: validación/adaptación de métodos robóticos al contexto de asistencia sensorial.
-% - Por qué representación compacta (10x5 ej) es útil como interfaz hacia actuadores.
+En robótica móvil existe amplia evidencia de que las estrategias de navegación reactiva basadas en mapas locales ofrecen ventajas de latencia y robustez frente a enfoques globales. Brock y Khatib \cite{brock1999high} argumentan que un mapa local centrado en el robot, actualizado a alta frecuencia, permite reaccionar ante obstáculos dinámicos sin depender de la coherencia global de un mapa completo del entorno.
+
+La representación canónica para este tipo de mapas es la grilla de ocupación probabilística, introducida por Elfes \cite{Elfes1989} y formalizada en el marco bayesiano por Thrun, Burgard y Fox \cite{Thrun2005}. La formulación en escala de log-odds permite actualizar la probabilidad de ocupación de cada celda con costo computacional constante y acumular historial de observaciones, lo cual actúa como filtro de baja frecuencia sobre el ruido del sensor. El trazado de rayos mediante el algoritmo de Bresenham \cite{Bresenham1965} complementa la actualización al marcar explícitamente como libres las celdas atravesadas por el haz antes del punto de impacto.
+
+La combinación de sensores de profundidad RGB-D con unidades de medición inercial (IMU) para mejorar la robustez geométrica del mapeo local ha sido estudiada en el contexto de odometría visual-inercial \cite{Forster2017, Mourikis2007, Qin2018}. La integración IMU compensa el movimiento entre frames consecutivos y reduce el efecto de desenfoque en los mapas de profundidad, aspecto crítico cuando el sensor se porta en la cabeza y está expuesto a movimientos abruptos.
+
+Asimismo, el filtro de Madgwick \cite{Madgwick2010} provee una estimación de orientación de bajo costo computacional a partir de acelerómetro y giróscopo, adecuada para plataformas embebidas con recursos limitados.
+
+\section{Brecha identificada y posicionamiento de la tesis}
+\label{sec:ea-posicionamiento}
+
+Del análisis anterior se desprenden tres brechas concretas en el estado del arte:
+
+\begin{enumerate}
+    \item \textbf{Resolución espacial insuficiente:} los ETA dominantes emplean sensores puntuales que no permiten representar la distribución bidimensional de obstáculos en el campo visual del usuario \cite{Dakopoulos2010, Santos2023, Petsiuk2019UltrasoundNavigation}.
+
+    \item \textbf{Ausencia de memoria temporal:} los sistemas basados en cámara de profundidad existentes \cite{Yang2016} generan retroalimentación directamente desde el frame instantáneo, sin acumular historial de observaciones. Esto los hace vulnerables a oclusiones momentáneas y a ruido del sensor.
+
+    \item \textbf{Falta de compensación de orientación:} ninguno de los sistemas portátiles revisados incorpora estimación de orientación por IMU para estabilizar la representación háptica ante los movimientos propios de la marcha o de la cabeza del usuario.
+\end{enumerate}
+
+La presente tesis aborda estas tres brechas mediante la adaptación y validación de técnicas de percepción y mapeo local propias de la robótica móvil al dominio de la asistencia sensorial portátil. Se adopta una representación compacta de baja resolución, como por ejemplo una grilla de $10\times5$ celdas, que resulta compatible con arreglos de actuadores hápticos de baja complejidad y con las restricciones de ancho de banda y cómputo de plataformas embebidas. Esta elección implica un compromiso explícito entre resolución espacial y frecuencia de actualización, en línea con la discusión sobre mapas locales y control reactivo \cite{brock1999high, Elfes1989}. Adicionalmente, la integración de la IMU del sensor \cite{Madgwick2010, Forster2017} permite estabilizar la representación ante cambios de orientación, aspecto no abordado en trabajos previos de asistencia con cámara de profundidad.
