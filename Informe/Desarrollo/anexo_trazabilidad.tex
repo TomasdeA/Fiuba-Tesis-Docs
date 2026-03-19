@@ -1,0 +1,38 @@
+% Anexo: Trazabilidad nodo -> tópicos -> archivo fuente
+\section*{Anexo A: Trazabilidad de nodos y código fuente}
+\label{anexo:trazabilidad}
+
+A continuación se expone una tabla de referencia que relaciona los nodos principales del sistema, sus paquetes, los tópicos ROS2 relevantes (entrada/salida) y los archivos fuente donde se implementan. Esta trazabilidad facilita localizar la implementación de cada bloque funcional descrito en los capítulos de Arquitectura, Método e Implementación.
+
+% Rotated table for better fit: use sidewaystable (from rotating package already loaded)
+\begin{sidewaystable}[p]
+    \centering
+    \footnotesize
+    \setlength{\extrarowheight}{2pt}
+    % Use \linewidth so width matches rotated page; use ragged columns to avoid hyphenation/overlap
+    \begin{tabularx}{\linewidth}{L{4.5cm}L{3.2cm}L{4.5cm}>{\RaggedRight\arraybackslash}X}
+        \hline
+        	\textbf{Nodo} & \textbf{Paquete} & \textbf{Tópicos (in $\to$ out)} & \textbf{Archivo(s) fuente (ruta)} \\
+        \hline
+        	\texttt{sensor\_topic\_remapper\_node} & sensor\_topic\_remapper & /sensors/* (normaliza entradas del driver) & \texttt{sensor\_topic\_remapper/src/sensor\_topic\_remapper\_node.cpp} \\
+        \addlinespace
+        	\texttt{depth\_to\_matrix\_node} & depth\_grid\_encoder & /sensors/depth/image $\to$ /perception/depth\_grid (DepthGrid) & \texttt{depth\_grid\_encoder/src/depth\_to\_matrix\_node.cpp}, \texttt{depth\_grid\_encoder/src/depth\_utils.cpp} \\
+        \addlinespace
+        	\texttt{local\_mapper\_node} & local\_mapper & /sensors/depth/image, /sensors/depth/camera\_info, /sensors/imu/*, [/odom] $\to$ /mapping/local\_grid (OccupancyGrid), /mapping/debug/* & \texttt{local\_mapper/src/local\_mapper\_node.cpp}; \texttt{local\_mapper/src/local\_mapper.cpp}; \texttt{local\_mapper/src/depth\_projector.cpp}; \texttt{local\_mapper/src/imu\_filter.cpp}; \texttt{local\_mapper/src/gravity\_aligner.cpp}; \texttt{local\_mapper/src/odom\_handler.cpp} (ver \texttt{local\_mapper/include} para interfaces) \\
+        \addlinespace
+        	\texttt{spatial\_awareness\_node} & spatial\_awareness & /mapping/local\_grid, /sensors/imu/* $\to$ /haptics/overlay\_grid (DepthGrid) & \texttt{spatial\_awareness/src/spatial\_awareness\_node.cpp}, \texttt{spatial\_awareness/src/spatial\_awareness.cpp} \\
+        \addlinespace
+        	\texttt{haptic\_grid\_generator\_node} & haptic\_grid\_generator & /perception/depth\_grid, /haptics/overlay\_grid $\to$ /haptics/intensity\_grid (DepthGrid) & \texttt{haptic\_grid\_generator/src/haptic\_grid\_generator\_node.cpp}, \texttt{haptic\_grid\_generator/src/grid\_fusion.cpp} \\
+        \addlinespace
+        	\texttt{grid\_to\_motor} & hardware\_manager & /haptics/intensity\_grid $\to$ UART (ESP32) & \texttt{hardware\_manager/src/grid\_to\_motor.cpp}, \texttt{hardware\_manager/src/motor\_sweep\_uart.cpp} \\
+        \addlinespace
+        	\texttt{depth\_grid\_heatmap / output\_viewer} & output\_viewer & /perception/depth\_grid, /haptics/intensity\_grid (visualizaci\'on) & \texttt{output\_viewer/output\_viewer/output\_viewer\_node.py} \\
+        \addlinespace
+        	\texttt{nav\_bringup (launch)} & nav\_bringup & (orquesta arranque de nodos; expone parámetros de ejecución) & \texttt{nav\_bringup/launch/nav.launch.py} \\
+        \hline
+    \end{tabularx}
+    \caption{Trazabilidad de nodos: tópicos y archivos fuente principales.}
+    \label{tab:anexo-trazabilidad}
+\end{sidewaystable}
+
+% Nota: nodos externos (p. ej. rgbd_odometry de rtabmap) se listan en el texto principal como dependencias.

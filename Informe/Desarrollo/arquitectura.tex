@@ -1,27 +1,152 @@
-
+% Arquitectura (qué): topología del sistema, lista de nodos, dependencias, tipos de datos (mensajes), entradas y salidas de cada nodo, diagrama. NO explicar algoritmos, ni filtros, ni ecuaciones. Referir a la sección de método para detalles algorítmicos. Ejemplos de contenido correcto: “local_mapper — suscribe /sensors/depth/image, publica /mapping/local_grid (nav_msgs/OccupancyGrid); ejecuta en Raspberry Pi; interfaz UART con ESP32.”
 \section{Arquitectura general}
-% GUIA:
-% - Diagrama de bloques:
-%   D435i -> ROS2 (driver) -> pipeline percepción -> matriz compacta + mapa local -> tópicos -> serial -> (MCU etapa 2)
-% - Aclarar que MCU/háptica es futura.
+\label{sec:arquitectura-general}
 
-\section{Adquisición de datos con Intel RealSense D435i}
-% GUIA:
-% - Cómo se integra en ROS2 (paquete Intel).
-% - Qué tópicos se usan (genérico si aún no fijaste nombres).
+El sistema se compone de un conjunto de nodos ROS2 que se ejecutan sobre una Raspberry Pi~5, orquestados por el archivo de lanzamiento \texttt{nav.launch.py} del paquete \texttt{nav\_bringup}. Todos los nodos de procesamiento quedan contenidos en la misma unidad de cómputo y se comunican exclusivamente a través del middleware DDS (\texttt{rmw\_cyclonedds}). La única interfaz externa con hardware de actuación es el enlace UART hacia el microcontrolador ESP32, que controla la matriz háptica. Un nodo de visualización (\texttt{output\_viewer}) puede ejecutarse opcionalmente en una PC separada, suscribiéndose a los mismos tópicos a través de la red DDS. La \Cref{fig:arquitectura-general} muestra la topología completa del sistema.
 
-\section{Plataforma embebida}
-% GUIA:
-% - Raspberry Pi (modelo a determinar) como referencia.
-% - Criterio de fallback a plataforma más potente si no cumple (ej Jetson Nano, como en tu plan).
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{arquitectura/Tesis-arquitectura}
+  \caption{Arquitectura general del sistema. Los nodos dentro del recuadro se ejecutan en la Raspberry Pi~5. El middleware DDS (\texttt{rmw\_cyclonedds}) transporta todos los mensajes internos. La salida hacia los actuadores hápticos se realiza por UART desde el \texttt{hardware\_manager} hacia el ESP32.}
+  \label{fig:arquitectura-general}
+\end{figure}
 
-\section{Diseño de interfaces}
-\subsection{Interfaces ROS2}
-% GUIA:
-% - Tópicos publicados (matriz compacta, estado, debug, etc).
-% - Logging/rosbags para reproducibilidad.
+Para facilitar la trazabilidad entre la descripción de la arquitectura, las decisiones metodológicas y el código fuente, véase el Anexo~\ref{anexo:trazabilidad}, que incluye un mapeo nodo → tópicos → archivos fuente.
 
-\subsection{Interfaz serial hacia microcontrolador}
-% GUIA:
-% - Formato general (matriz + timestamp/metadata si aplica).
-% - Restricciones de ancho de banda y frecuencia.
+\section{Paquetes de soporte e infraestructura}
+\label{sec:arq-soporte}
+
+El paquete \texttt{custom\_interfaces} define los tipos de mensajes propios del proyecto: \texttt{DepthGrid} (grilla compacta de celdas) y \texttt{DepthCellStats} (estadísticas por celda: media, mínimo, máximo y conteo de puntos válidos). Estos tipos son utilizados por todos los nodos de percepción y fusión háptica.
+
+El paquete \texttt{nav\_bringup} centraliza la configuración de lanzamiento del sistema en \texttt{nav.launch.py}. Este archivo expone parámetros que permiten habilitar o deshabilitar componentes y modos de ejecución, por ejemplo el driver de la cámara, el envío de datos hacia el hardware, visualizadores y herramientas de depuración (por ejemplo \texttt{output\_viewer} y RViz), así como la fuente de odometría empleada. Estas opciones determinan qué nodos se inician y con qué parámetros; la lógica de procesamiento se mantiene en los paquetes de percepción y control descritos en secciones posteriores.
+
+\section{Adquisición y normalización de tópicos}
+\label{sec:arq-sensor}
+
+El driver de la cámara, lanzado mediante \texttt{rs\_launch.py} del paquete \texttt{realsense2\_camera}, publica los flujos del sensor bajo el espacio de nombres \texttt{/camera/camera/}: imagen de profundidad rectificada en encoding \texttt{16UC1}, imagen de color, acelerómetro y giróscopo por separado como \texttt{sensor\_msgs/Imu}, y los parámetros intrínsecos de ambas cámaras como \texttt{sensor\_msgs/CameraInfo}.
+
+El nodo \texttt{sensor\_topic\_remapper\_node} (paquete \texttt{sensor\_topic\_remapper}) actúa como capa de indirección de nombres: suscribe los seis tópicos del driver y los republica sin modificación bajo el espacio de nombres normalizado \texttt{/sensors/}, desacoplando por completo el resto de la arquitectura de los nombres específicos del driver. Las correspondencias son las indicadas en la \Cref{tab:remapper}.
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{ll}
+\hline
+\textbf{Tópico de origen (driver)} & \textbf{Tópico normalizado} \\
+\hline
+\texttt{/camera/camera/depth/image\_rect\_raw}  & \texttt{/sensors/depth/image} \\
+\texttt{/camera/camera/depth/camera\_info}      & \texttt{/sensors/depth/camera\_info} \\
+\texttt{/camera/camera/color/image\_raw}        & \texttt{/sensors/color/image} \\
+\texttt{/camera/camera/color/camera\_info}      & \texttt{/sensors/color/camera\_info} \\
+\texttt{/camera/camera/accel/sample}            & \texttt{/sensors/imu/accel} \\
+\texttt{/camera/camera/gyro/sample}             & \texttt{/sensors/imu/gyro} \\
+\hline
+\end{tabular}
+\caption{Correspondencias de tópicos implementadas en \texttt{sensor\_topic\_remapper\_node}.}
+\label{tab:remapper}
+\end{table}
+
+\section{Pipeline de percepción directa}
+\label{sec:arq-percepcion}
+
+El nodo \texttt{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe \texttt{/sensors/depth/image} y reduce la imagen de profundidad densa a una grilla compacta de $R \times C$ celdas (por defecto $5 \times 10$) mediante partición en regiones de interés y cálculo de estadísticas por celda. El resultado se publica en \texttt{/perception/depth\_grid} como \texttt{custom\_interfaces/msg/DepthGrid}. Este pipeline opera de forma completamente independiente del mapeo local y constituye la fuente de percepción instantánea de baja latencia del sistema.
+
+\section{Odometría visual-inercial (VIO)}
+\label{sec:arq-vio}
+
+La odometría visual-inercial se incorpora opcionalmente al pipeline; cuando está activa, el sistema lanza un filtro de actitud que publica \texttt{/imu/data\_filtered} y un nodo de odometría que publica \texttt{/odom}. La elección del modo de odometría y el inicio condicionado de estos nodos se gestiona desde el fichero de lanzamiento. Los detalles del algoritmo y de validación de odometría se describen en la Sección~\ref{sec:met-vio-pipeline}.
+
+% (El documento prioriza ahora la ruta base de percepción directa seguida de las extensiones: VIO, mapeo local y conciencia espacial.)
+
+\section{Pipeline de mapeo local}
+\label{sec:arq-mapeo}
+
+El nodo \texttt{local\_mapper\_node} (paquete \texttt{local\_mapper}) consume las lecturas de profundidad y la información inercial y publica una grilla de ocupación egocéntrica en \texttt{/mapping/local\_grid} (tipo \texttt{nav\_msgs/OccupancyGrid}). En esta sección se indica su papel, entradas y salidas; los detalles de los algoritmos internos (filtros IMU, proyección, alineación a gravedad, esquema log-odds y scroll) se describen en la Sección~\ref{sec:met-grid} del capítulo de metodología.
+
+\section{Conciencia espacial}
+\label{sec:arq-spatial}
+
+El nodo \texttt{spatial\_awareness\_node} (paquete \texttt{spatial\_awareness}) suscribe la grilla de ocupación local (\texttt{/mapping/local\_grid}), el acelerómetro y el giróscopo. A partir de la grilla calcula un riesgo por sector, ponderado por la tasa de guiñada instantánea extraída del giróscopo, amplificando la advertencia en la dirección hacia la que el usuario está girando. El resultado se publica como una grilla de \emph{overlay} en \texttt{/haptics/overlay\_grid} (\texttt{custom\_interfaces/msg/DepthGrid}).
+
+\section{Fusión háptica}
+\label{sec:arq-fusion}
+
+El nodo \texttt{haptic\_grid\_generator\_node} (paquete \texttt{haptic\_grid\_generator}) recibe la percepción instantánea (\texttt{/perception/depth\_grid}) y el overlay de conciencia espacial (\texttt{/haptics/overlay\_grid}) y los combina mediante una estrategia de fusión configurable: máximo (\texttt{max}), suma (\texttt{sum}) o suma ponderada (\texttt{weighted\_sum}), con suavizado temporal entre frames. Si el overlay no está activo (tópico sin publicadores), el nodo opera como paso directo sin latencia adicional, publicando la percepción sin modificar. La salida se publica en \texttt{/haptics/intensity\_grid}.
+
+\section{Actuación háptica e interfaz serial}
+\label{sec:arq-hardware}
+
+El nodo \texttt{grid\_to\_motor} (paquete \texttt{hardware\_manager}) suscribe \texttt{/haptics/intensity\_grid}, convierte cada celda a un ciclo de trabajo PWM mediante una función lineal invertida saturada (mayor proximidad corresponde a mayor ciclo de trabajo, ver Ecuación~\eqref{eq:duty-mapping}) y transmite la trama por UART al ESP32. El formato de trama es ASCII: \texttt{L $d_0$ $d_1$ \ldots $d_{N-1}$\textbackslash{}n} a $115200\text{bps}$ en modo 8N1 sin control de flujo. Un mecanismo de \emph{throttling} basado en marcas de tiempo descarta mensajes si el intervalo desde el último envío es inferior al período configurado (\texttt{send\_period\_ms}), evitando saturar el buffer UART. El ESP32 recibe la trama y controla los motores vibrotáctiles de la matriz háptica. La eficiencia de este protocolo y sus alternativas para matrices de mayor densidad se discuten en \Cref{sub:discusion-uart}.
+
+\section{Visualización y depuración}
+\label{sec:arq-viz}
+
+El nodo \texttt{depth\_grid\_heatmap} (paquete \texttt{output\_viewer}), implementado en Python, puede ejecutarse opcionalmente en una PC conectada a la misma red DDS. Genera una visualización en mapa de calor de los tópicos de percepción e intensidad háptica para inspección durante el desarrollo experimental. El nodo \texttt{local\_mapper\_node} publica adicionalmente tópicos de depuración: nube de puntos filtrada (\texttt{/mapping/debug/points\_filtered}) y altura estimada de la cámara sobre el suelo (\texttt{/mapping/debug/camera\_height\_m}), visualizables con RViz2.
+
+\section{Topología completa de tópicos}
+\label{sec:arq-topicos}
+
+La \Cref{tab:topicos} resume todos los tópicos ROS2 del sistema con sus productores, consumidores y tipos de mensaje.
+
+\begin{table}[htbp]
+\centering
+\small
+\begin{tabularx}{\textwidth}{lllX}
+\hline
+\textbf{Tópico} & \textbf{Tipo} & \textbf{Productor} & \textbf{Consumidores} \\
+\hline
+\texttt{/sensors/depth/image}
+  & \texttt{sensor\_msgs/Image}
+  & \texttt{sensor\_remapper}
+  & \texttt{local\_mapper}, \texttt{depth\_to\_matrix} \\[2pt]
+\texttt{/sensors/depth/camera\_info}
+  & \texttt{sensor\_msgs/CameraInfo}
+  & \texttt{sensor\_remapper}
+  & \texttt{local\_mapper} \\[2pt]
+\texttt{/sensors/color/image}
+  & \texttt{sensor\_msgs/Image}
+  & \texttt{sensor\_remapper}
+  & \texttt{rgbd\_odometry} \\[2pt]
+\texttt{/sensors/color/camera\_info}
+  & \texttt{sensor\_msgs/CameraInfo}
+  & \texttt{sensor\_remapper}
+  & \texttt{rgbd\_odometry} \\[2pt]
+\texttt{/sensors/imu/accel}
+  & \texttt{sensor\_msgs/Imu}
+  & \texttt{sensor\_remapper}
+  & \texttt{local\_mapper}, \texttt{spatial\_awareness} \\[2pt]
+\texttt{/sensors/imu/gyro}
+  & \texttt{sensor\_msgs/Imu}
+  & \texttt{sensor\_remapper}
+  & \texttt{local\_mapper}, \texttt{spatial\_awareness} \\[2pt]
+\texttt{/imu/data\_filtered}
+  & \texttt{sensor\_msgs/Imu}
+  & \texttt{imu\_madgwick}
+  & \texttt{rgbd\_odometry} \\[2pt]
+\texttt{/odom}
+  & \texttt{nav\_msgs/Odometry}
+  & \texttt{rgbd\_odometry}
+  & \texttt{local\_mapper} \\[2pt]
+\texttt{/perception/depth\_grid}
+  & \texttt{DepthGrid}
+  & \texttt{depth\_to\_matrix}
+  & \texttt{haptic\_grid\_gen.}, \texttt{output\_viewer} \\[2pt]
+\texttt{/mapping/local\_grid}
+  & \texttt{nav\_msgs/OccupancyGrid}
+  & \texttt{local\_mapper}
+  & \texttt{spatial\_awareness} \\[2pt]
+\texttt{/haptics/overlay\_grid}
+  & \texttt{DepthGrid}
+  & \texttt{spatial\_awareness}
+  & \texttt{haptic\_grid\_gen.} \\[2pt]
+\texttt{/haptics/intensity\_grid}
+  & \texttt{DepthGrid}
+  & \texttt{haptic\_grid\_gen.}
+  & \texttt{hardware\_manager}, \texttt{output\_viewer} \\
+\hline
+\end{tabularx}
+\caption{Topología completa de tópicos ROS2. \texttt{sensor\_remapper} abrevia
+\texttt{sensor\_topic\_remapper\_node}; \texttt{haptic\_grid\_gen.}\ abrevia
+\texttt{haptic\_grid\_generator\_node}. \texttt{DepthGrid} corresponde a
+\texttt{custom\_interfaces/msg/DepthGrid}.}
+\label{tab:topicos}
+\end{table}

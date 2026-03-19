@@ -1,16 +1,227 @@
-
+% Implementación (cómo ejecutar / integrar): detalles prácticos de ROS2 y del despliegue: archivos de lanzamiento (nav.launch.py), parámetros expuestos en params.yaml (cómo modificarlos), comandos para levantar el sistema, requisitos de hardware (puerto UART, baud), notas de compilación/packaging, ubicación de código fuente (mapeo nodo → fichero(s)), y ejemplos de uso (ros2 launch ... con argumentos). Aquí van también consideraciones de rendimiento y limitaciones de la plataforma.
 \section{Estructura de paquetes y nodos}
-% GUIA:
-% - Paquete(s) implementados.
-% - Nodos y responsabilidades (adquisición, procesamiento, serial, etc).
+Se describen a continuación los paquetes y nodos principales desarrollados en el repositorio, junto con sus responsabilidades y los archivos que contienen la implementación.
+
+Para facilitar la trazabilidad entre la descripción de la arquitectura, las decisiones metodológicas y el código fuente, se incluye en el Anexo A una tabla que relaciona cada nodo con sus tópicos relevantes y los archivos fuente. Véase el Anexo~\ref{anexo:trazabilidad} para el mapeo completo.
+
+
+\paragraph{Modo base (sin mapeo).}
+Antes de describir las extensiones (mapeo local, odometría y conciencia espacial), se presenta la ruta mínima de funcionamiento diseñada para operación de baja latencia y despliegues embebidos. En este modo la secuencia de procesamiento es:
+
+\begin{enumerate}
+  \item Normalización de nombres de tópicos: \texttt{sensor\_topic\_remapper\_node} (paquete \texttt{sensor\_topic\_remapper}).
+  \item Reducción de la imagen de profundidad a una \texttt{DepthGrid}: \texttt{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}).
+  \item Generación de la grilla de intensidad háptica: \texttt{haptic\_grid\_generator} (paquete \texttt{haptic\_grid\_generator}), que aplica el mapeo distancia→intensidad y suavizado temporal.
+  \item Transmisión a actuadores vía UART: \texttt{grid\_to\_motor} (paquete \texttt{hardware\_manager}).
+\end{enumerate}
+
+Los archivos fuente principales de esta ruta son, a modo de guía rápida:
+\begin{itemize}
+  \item \texttt{sensor\_topic\_remapper/src/sensor\_topic\_remapper\_node.cpp}
+  \item \texttt{depth\_grid\_encoder/src/depth\_to\_matrix\_node.cpp}, \texttt{depth\_grid\_encoder/src/depth\_utils.cpp}
+  \item \texttt{haptic\_grid\_generator/src/haptic\_grid\_generator\_node.cpp}, \texttt{haptic\_grid\_generator/src/grid\_fusion.cpp}
+  \item \texttt{hardware\_manager/src/grid\_to\_motor.cpp}, \texttt{hardware\_manager/src/motor\_sweep\_uart.cpp}
+  \item \texttt{output\_viewer/output\_viewer/output\_viewer\_node.py} (visualización opcional)
+\end{itemize}
+
+Esta descripción sitúa la prioridad de la implementación: primero entregar datos útiles y con baja latencia al actuador; las capacidades de mapeo y fusión aportan después contextualización y mejora de comportamiento en entornos complejos.
+
+% ---------------------------------------------------------------
+\section{Paquete \texttt{depth\_grid\_encoder}}
+\label{sec:impl-depth-grid-encoder}
+
+El paquete \texttt{depth\_grid\_encoder} reduce la imagen de profundidad a una representación compacta de baja resolución. Su único nodo es \texttt{depth\_to\_matrix\_node}, implementado en \texttt{depth\_to\_matrix\_node.cpp}.
+
+\subsection{Parámetros configurables}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+\textbf{Parámetro} & \textbf{Valor por defecto} & \textbf{Descripción} \\
+\hline
+\texttt{depth\_topic}  & \texttt{/sensors/depth/image} & Tópico de imagen de profundidad de entrada \\
+\texttt{rows}          & \texttt{5}                    & Filas de la grilla de salida               \\
+\texttt{cols}          & \texttt{10}                   & Columnas de la grilla de salida            \\
+\texttt{z\_min\_m}     & \texttt{0.25\,m}              & Distancia mínima válida                    \\
+\texttt{z\_max\_m}     & \texttt{4.0\,m}               & Distancia máxima válida                    \\
+\hline
+\end{tabular}
+\caption{Parámetros del nodo \texttt{depth\_to\_matrix\_node}.}
+\label{tab:depth-grid-params}
+\end{table}
+
+\subsection{Flujo de procesamiento}
+
+Al recibir un frame en el tópico \texttt{depth\_topic}, el callback \texttt{onDepthImage()} invoca \texttt{compute\_depth\_stats()} (implementado en \texttt{depth\_utils.cpp}) con la imagen y la configuración de la grilla. El procesamiento interno sigue los pasos:
+
+\begin{enumerate}
+  \item \textbf{Validación del formato:} se verifica que el encoding sea \texttt{16UC1}, que las dimensiones sean no nulas y que el campo \texttt{step} sea múltiplo de 2 bytes. Si alguna condición falla, se retorna error y se emite \texttt{RCLCPP\_WARN}.
+  \item \textbf{Vista sobre el buffer:} se crea un acceso directo (\texttt{DepthView16UC1}) al buffer raw del mensaje, interpretando los bytes como un array de \texttt{uint16\_t}. No se realizan copias de datos.
+  \item \textbf{Cálculo de bordes de ROI:} se computan los vectores \texttt{x\_edges} e \texttt{y\_edges} según la Ecuación~\eqref{eq:roi-edges}, distribuyendo el error de cuantización uniformemente entre celdas.
+  \item \textbf{Acumulación por ROI:} para cada celda $(r,c)$, la función \texttt{accumulate\_roi()} itera sobre todos los píxeles del bloque, convierte \texttt{uint16} a metros ($z = \texttt{raw} \times 10^{-3}\,\text{m}$), filtra valores fuera de $[z_{\min}, z_{\max}]$ y los píxeles con \texttt{raw == 0}, y acumula suma, conteo, mínimo y máximo.
+  \item \textbf{Publicación:} el resultado se serializa como \texttt{custom\_interfaces/msg/DepthGrid} y se publica en \texttt{/perception/depth\_grid}.
+\end{enumerate}
+
+\subsection{Formato del mensaje \texttt{DepthGrid}}
+
+El mensaje personalizado \texttt{custom\_interfaces/msg/DepthGrid} tiene la siguiente estructura:
+\begin{verbatim}
+int32 rows
+int32 cols
+DepthCellStats[] cells   # vector plano, orden row-major
+\end{verbatim}
+donde cada elemento \texttt{DepthCellStats} contiene:
+\begin{verbatim}
+float32 mean_m   # distancia media (NaN si count == 0)
+float32 min_m    # distancia mínima (NaN si count == 0)
+float32 max_m    # distancia máxima (NaN si count == 0)
+int32   count    # número de píxeles válidos
+\end{verbatim}
+El acceso a la celda $(r,c)$ se realiza como \texttt{cells[r*cols + c]}, siguiendo la convención \emph{row-major} estándar de C++ \cite{stroustrup2013cpp}. Las celdas vacías almacenan \texttt{NaN} en los campos escalares para distinguir explícitamente ausencia de medición de distancia cero.
+
+% ---------------------------------------------------------------
+\section{Paquete \texttt{hardware\_manager}}
+\label{sec:impl-hardware-manager}
+
+El paquete \texttt{hardware\_manager} actúa como puente entre la representación compacta en ROS2 y el hardware de actuación háptica. Contiene dos nodos: \texttt{grid\_to\_motor} (operación normal) y \texttt{motor\_sweep\_uart} (herramienta de diagnóstico para barrer motores individualmente).
+
+\subsection{Nodo \texttt{grid\_to\_motor} (operación normal)}
+
+El nodo \texttt{DepthGridToUart} (implementado en \texttt{grid\_to\_motor.cpp}) suscribe el tópico \texttt{/haptics/intensity\_grid} de tipo \texttt{DepthGrid}, convierte cada celda a ciclo de trabajo y transmite la trama por UART.
+
+\paragraph{Parámetros configurables:}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lll}
+\hline
+\textbf{Parámetro}      & \textbf{Valor por defecto}     & \textbf{Descripción} \\
+\hline
+\texttt{port}           & \texttt{/dev/ttyACM0}          & Puerto serie del ESP32          \\
+\texttt{baud}           & \texttt{115200}                & Velocidad UART (bps)            \\
+\texttt{topic}          & \texttt{/haptics/intensity\_grid} & Tópico de entrada            \\
+\texttt{z\_min\_m}      & \texttt{0.25\,m}               & Umbral de máxima intensidad     \\
+\texttt{z\_max\_m}      & \texttt{0.80\,m}               & Umbral de intensidad cero       \\
+\texttt{duty\_scale}    & \texttt{0.4}                   & Factor de escala de intensidad  \\
+\texttt{send\_period\_ms} & \texttt{50\,ms}              & Período de envío (throttling)   \\
+\texttt{expected\_rows} & \texttt{1}                     & Filas esperadas de la grilla    \\
+\texttt{expected\_cols} & \texttt{10}                    & Columnas esperadas de la grilla \\
+\hline
+\end{tabular}
+\caption{Parámetros del nodo \texttt{grid\_to\_motor}.}
+\label{tab:grid-to-motor-params}
+\end{table}
+
+\paragraph{Conversión distancia → duty:}
+Implementa la función definida en la Ecuación~\eqref{eq:duty-mapping} con $I_{\max}=100$. El duty resultante se escala por \texttt{duty\_scale} y se satura en $[0,100]$. Para la configuración por defecto (\texttt{duty\_scale=0.4}) el ciclo de trabajo máximo efectivo es $40\%$.
+
+\paragraph{Protocolo UART actual — trama ASCII:}
+\begin{center}
+  \texttt{L\textvisiblespace d$_0$\textvisiblespace d$_1$\textvisiblespace\ldots\textvisiblespace d$_{N-1}$\textbackslash n}
+\end{center}
+donde \texttt{L} es el identificador de tipo de trama (\emph{line}), los $d_i \in [0,100]$ son los valores de ciclo de trabajo en representación decimal y \texttt{\textbackslash n} es el terminador de línea. Para la configuración actual de $1\times10$ celdas ($N=10$) la longitud típica de trama es 20–30 bytes. La UART se configura en modo 8N1 sin control de flujo por hardware ni software.
+
+\paragraph{Throttling:}
+El callback \texttt{on\_grid()} aplica un filtro de frecuencia basado en marcas de tiempo ROS: si el intervalo desde el último envío es inferior a \texttt{send\_period\_ms}, el mensaje se descarta sin transmisión. Esto evita saturar el buffer UART ante ráfagas de mensajes.
+
+\subsection{Nodo \texttt{motor\_sweep\_uart} (diagnóstico)}
+
+El nodo \texttt{MotorSweepUart} (implementado en \texttt{motor\_sweep\_uart.cpp}) es una herramienta de diagnóstico que barre secuencialmente todos los motores (IDs 0–47) con los valores de duty $\{0, 25, 50, 75, 100\}$, enviando un comando por período de timer. El formato de trama es:
+\begin{center}
+  \texttt{M\textvisiblespace <id>\textvisiblespace <duty>\textbackslash n}
+\end{center}
+Esta herramienta permite verificar el funcionamiento individual de cada actuador y la integridad del canal serie antes de integrar el pipeline completo. En dicho modelo las coordenadas de imagen $(u,v)$ se obtienen a partir de las coordenadas de cámara $(X,Y,Z)$ mediante la matriz intrínseca $K$ y la relación de proyección estándar; en particular, las componentes de la cámara se normalizan por la profundidad $Z$ antes de aplicar las longitudes focales y el centro de proyección.
+
+En la implementación del módulo \texttt{DepthProjector} la profundidad entregada por el sensor (habitualmente codificada como entero en milímetros por algunos drivers) se convierte a metros y se aplica la proyección inversa elemento a elemento, omitiendo los píxeles sin medición. El código filtra lecturas inválidas (valores centinela típicos de drivers) y no proyecta esos píxeles, de modo que no se introducen puntos con distancia indeterminada en la nube resultante.
+
+Los parámetros intrínsecos se obtienen del mensaje \texttt{sensor\_msgs/CameraInfo} para garantizar coherencia entre la geometría teórica y los parámetros reales del sensor; si dichos parámetros no están disponibles o son inconsistentes, el módulo activa una ruta de error o utiliza valores por defecto configurables en \texttt{params.yaml}.
+
+El uso de la proyección inversa permite vectorizar la operación sobre píxeles válidos y generar una nube de puntos eficiente; la implementación aprovecha accesos lineales al buffer de imagen para minimizar copias y operaciones redundantes.
+
+Esta derivación es la que fundamenta la transformación empleada en \texttt{LocalMapper::processFrame}, donde los puntos 3D resultantes son alineados con la gravedad y acumulados en la grilla local.
+
+El paquete \texttt{depth\_grid\_encoder} contiene un nodo que reduce la imagen de profundidad a una representación de baja resolución (matriz de celdas) y publica la estructura compacta en \texttt{/perception/depth\_grid}. El paquete \texttt{spatial\_awareness} consume la grilla local y genera una capa de \"{}overlay\"{} para fusión háptica; el paquete \texttt{haptic\_grid\_generator} realiza la fusión entre la percepción y el overlay para producir la intensidad háptica.
+
+Se incluyó un nodo `sensor\_topic\_remapper` cuya única responsabilidad es normalizar nombres de tópicos entre drivers y la arquitectura superior; la normalización facilita pruebas y despliegues en distintos robots.
 % - Configuración (params YAML) si aplica.
 
+% Mapeo local (extensión): paquete local_mapper
+Se implementó el paquete \texttt{local\_mapper} que contiene el núcleo de la lógica de mapeo local: el nodo \texttt{local\_mapper\_node} que suscribe imágenes de profundidad y datos de IMU, y publica la grilla de ocupación en \texttt{/mapping/local\_grid}. Dentro de ese paquete se separaron los módulos funcionales \texttt{DepthProjector} (proyección pinhole), \texttt{GravityAligner} (alineación de puntos por acelerómetro) y \texttt{GroundEstimator} (estimación de la altura del suelo por percentil).
+
 \section{Publicación y herramientas de experimentación}
-% GUIA:
-% - Uso de rosbag para registrar.
-% - Trazabilidad de experimentos (versionado, configs).
+Se estableció el uso de \texttt{ros2 bag} para la captura de sesiones experimentales y se definieron parámetros configurables por nodo en \texttt{params.yaml} (valores por defecto citados en el repositorio). Además, se dejó habilitado el uso de \texttt{colcon test} para ejecutar pruebas unitarias incluidas en los paquetes.
+
+Para trazabilidad se recomendó versionar las bolsas y los ficheros \texttt{params.yaml} usados en cada corrida y adjuntar el commit de código al conjunto de datos del experimento.
 
 \section{Implementación de la transmisión serial}
-% GUIA:
-% - Serialización de matriz.
-% - Frecuencia, buffering, validación básica.
+Como prueba de concepto de la capa de salida hacia actuadores se desarrolló \texttt{motor\_sweep\_uart.cpp} en el paquete \texttt{hardware\_manager}. En ese archivo se demuestra apertura y configuración de un puerto serie POSIX, el envío de cadenas de comando y la lógica de barrido sobre identidades de motor. La serialización sencilla usada en la prueba utiliza una representación textual compacta (\texttt{M <id> <duty>}) y se considera suficiente para demostración; para una integración final se propone definir un formato binario con checksum para robustez en presencia de ruido.
+
+\section{Integración de heading por giróscopo}
+\label{sec:impl-heading}
+
+El nodo \texttt{local\_mapper\_node} se suscribe al tópico \texttt{/camera/gyro/sample} (\texttt{sensor\_msgs/Imu}) y en el callback \texttt{onGyro()} integra la velocidad angular $\omega_y$ según la ecuación~\eqref{eq:heading-integration}. El período $\Delta t$ se calcula a partir de las marcas de tiempo ROS de mensajes consecutivos, garantizando corrección numérica incluso si la frecuencia del giróscopo varía levemente. El ángulo acumulado \texttt{heading\_rad\_} se aplica como rotación 2D a todos los puntos proyectados antes de insertar en la grilla (ecuación~\eqref{eq:rotation-2d}).
+
+El marco de referencia utilizado para la convención de ejes sigue REP-103 \cite{REP103}: el marco \texttt{local\_map} tiene el eje $X$ apuntando a la derecha del robot, $Z$ apuntando hacia adelante y $Y$ apuntando hacia arriba. La transformación estática entre \texttt{local\_map} y \texttt{camera\_color\_optical\_frame} se publica mediante \texttt{publishStaticTF()} en el arranque del nodo.
+
+\section{Odometría visual-inercial en ROS2}
+\label{sec:impl-vio}
+
+El pipeline VIO se implementó en \texttt{nav.launch.py} con dos nodos adicionales al stack existente:
+
+\subsection{Filtro de actitud Madgwick}
+
+\begin{verbatim}
+Node(
+    package='imu_filter_madgwick',
+    executable='imu_filter_madgwick_node',
+    parameters=[{
+        'use_mag': False,
+        'gain': 0.01,
+        'publish_tf': False,
+        'world_frame': 'nwu'
+    }]
+)
+\end{verbatim}
+
+El nodo suscribe \texttt{/camera/imu} y publica \texttt{/imu/data\_filtered} con cuaternión de orientación completo. El parámetro \texttt{use\_mag: False} deshabilita el magnetómetro (no disponible en la D435i), lo que implica que la componente de guiñada no es observable por el filtro; la deriva de guiñada se maneja independientemente mediante el giróscopo integrado en \texttt{local\_mapper\_node}.
+
+\subsection{Nodo de odometría visual \texttt{rgbd\_odometry}}
+
+El nodo se lanza con un \texttt{TimerAction} de 5 segundos para dar tiempo al filtro Madgwick de converger antes de aceptar el primer frame:
+
+\begin{verbatim}
+parameters=[{
+    'frame_id': 'camera_color_optical_frame',
+    'subscribe_depth': True,
+    'use_imu': True,
+    'wait_imu_to_init': True,
+    'Vis/FeatureType': '1',      # GFTT (Shi-Tomasi)
+    'Vis/MaxFeatures': '200',
+    'Odom/ResetCountdown': '1',
+    'Odom/GuessMotion': 'false',
+}]
+\end{verbatim}
+
+La publicación es en \texttt{/odom} con covarianza de posición disponible en \texttt{pose.covariance}.
+
+\section{Filtros de sanidad en el consumidor de odometría}
+\label{sec:impl-sanity}
+
+El callback \texttt{onOdom()} en \texttt{local\_mapper\_node.cpp} aplica los siguientes controles antes de actualizar el estado de posición del nodo:
+
+\begin{enumerate}
+  \item \textbf{Filtro de covarianza:} \texttt{cov[0] > 0.05 || cov[7] > 0.05 || cov[14] > 0.05} → descarta el mensaje y emite \texttt{RCLCPP\_WARN}.
+  \item \textbf{Filtro de delta máxima:} \texttt{|dx| > 0.15 m || |dz| > 0.15 m} → descarta el mensaje, reinicia \texttt{last\_odom\_x\_} y \texttt{last\_odom\_z\_} al valor actual, y emite \texttt{RCLCPP\_WARN}.
+\end{enumerate}
+
+Solo los mensajes que superan ambas comprobaciones disparan \texttt{scrollGrid()}.
+
+\section{Grilla egocéntrica: implementación del scroll}
+\label{sec:impl-scroll}
+
+\texttt{LocalMapper::scrollGrid(int dx\_cells, int dz\_cells)} desplaza el contenido de la grilla $N \times N$ usando \texttt{std::memmove} por filas: para un desplazamiento $\Delta n_x > 0$ (avance en $X$), las columnas se desplazan hacia la derecha y las columnas nuevas se inicializan a $0$. El manejo simétrico cubre los cuatro cuadrantes $(\pm\Delta n_x, \pm\Delta n_z)$.
+
+La acumulación de residuos sub-celda se gestiona en \texttt{local\_mapper\_node.cpp} mediante las variables \texttt{accum\_dx\_m\_} y \texttt{accum\_dz\_m\_}: solo cuando $|\texttt{accum}| \geq r = 0.05\,\text{m}$ se llama a \texttt{scrollGrid} con el entero correspondiente y el residuo se preserva para el siguiente ciclo.
+
+\input{Desarrollo/imu-filtrado.tex}
