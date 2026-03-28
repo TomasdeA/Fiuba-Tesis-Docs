@@ -10,6 +10,15 @@
 
 \newcommand{\ladderlabel}[1]{ \scriptsize{\texttt{\%#1}} }
 
+% \code{nombre} — para nombres técnicos largos (nodos, tópicos, rutas, funciones).
+% Alias de \texttt. Los quiebres de línea se permiten gracias a la redefinición
+% de \_ más abajo (inserta \allowbreak tras el guión bajo) y a microtype.
+\newcommand{\code}[1]{\texttt{#1}}
+
+% Permite quiebres de línea después de _ en cualquier \texttt o \code.
+% \discretionary{}{}{} inserta un punto de quiebre sin guión visible.
+\renewcommand{\_}{\textunderscore\discretionary{}{}{}}
+
 %:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 % Comandos útiles
 %:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
@@ -69,5 +78,3 @@
 
 % Macro para el simbolo del electron
 \newcommand{\el}{e^{\text{-}}}
-
-

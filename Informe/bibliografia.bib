@@ -333,8 +333,19 @@
   note         = {Accessed: 2026}
 }
 
+% Nav2 costmap local 2D en ROS2 - referencia de arquitectura de mapa local reactivo
+% https://navigation.ros.org/
+@article{macenski2020nav2,
+  author  = {Steve Macenski and Francisco Martin and Ruffin White and Jonatan Gines Clavero},
+  title   = {The Marathon 2: A Navigation System},
+  journal = {2020 IEEE/RSJ International Conference on Intelligent Robots and Systems (IROS)},
+  year    = {2020},
+  pages   = {2718--2725},
+  doi     = {10.1109/IROS45743.2020.9341207}
+}
+
 %Justifica porque es mejor usar un mapa local:
-@inproceedings{brock1999high,
+@article{brock1999high,
   title     = {High-Speed Navigation Using the Global Dynamic Window Approach},
   author    = {Brock, Oliver and Khatib, Oussama},
   booktitle = {Proceedings of the IEEE International Conference on Robotics and Automation (ICRA)},
@@ -342,6 +353,37 @@
   year      = {1999},
   doi       = {10.1109/ROBOT.1999.770002},
   url       = {https://khatib.stanford.edu/publications/pdfs/Brock_1999_ICRA.pdf}
+}
+
+% Sistema portátil wearable para ciegos con cámara RGB-D montada en la cabeza,
+% IMU 9-DOF, grilla de ocupación 2D probabilística, retroalimentación háptica
+% (chaleco vibrotáctil) y odometría visual híbrida (FAST + nube densa + plano suelo).
+% Objetivo: navegación global punto-a-punto con SLAM incremental en interiores.
+% Procesamiento en laptop a 28-31 Hz. Validado con sujetos ciegos reales.
+% https://www.sciencedirect.com/science/article/pii/S1077314216300248
+@article{Lee2016RGBD,
+  author  = {Young Hoon Lee and Gérard Medioni},
+  title   = {{RGB-D} Camera Based Wearable Navigation System for the Visually Impaired},
+  journal = {Computer Vision and Image Understanding},
+  volume  = {149},
+  pages   = {3--20},
+  year    = {2016},
+  doi     = {10.1016/j.cviu.2016.03.019}
+}
+
+% Sistema portátil de navegación para ciegos basado en RGB-D + IMU integrada.
+% Usa la lectura del acelerómetro para estimar el ángulo de inclinación del sensor
+% y compensarlo en la proyección del plano del suelo.
+% https://www.ieee-jas.net/article/doi/10.1109/JAS.2021.1004084?viewType=HTML&pageType=en
+@article{Zhang2021DVIO,
+  author  = {He Zhang and Lingqiu Jin and Cang Ye},
+  title   = {An {RGB-D} Camera Based Visual Positioning System for Assistive Navigation by a Robotic Navigation Aid},
+  journal = {IEEE/CAA Journal of Automatica Sinica},
+  volume  = {8},
+  number  = {8},
+  pages   = {1389--1400},
+  year    = {2021},
+  doi     = {10.1109/JAS.2021.1004084}
 }
 
 % Reducción espacial y estadísticas de celda

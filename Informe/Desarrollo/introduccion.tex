@@ -14,20 +14,54 @@ En contraste, los sensores de profundidad por visión estéreo activa, como la f
 permiten obtener un mapa denso del entorno con cobertura bidimensional del campo visual, manteniendo al mismo tiempo portabilidad y baja latencia.
 
 El presente trabajo se enmarca en el principio de neuroplasticidad sensorial, según el cual el cerebro puede reorganizarse
-para explotar de manera más eficiente los sentidos restantes cuando la visión está reducida o ausente.
+para explotar de manera más eficiente los sentidos restantes cuando la visión está reducida o ausente \cite{BachyRita1969}.
 Sobre esa base, el proyecto global del que forma parte esta tesis busca diseñar un sistema portátil capaz de traducir
 información espacial visual en estímulos hápticos interpretables para la navegación asistida.
 
+Si bien existen trabajos previos que combinan cámaras RGB-D con retroalimentación háptica o vibrotáctil
+\cite{Lee2016RGBD, Zhang2021DVIO, Dakopoulos2010}, ninguno resuelve simultáneamente los requisitos de
+portabilidad extrema, cómputo embebido limitado y representación compacta con memoria temporal
+que impone un dispositivo wearable de uso cotidiano.
+El Capítulo~\ref{chap:estado-arte} analiza estas soluciones en detalle y posiciona la contribución
+de esta tesis respecto de ellas.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.85\textwidth]{_Imagenes/arquitectura/Tesis-arquitectura-base.drawio.png}
+  \caption{Visión general del sistema de asistencia sensorial desarrollado en esta tesis.
+           El sistema que corre en la Raspberry Pi 5 genera una representación compacta del entorno
+           que es consumida por una interfaz háptica portada por el usuario.}
+  \label{fig:intro-arquitectura-general}
+\end{figure}
+
 \section{Planteo del problema}
 
-El problema de ingeniería abordado en esta tesis consiste en diseñar un sistema embebido capaz de:
-\begin{enumerate}
-  \item adquirir información tridimensional del entorno mediante una cámara RGB-D con IMU integrada
-  \item procesarla en tiempo real sobre hardware de cómputo limitado
-  \item generar una representación compacta, estable y de baja latencia del espacio inmediato frente al usuario, adecuada para ser consumida por una futura interfaz háptica.
-\end{enumerate}
+Una persona con ceguera o baja visión que se desplaza por un entorno desconocido necesita información
+continua, fiable y de baja latencia sobre los obstáculos que la rodean, con una cobertura espacial
+que abarque tanto el plano del suelo como la altura de cabeza y tronco.
+Las soluciones existentes no satisfacen simultáneamente ese conjunto de requisitos:
+los bastones y perros guía carecen de alcance anticipatorio suficiente;
+los dispositivos electrónicos basados en ultrasonido o sensores puntuales ofrecen resolución espacial
+limitada \cite{Petsiuk2019UltrasoundNavigation, Santos2023};
+y los sistemas con cámaras de profundidad de mayor resolución suelen requerir capacidad de cómputo
+que excede la de plataformas portables \cite{Lee2016RGBD, Zhang2021DVIO}.
 
-Las restricciones determinantes del diseño son: portabilidad (el dispositivo se porta en la cabeza del usuario), cómputo embebido limitado (plataforma del orden de una Raspberry Pi 5 \cite{RaspberryPi}), latencia extremo a extremo reducida y estabilidad temporal de la representación frente a oclusiones cambios de orientación del sensor.
+El problema de ingeniería que aborda esta tesis es, por lo tanto, el diseño de un sistema embebido que,
+operando sobre hardware portable y de recursos acotados, adquiera información tridimensional del entorno
+y genere en tiempo real una representación compacta, estable y de baja latencia adecuada para
+ser consumida por una interfaz háptica.
+
+Las restricciones determinantes del diseño son:
+\begin{itemize}
+  \item \textbf{Portabilidad:} el dispositivo se porta en la cabeza del usuario, por lo que el peso,
+        el tamaño y el consumo energético deben ser reducidos.
+  \item \textbf{Cómputo embebido limitado:} la plataforma objetivo es del orden de una Raspberry Pi 5
+        \cite{RaspberryPi}, sin capacidad de procesamiento GPU de propósito general.
+  \item \textbf{Baja latencia:} el retardo extremo a extremo debe ser suficientemente pequeño para
+        que la retroalimentación háptica sea útil durante la marcha.
+  \item \textbf{Estabilidad temporal:} la representación del entorno debe mantenerse coherente
+        frente a oclusiones transitorias y cambios de orientación del sensor durante el movimiento.
+\end{itemize}
 
 \section{Objetivos}
 
@@ -46,24 +80,50 @@ y estable en tiempo real a partir de percepción RGB-D.
 
 \subsection{Objetivo técnico}
 
-El objetivo técnico es desarrollar e implementar en ROS2 \cite{ROS} un módulo de percepción que, utilizando la cámara
-Intel RealSense D435i \cite{RS-D400}, genere en tiempo real una representación compacta del entorno a partir de información
-de profundidad, optimizada para su uso como entrada de una futura interfaz háptica de asistencia a la movilidad.
+El objetivo técnico es desarrollar e implementar en ROS2 \cite{ROS} un módulo de percepción que,
+utilizando la cámara Intel RealSense D435i \cite{RS-D400}, genere en tiempo real una representación
+compacta del entorno a partir de información de profundidad, optimizada para su uso como entrada de
+una futura interfaz háptica de asistencia a la movilidad.
 
 Específicamente, el módulo deberá:
 \begin{itemize}
-  \item procesar imágenes de profundidad \texttt{16UC1} mediante filtrado y reducción de dimensionalidad,
-        produciendo como salida una grilla estructurada de baja resolución (por ejemplo, $10\times5$ celdas) con estadísticas
-        por celda (media, mínimo, conteo de puntos válidos);
-  \item publicar resultados en tópicos ROS2 estandarizados y proveer una interfaz serial para la transmisión eficiente
-        de la grilla compacta hacia un microcontrolador externo;
-  \item implementar una capa de mapeo local de corto alcance basada en grillas de ocupación log-odds \cite{Elfes1989,Thrun2005},
-        con memoria temporal de obstáculos y mecanismo de desplazamiento egocéntrico (\emph{scroll});
-  \item incorporar información de la IMU integrada del sensor para estimar la orientación y compensar cambios de pose
-        durante la actualización del mapa local.
+  \item procesar imágenes de profundidad mediante filtrado y reducción de dimensionalidad,
+        produciendo como salida una grilla estructurada de baja resolución con estadísticas
+        por celda (distancia mínima, media y conteo de puntos válidos);
+  \item publicar resultados en tópicos ROS2 estandarizados y proveer una interfaz serie para la
+        transmisión eficiente de la grilla compacta hacia un microcontrolador externo;
+  \item implementar una capa de mapeo local de corto alcance basada en grillas de ocupación
+        log-odds \cite{Elfes1989, Thrun2005}, con memoria temporal de obstáculos y mecanismo de
+        desplazamiento egocéntrico (\textit{scroll});
+  \item incorporar información de la IMU integrada del sensor para estimar la orientación y
+        compensar cambios de pose durante la actualización del mapa local.
 \end{itemize}
 
-Los parámetros numéricos y umbrales de decisión se refinarán mediante una fase de calibración y pruebas experimentales.
+Los parámetros numéricos y umbrales de decisión se refinarán mediante una fase de calibración y
+pruebas experimentales, descritas en el Capítulo~\ref{chap:experimentos}.
+
+\section{Contribuciones del trabajo}
+
+Las contribuciones originales de esta tesis son las siguientes:
+
+\begin{itemize}
+  \item Diseño e implementación de un \textit{pipeline} de percepción RGB-D en tiempo real sobre
+        hardware embebido, capaz de reducir la nube de profundidad a una representación de grilla
+        compacta con estadísticas por celda, con latencias compatibles con asistencia a la marcha.
+  \item Diseño e implementación de una capa de mapeo local de corto alcance basada en grillas de
+        ocupación log-odds \cite{Elfes1989, Thrun2005}, con memoria temporal de obstáculos y
+        mecanismo de desplazamiento egocéntrico (\textit{scroll}) que mantiene la coherencia del
+        mapa ante el movimiento del usuario.
+  \item Integración de la unidad de medición inercial (IMU) del sensor para compensar cambios de
+        orientación del portador durante la actualización del mapa local, mejorando la estabilidad
+        de la representación.
+  \item Definición de una interfaz serie de baja latencia para la transmisión eficiente de la grilla
+        compacta hacia un microcontrolador externo, facilitando la integración con futuros módulos
+        hápticos.
+  \item Evaluación experimental cuantitativa del sistema sobre escenarios reales, con métricas de
+        precisión de profundidad, latencia extremo a extremo, detección de obstáculos y consumo de
+        recursos computacionales.
+\end{itemize}
 
 \section{Alcance}
 
@@ -77,9 +137,7 @@ El alcance de esta tesis comprende:
 
 Quedan \emph{fuera} del alcance de esta tesis el diseño, la implementación y la integración de la interfaz háptica
 y sus actuadores, así como la validación con usuarios finales.
-La plataforma embebida objetivo se seleccionará a partir de las mediciones de rendimiento (CPU, memoria y latencia)
-obtenidas durante el prototipado; la referencia inicial es una Raspberry Pi 5, con una plataforma alternativa
-(NVIDIA Jetson Nano \cite{JetsonNano}) en caso de que los requisitos temporales no sean satisfechos.
+La plataforma embebida objetivo es una Raspberry Pi 5 \cite{RaspberryPi}; la selección definitiva se confirmará a partir de las mediciones de rendimiento (CPU, memoria y latencia) obtenidas durante las pruebas experimentales.
 
 \section{Organización del documento}
 
