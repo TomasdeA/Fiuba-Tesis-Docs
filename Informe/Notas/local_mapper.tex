@@ -1,0 +1,139 @@
+% ─────────────────────────────────────────────────────────────────────────────
+% local_mapper.tex
+%
+% Documentación incremental del módulo local_mapper.
+% Cada versión agrega una sección que explica el componente incorporado.
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Proyección de profundidad a coordenadas 3D}
+\label{sec:lm-depth-projector}
+
+El primer paso del pipeline de mapeo local consiste en transformar la imagen
+de profundidad entregada por la cámara en una nube de puntos tridimensional
+expresada en el sistema de coordenadas del sensor.
+
+\subsection{Motivación}
+
+La cámara de profundidad entrega, para cada píxel $(u, v)$, un valor entero
+de 16 bits que representa la distancia al objeto en milímetros. Esta
+representación es compacta y eficiente para transmisión, pero no es
+directamente útil para razonamiento espacial: no permite saber si un
+obstáculo se encuentra a la izquierda o a la derecha, ni a qué altura
+respecto del suelo.
+
+Para poder responder esas preguntas se necesita convertir cada píxel a un
+punto $(x, y, z)$ en metros, en un sistema de coordenadas conocido. Esta
+conversión se denomina \emph{retroproyección} y constituye la entrada
+obligatoria de cualquier etapa posterior del pipeline (filtrado por altura,
+alineación a gravedad, proyección a grilla de ocupación).
+
+\subsection{Modelo pinhole}
+
+La retroproyección utiliza el modelo de cámara pinhole. Los parámetros
+intrínsecos de la cámara se obtienen del mensaje \texttt{CameraInfo}
+publicado por el driver ROS del sensor. Los parámetros relevantes son:
+
+\begin{itemize}
+  \item $f_x$, $f_y$: distancias focales en píxeles (horizontal y vertical).
+  \item $c_x$, $c_y$: coordenadas del punto principal (centro óptico) en
+        píxeles.
+\end{itemize}
+
+Estos cuatro valores forman parte de la matriz de calibración intrínseca
+$\mathbf{K}$ (de dimensión $3 \times 3$), de la cual se extraen las
+posiciones $K_{0,0} = f_x$, $K_{1,1} = f_y$, $K_{0,2} = c_x$ y
+$K_{1,2} = c_y$.
+
+\subsection{Fórmulas de retroproyección}
+
+Dado un píxel en la posición $(u, v)$ con valor de profundidad
+$d_{\text{mm}}$ (en milímetros), la conversión a coordenadas 3D en metros
+se realiza mediante:
+
+\begin{align}
+  z &= d_{\text{mm}} \times s \label{eq:depth-z} \\
+  x &= \frac{(u - c_x) \cdot z}{f_x} \label{eq:depth-x} \\
+  y &= \frac{(v - c_y) \cdot z}{f_y} \label{eq:depth-y}
+\end{align}
+
+\noindent donde $s = 10^{-3}$ es el factor de escala que convierte
+milímetros a metros. El sistema de coordenadas resultante corresponde al
+frame óptico de la cámara de profundidad
+(\texttt{camera\_depth\_optical\_frame}):
+
+\begin{itemize}
+  \item $x$: eje horizontal, positivo hacia la derecha.
+  \item $y$: eje vertical, positivo hacia abajo.
+  \item $z$: eje de profundidad, positivo hacia la escena (adelante).
+\end{itemize}
+
+\subsection{Tratamiento de píxeles inválidos}
+
+No todos los píxeles de la imagen de profundidad contienen mediciones
+válidas. El sensor puede reportar un valor de 0 cuando el algoritmo de
+correlación estéreo no logra establecer correspondencia entre las dos
+imágenes infrarrojas, o de 65535 en caso de saturación. Estos píxeles
+se descartan y se marcan como $(0, 0, 0)$ en la nube de puntos resultante.
+
+Adicionalmente, el nodo aplica un filtro de rango: solo se conservan los
+puntos cuya profundidad $z$ se encuentra dentro del intervalo
+$[z_{\min}, z_{\max}]$ configurable. Esto elimina mediciones ruidosas
+muy cercanas al sensor y puntos lejanos con baja confiabilidad.
+
+\subsection{Implementación}
+
+La clase \texttt{DepthProjector} encapsula la lógica de retroproyección.
+Se construye a partir de un mensaje \texttt{CameraInfo} del cual extrae
+los cuatro intrínsecos. Expone dos métodos:
+
+\begin{itemize}
+  \item \texttt{projectPixel(u, v, depth\_mm)}: retroproyecta un solo
+        píxel.
+  \item \texttt{projectDepthImage(data, w, h)}: retroproyecta la imagen
+        completa, retornando un vector de puntos 3D.
+\end{itemize}
+
+El nodo \texttt{depth\_projection\_node} utiliza esta clase para suscribirse
+a la imagen de profundidad y al \texttt{CameraInfo}, y publica el resultado
+como un mensaje \texttt{PointCloud2} en el tópico
+\texttt{/local\_mapper/debug/depth\_cloud}. Esta nube de puntos se puede
+visualizar directamente en RViz para verificar que la proyección es
+geométricamente correcta.
+
+\subsection{Observaciones en RViz}
+
+Al visualizar la nube de puntos publicada se observa:
+
+\begin{enumerate}
+  \item La forma tridimensional de los objetos presentes frente a la cámara,
+        reconstruida fielmente a partir de la imagen de profundidad.
+  \item Los puntos se encuentran en el frame óptico de la cámara, por lo
+        que los objetos que están a la derecha del campo visual aparecen
+        con valores positivos de $x$, y los que están debajo del centro
+        óptico con valores positivos de $y$.
+  \item Zonas sin puntos correspondientes a píxeles inválidos del sensor
+        (superficies muy reflectivas, bordes de objetos o distancias fuera
+        de rango).
+  \item Toda la nube se encuentra ``cruda'': no está alineada a la gravedad
+        ni compensada por la inclinación de la cámara. Si la cámara apunta
+        ligeramente hacia abajo, el suelo aparece como un plano inclinado
+        en lugar de horizontal.
+\end{enumerate}
+
+La Figura~\ref{fig:rviz-depth-cloud} muestra una captura de la
+visualización en RViz, donde se presenta la nube de puntos coloreada por
+eje $z$ junto con la imagen de color correspondiente del sensor. Esta
+vista permite contrastar la escena real con la reconstrucción
+tridimensional obtenida por retroproyección.
+
+\begin{figure}[ht]
+  \centering
+  \includegraphics[width=0.95\textwidth]{_Imagenes/mapeo/rviz_depth_cloud.png}
+  \caption{Visualización en RViz de la nube de puntos retroproyectada
+           (izquierda) y la imagen de color capturada por el sensor
+           (derecha). La nube se colorea por profundidad en el eje $z$.}
+  \label{fig:rviz-depth-cloud}
+\end{figure}
+
+Esta última observación motiva la necesidad del componente de alineación
+gravitacional, que se aborda en la siguiente iteración del desarrollo.
