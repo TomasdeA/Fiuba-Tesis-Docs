@@ -126,14 +126,131 @@ eje $z$ junto con la imagen de color correspondiente del sensor. Esta
 vista permite contrastar la escena real con la reconstrucción
 tridimensional obtenida por retroproyección.
 
+{\large\textcolor{red}{TO DO : cambiar imagenes para que sean 3 del mismo tamaño y angulo de
+imagen. Utilizar las imagenes de medición con respecto a los cilindros de diferentes diametros a
+diferentes distancias.}}
+
 \begin{figure}[ht]
   \centering
-  \includegraphics[width=0.95\textwidth]{_Imagenes/mapeo/rviz_depth_cloud.png}
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{_Imagenes/mapeo/pinhole/rviz_depth_cloud.png}
+    \caption{Habitación}
+    \label{fig:depth-cloud-habitacion}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{_Imagenes/mapeo/pinhole/ruido_objeto_cercano.png}
+    \caption{Ruido en objeto cercano}
+    \label{fig:depth-cloud-ruido-cercano}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.32\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{_Imagenes/mapeo/pinhole/ruido_objeto_1_5m.png}
+    \caption{Ruido en objeto a 1{,}5\,m}
+    \label{fig:depth-cloud-ruido-1-5m}
+  \end{subfigure}
   \caption{Visualización en RViz de la nube de puntos retroproyectada
-           (izquierda) y la imagen de color capturada por el sensor
-           (derecha). La nube se colorea por profundidad en el eje $z$.}
+           y la imagen de color capturada por el sensor.
+           La nube se colorea por profundidad en el eje $z$.}
   \label{fig:rviz-depth-cloud}
 \end{figure}
 
 Esta última observación motiva la necesidad del componente de alineación
 gravitacional, que se aborda en la siguiente iteración del desarrollo.
+
+\subsection{Ruido y limitaciones espaciales del sensor}
+
+La visualización de la nube de puntos en RViz permite identificar con claridad
+el comportamiento del ruido asociado al sensor de profundidad. A continuación
+se describen las principales observaciones.
+
+\subsubsection{Dependencia del ruido con la distancia}
+
+El ruido en la nube de puntos aumenta progresivamente con la distancia al
+sensor. A distancias cortas, la dispersión de los puntos es reducida y los
+objetos se reconstruyen con alta fidelidad geométrica. A medida que la
+distancia aumenta, la incertidumbre en la medición de profundidad se amplifica,
+produciendo nubes más dispersas y superficies que visualmente aparecen
+``rugosas'' o fragmentadas.
+
+Este comportamiento es inherente al principio de operación de la cámara
+estéreo: la precisión de la correspondencia entre las dos imágenes infrarrojas
+disminuye cuando la disparidad entre ellas es pequeña, condición que se da
+precisamente cuando los objetos están lejos del sensor.
+
+\subsubsection{Filtrado de objetos pequeños a distancia}
+
+Una consecuencia directa del aumento del ruido con la distancia es la pérdida
+de capacidad para detectar objetos de pequeño tamaño. A corta distancia, el
+sensor logra capturar con suficiente resolución objetos delgados o de sección
+reducida. Sin embargo, al alejarse, estos objetos pueden quedar enmascarados
+por el ruido o simplemente no generar suficientes píxeles válidos como para
+ser reconocibles en la nube de puntos.
+
+Este fenómeno representa una limitación crítica para el sistema en su conjunto,
+dado que uno de sus objetivos es alertar al usuario sobre obstáculos que
+normalmente pasan desapercibidos. El caso más representativo es el de cables
+suspendidos a la altura de la cabeza: estructuras de sección milimétrica que,
+dependiendo de la distancia a la que se encuentren, podrían no ser capturadas
+por el sensor y, por ende, no ser transmitidas hapticamente al usuario.
+
+\subsubsection{La resolución espacial como diferencial del sistema}
+
+La resolución espacial es precisamente uno de los aspectos que distinguen al
+uso de una cámara estéreo de profundidad frente a otras alternativas de
+percepción del entorno, como sensores LiDAR de baja densidad o sensores
+ultrasónicos. La densidad de la nube de puntos generada permite, en principio,
+representar objetos con un nivel de detalle geométrico alto. Sin embargo, esta
+ventaja solo se mantiene dentro de un rango de distancias donde el ruido no
+degrada la medición por debajo de un umbral de utilidad práctica.
+
+\subsubsection{Caracterización formal de la capacidad de detección}
+
+Con el objetivo de cuantificar esta limitación y establecer criterios de
+diseño para el sistema háptico, se llevó a cabo una caracterización formal
+de la capacidad de detección del sensor en función de la distancia y del
+tamaño del objeto. El procedimiento consistió en posicionar objetos cilíndricos
+de diámetros conocidos (representativos de cables y barras) a distintas
+distancias frente al sensor, bajo condiciones de iluminación controlada y
+fondo homogéneo.
+
+Para cada combinación de distancia y diámetro se adquirieron múltiples
+capturas de la nube de puntos y se evaluó si el objeto era detectable como
+una estructura coherente, definiendo detección como la presencia de al menos
+un conjunto mínimo de puntos válidos con la geometría esperada. Se tabularon
+así los pares (distancia, diámetro) que se encontraban en la frontera de
+detección, obteniendo una curva límite que caracteriza el sensor.
+
+Esta curva permite responder preguntas concretas del diseño: dado un objeto
+de cierta sección transversal, a qué distancia máxima puede ser detectado de
+forma confiable, y cuál es la distancia mínima a la que el sistema háptico
+debe advertir al usuario para que la información sea accionable.
+
+{\large\textcolor{red}{TO DO : Realizar medición/experimento}}
+
+\begin{table}[h]
+\centering
+\caption{Caracterización del sensor Intel RealSense D435i}
+\label{tab:d435i_caracterizacion}
+\begin{tabular}{ccccc}
+\toprule
+\textbf{Distancia} & \textbf{$\bar{Z}$ (m)} & \textbf{$\sigma_Z$ (mm)} & \textbf{Flying pixels (\%)} & \textbf{FPS estable} \\
+\midrule
+0{,}5 m & -- & -- & -- & -- \\
+1{,}0 m & -- & -- & -- & -- \\
+2{,}0 m & -- & -- & -- & -- \\
+3{,}0 m & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\begin{tablenotes}
+  \small
+  \item $\bar{Z}$: media de profundidad sobre ROI central de $100 \times 100$ px.
+  \item $\sigma_Z$: desviación estándar de $Z$ (ruido axial RMS).
+  \item Flying pixels: porcentaje de píxeles con \texttt{depth = 0} o \texttt{depth = 65535}.
+  \item FPS medido sobre 300 frames con \texttt{ros2 topic hz}.
+  \item Superficie de referencia: pared plana, iluminación interior estándar.
+\end{tablenotes}
+\end{table}
