@@ -47,6 +47,33 @@
   note    = {\href{https://www.google.com/url?sa=t&source=web&rct=j&opi=89978449&url=https://cdrdv2-public.intel.com/841984/Intel-RealSense-D400-Series-Datasheet.pdf&ved=2ahUKEwiD1LXhiqiTAxWvGbkGHUPRLqcQFnoECA4QAQ&usg=AOvVaw1TZUq5vTGmxqseVjVH-2oi}{download-datasheet}}
 }
 
+% Estudio de acelerometría en marcha humana sobre superficies regulares e irregulares.
+% Se cita por los patrones de aceleración rítmicos y lentos propios de la marcha (cadencia ~1-2 Hz).
+% Verificado en: https://www.sciencedirect.com/science/article/abs/pii/S0966636202001595
+@article{menz2003acceleration,
+  author  = {Hylton B. Menz and Stephen R. Lord and Richard C. Fitzpatrick},
+  title   = {Acceleration patterns of the head and pelvis when walking on
+             level and irregular surfaces},
+  journal = {Gait \& Posture},
+  volume  = {18},
+  number  = {1},
+  pages   = {35--46},
+  year    = {2003},
+  doi     = {10.1016/s0966-6362(02)00159-5}
+}
+
+% Referencia estándar para filtros digitales IIR, diseño por método de Euler/bilineal,
+% y derivación de la constante de tiempo discreta a partir de la frecuencia de corte.
+% https://www-elec.inaoep.mx/~jmram/pds09/oppenheim.pdf
+@book{oppenheim1999dsp,
+  author    = {Alan V. Oppenheim and Ronald W. Schafer},
+  title     = {Discrete-Time Signal Processing},
+  edition   = {2},
+  publisher = {Prentice Hall},
+  year      = {1999},
+  isbn      = {0-13-754920-2}
+}
+
 @article{Durrant-Whyte2006,
   author  = {Hugh Durrant-Whyte and Tim Bailey},
   title   = {Simultaneous Localization and Mapping: Part I},
@@ -435,4 +462,26 @@
   year   = {2023},
   url    = {https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf},
   note   = {Cap.\ 13: UART Controller}
+}
+
+% Documento técnico del MIT sobre el problema de gimbal lock en el IMU del Apollo.
+% Disponible en: https://apollojournals.org/alsj/e-1344.htm
+@techreport{Hoag1963,
+  author      = {David Hoag},
+  title       = {Apollo Guidance and Navigation: Considerations of {Apollo} {IMU} Gimbal Lock},
+  institution = {MIT Instrumentation Laboratory},
+  number      = {E-1344},
+  year        = {1963},
+  url         = {https://apollojournals.org/alsj/e-1344.htm}
+}
+
+% Artículo del Apollo Lunar Surface Journal que describe el incidente de gimbal lock
+% en el Apollo 11 y el contexto de ingeniería que llevó a esa decisión de diseño.
+% Disponible en: https://apollojournals.org/alsj/gimbals.html
+@misc{Jones2006Gimbals,
+  author       = {Eric M. Jones and Paul Fjeld},
+  title        = {Gimbal Angles, Gimbal Lock, and a Fourth Gimbal for {Christmas}},
+  year         = {2000},
+  howpublished = {Apollo Lunar Surface Journal},
+  url          = {https://apollojournals.org/alsj/gimbals.html}
 }
