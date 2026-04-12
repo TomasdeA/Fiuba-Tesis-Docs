@@ -1,0 +1,475 @@
+% ─────────────────────────────────────────────────────────────────────────────
+%
+% Documentación de la estimación del plano del suelo por RANSAC jerárquico.
+% Corresponde a la tercera iteración del módulo local_mapper.
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Detección del plano del suelo}
+\label{sec:lm-ground-estimator}
+
+Tener una nube de puntos con el eje $Y$ alineado a la dirección de la
+gravedad, es una corrección necesaria para poder interpretar la
+geometría de la escena. El suelo, si es plano, debe aparecer ahora como un
+conjunto de puntos coplanares, todos a la misma altura $Y \approx h$, donde
+$h$ es la distancia de la cámara al suelo. Esta iteración introduce la
+detección y parametrización de ese plano del suelo mediante un pipeline de
+ocho etapas que sigue la metodología propuesta por Poux et~al.\ \cite{Poux2019voxel, Poux2020segmentation} para el
+procesamiento robusto de nubes de puntos 3D.
+
+\subsection{Marco teórico}
+
+\subsubsection{Representación de un plano en 3D}
+
+Un plano en el espacio tridimensional se puede representar mediante su
+ecuación implícita:
+\begin{equation}
+  \label{eq:plane-implicit}
+  \mathbf{n} \cdot \mathbf{p} + d = 0
+\end{equation}
+donde $\mathbf{n} = (n_x, n_y, n_z)^T \in \mathbb{R}^3$ es el vector
+normal unitario al plano ($\lVert\mathbf{n}\rVert = 1$),
+$\mathbf{p} = (x, y, z)^T$ es un punto arbitrario del plano, y $d \in
+\mathbb{R}$ es la distancia perpendicular con signo del origen de coordenadas al
+plano. La distancia con signo de un punto arbitrario $\mathbf{q}$ al plano es:
+\begin{equation}
+  \label{eq:point-plane-dist}
+  \delta(\mathbf{q}) = \mathbf{n} \cdot \mathbf{q} + d
+\end{equation}
+Esta expresión es positiva si $\mathbf{q}$ está del mismo lado que
+$\mathbf{n}$, y negativa en caso contrario. El origen de coordenadas
+(posición de la cámara) se encuentra a distancia $|d|$ del plano.
+
+\subsubsection{Estimación de ruido por distancia al vecino más cercano}
+\label{subsec:lm-v3-noise}
+
+El nivel de ruido de la cámara de profundidad varía con la distancia y con
+la reflectividad de la superficie. Para adaptar automáticamente la tolerancia
+de inliers sin intervención manual, se calcula estadísticamente la distancia
+media al vecino más cercano ($\bar{d}_{NN}$) sobre un subconjunto de la
+nube \cite{gonzalez2018digital}:
+\begin{equation}
+  \label{eq:nn-dist}
+  \bar{d}_{NN} = \frac{1}{m} \sum_{i=1}^m \min_{j \neq i} \lVert \mathbf{p}_i - \mathbf{p}_j \rVert
+\end{equation}
+La búsqueda del vecino más cercano para cada uno de los $m$ puntos muestreados
+se realiza como una búsqueda exhaustiva sobre la propia muestra, con
+complejidad $O(m^2)$. Si bien existen estructuras de datos más eficientes
+(kd-tree, $O(m \log m)$), la búsqueda exhaustiva es adecuada para el tamaño
+de muestra utilizado ($m = 200$ por defecto, parámetro
+\texttt{nn\_sample\_size}): el costo absoluto es de $200^2 = 40\,000$
+comparaciones de distancia, con latencia despreciable respecto al conjunto
+del pipeline. La muestra se selecciona mediante una permutación aleatoria
+con semilla fija, lo que garantiza reproducibilidad entre frames consecutivos
+y facilita el análisis y el testing: dos nubes con el mismo contenido producen
+siempre las mismas estadísticas de diagnóstico.
+
+La desviación estándar de esta distribución, $\sigma_{NN}$, sirve como
+estimación del ruido puntual del sensor. Bajo la hipótesis de que el ruido
+de medición sigue una distribución aproximadamente gaussiana, el intervalo
+$\pm 3\,\sigma_{NN}$ contiene el $99{,}7\,$\% de los valores esperados para
+puntos que genuinamente pertenecen al plano. Fijar la tolerancia en ese valor
+garantiza que casi ningún punto válido sea descartado como outlier por error
+de medición, a la vez que rechaza perturbaciones significativamente mayores.
+La tolerancia adaptativa se establece entonces como:
+
+\begin{equation}
+  \label{eq:adaptive-tol}
+  \varepsilon = 3 \, \sigma_{NN}
+\end{equation}
+
+acotada entre $1\,\text{cm}$ y $10\,\text{cm}$ para garantizar
+estabilidad numérica ante nubes muy densas o muy dispersas.
+
+\subsubsection{Downsampling por voxel grid}
+\label{subsec:lm-v3-voxel}
+
+Una nube de puntos generada por la cámara D435 a plena resolución contiene
+del orden de $4 \times 10^5$ puntos por fotograma ($848 \times 480$ píxeles).
+El tiempo de ejecución de RANSAC crece linealmente con el número de puntos
+(etapa de conteo de inliers), por lo que es conveniente reducir la densidad
+antes de ejecutar el algoritmo.
+
+El \emph{voxel grid} es una técnica estándar de submuestreo espacial
+\cite{hornung2013octomap}: se divide el espacio en una rejilla de celdas
+cúbicas de lado $s$ y se reemplaza cada celda que contenga al menos un punto
+por el centroide de todos los puntos que caen en ella. El número de puntos de
+salida es proporcional al volumen de la escena dividido por $s^3$, con
+independencia de la densidad de muestreo original. Este proceso reduce la
+distorsión causada por regiones sobredensas (por ejemplo, superficies
+cercanas a la cámara) y hace que la estimación de planos sea más uniforme
+espacialmente.
+
+Con la configuración por defecto ($s = 0{,}05\,\text{m}$), en escenas típicas
+de interior la nube pasa de $\approx 262\,000$ puntos con profundidad válida a
+$\approx 17\,000$ tras el downsampling, una reducción de aproximadamente
+$15\times$. Nótese que la entrada al voxel grid ($\approx 262\,000$) es menor
+que la resolución nominal del sensor ($848 \times 480 = 407\,040$~píxeles)
+porque el sensor D435 devuelve profundidad inválida en píxeles sin retorno
+suficiente (superficies muy reflectivas, bordes de oclusión, zonas fuera del
+rango operativo).
+
+\subsubsection{RANSAC para detección robusta de planos}
+\label{subsec:lm-v3-ransac}
+
+Un ajuste directo por mínimos cuadrados solo es apropiado cuando todos los
+puntos pertenecen al plano; en una nube 3D real el plano del suelo coexiste
+con puntos de obstáculos, paredes y ruido. El algoritmo RANSAC (\emph{Random
+Sample Consensus}) proporciona una estimación robusta de modelos paramétricos
+en presencia de valores atípicos (\emph{outliers}) \cite{Thrun2005}.
+
+El ciclo básico de RANSAC para planos es:
+\begin{enumerate}
+  \item Muestrear aleatoriamente el número mínimo de puntos necesarios para
+        ajustar el modelo (tres puntos definen un plano).
+  \item Ajustar el plano a esos tres puntos por producto vectorial.
+  \item Contar los puntos de la nube completa cuya distancia al plano
+        candidato es menor que una tolerancia $\varepsilon$ (inliers).
+  \item Retener el plano con mayor número de inliers.
+  \item Repetir durante $K$ iteraciones.
+\end{enumerate}
+Con $K$ iteraciones suficientes, la probabilidad de no haber muestreado al
+menos una vez un conjunto de tres puntos todos inliers es exponencialmente
+pequeña.
+
+Si la fracción de inliers en la nube es $\rho$, la probabilidad de que una
+muestra aleatoria de tres puntos esté formada íntegramente por inliers es
+$\rho^3$, asumiendo muestreo uniforme e independencia aproximada entre
+extracciones. En consecuencia, la probabilidad de que una iteración de
+RANSAC falle en producir una hipótesis libre de outliers es $1 - \rho^3$.
+Bajo la misma aproximación, la probabilidad de fallar en las $K$
+iteraciones queda dada por la ecuación~\ref{eq:ransac-failure-prob}:
+\begin{equation}
+  \label{eq:ransac-failure-prob}
+  P_{\mathrm{fail}} = (1 - \rho^3)^K
+\end{equation}
+Esta expresión corresponde a la formulación estándar de RANSAC para un
+modelo definido por una muestra mínima de tamaño $s = 3$ \cite{Thrun2005}.
+Para $\rho = 0{,}5$ y $K = 100$, la ecuación~\ref{eq:ransac-failure-prob}
+da una probabilidad de fallo inferior a $10^{-9}$.
+
+\subsubsection{Ajuste de plano por mínimos cuadrados}
+\label{subsec:lm-v3-ls}
+
+Dado un conjunto de $n$ puntos $\{\mathbf{p}_i\}_{i=1}^n$ que se suponen
+coplanares con ruido, se busca el plano $(\mathbf{n}, d)$ con
+$\lVert\mathbf{n}\rVert = 1$ que minimiza la suma de cuadrados de las
+distancias ortogonales. Usando la ecuación~\ref{eq:point-plane-dist}, la
+distancia del punto $\mathbf{p}_i$ al plano candidato es
+$\delta_i = \mathbf{n}^T\mathbf{p}_i + d$, por lo que la función de costo
+$J$ (el total del error cuadrático) queda:
+\begin{equation}
+  \label{eq:ls-objective}
+  J(\mathbf{n}, d)
+  = \sum_{i=1}^n \delta_i^2
+  = \sum_{i=1}^n \bigl(\mathbf{n}^T \mathbf{p}_i + d\bigr)^2
+\end{equation}
+y el problema es encontrar $\mathbf{n}$ y $d$ que lo hagan mínimo:
+\begin{equation}
+  \label{eq:ls-min}
+  \min_{\mathbf{n},\,d} \; J(\mathbf{n}, d), \qquad \lVert\mathbf{n}\rVert = 1
+\end{equation}
+Derivando respecto a $d$ e igualando a cero se obtiene el centroide:
+\begin{equation}
+  \label{eq:centroid}
+  \bar{\mathbf{p}} = \frac{1}{n} \sum_{i=1}^n \mathbf{p}_i, \qquad
+  d^* = -\mathbf{n}^T \bar{\mathbf{p}}
+\end{equation}
+Sustituyendo, el problema se reduce a minimizar únicamente sobre
+$\mathbf{n}$:
+\begin{equation}
+  \label{eq:rayleigh-pre}
+  J\bigl(\mathbf{n}, d^*(\mathbf{n})\bigr)
+  = \sum_{i=1}^n \bigl(\mathbf{n}^T (\mathbf{p}_i - \bar{\mathbf{p}})\bigr)^2
+  = \mathbf{n}^T S\, \mathbf{n}
+\end{equation}
+donde en la última igualdad se usó que, para cada término,
+$(\mathbf{n}^T \mathbf{a})^2 = \mathbf{n}^T (\mathbf{a}\mathbf{a}^T)\mathbf{n}$,
+con $\mathbf{a} = \mathbf{p}_i - \bar{\mathbf{p}}$, y por tanto
+\begin{equation}
+  \label{eq:scatter}
+  S = \sum_{i=1}^n
+      (\mathbf{p}_i - \bar{\mathbf{p}})
+      (\mathbf{p}_i - \bar{\mathbf{p}})^T
+\end{equation}
+es la matriz de dispersión de los puntos centrados. La matriz de
+covarianza $3 \times 3$ es:
+\begin{equation}
+  \label{eq:covariance}
+  C = \frac{1}{n} \sum_{i=1}^n
+      (\mathbf{p}_i - \bar{\mathbf{p}})
+      (\mathbf{p}_i - \bar{\mathbf{p}})^T
+\end{equation}
+de modo que $S = nC$. Como $n > 0$ es una constante, minimizar
+$\mathbf{n}^T S\,\mathbf{n}$ o minimizar $\mathbf{n}^T C\,\mathbf{n}$
+produce exactamente el mismo vector normal óptimo.
+$C$ es semidefinida positiva y simétrica, por lo que admite la
+descomposición espectral $C = Q \Lambda Q^T$ con autovalores
+$\lambda_1 \geq \lambda_2 \geq \lambda_3 \geq 0$. El cociente de Rayleigh
+$\mathbf{n}^T C\, \mathbf{n}$ alcanza su mínimo $\lambda_3$ cuando
+$\mathbf{n}$ es el autovector $\mathbf{q}_3$ correspondiente al autovalor
+más pequeño \cite[App.~A4]{Hartley2004}. En consecuencia, la solución óptima es:
+\begin{equation}
+  \label{eq:plane-d}
+  \mathbf{n}^* = \mathbf{q}_3, \qquad
+  d^* = -\mathbf{n}^{*T} \bar{\mathbf{p}}
+\end{equation}
+Este autovector indica la dirección de \emph{menor} varianza de la nube, que
+en un conjunto aproximadamente coplanar coincide con la perpendicular al
+plano.
+
+En la implementación, el cálculo de autovectores de $C$ se realiza mediante
+el algoritmo iterativo de Jacobi para matrices simétricas $3 \times 3$
+\cite{stroustrup2013cpp}. La implementación trabaja sobre la matriz
+simétrica acumulada de segundo orden y realiza barridos sucesivos sobre los
+tres pares de índices $(0,1)$, $(0,2)$ y $(1,2)$. Para cada par $(i,j)$,
+si el término fuera de la diagonal es no nulo, se construye una rotación
+ortogonal $R_{ij}(\theta)$ y se aplica la transformación de similitud
+\begin{equation}
+  \label{eq:jacobi-rotation}
+  C_{k+1} = R_{ij}(\theta)^T\, C_k\, R_{ij}(\theta)
+\end{equation}
+con el objetivo de anular el elemento no diagonal $(C_k)_{ij}$. En la
+implementación, el ángulo se calcula como
+\begin{equation}
+  \label{eq:jacobi-angle}
+  \theta = \frac{1}{2}
+  \operatorname{atan2}\!\left(2(C_k)_{ij}, (C_k)_{ii} - (C_k)_{jj}\right)
+\end{equation}
+de modo que la submatriz $2 \times 2$ asociada a las filas y columnas
+$i,j$ quede diagonalizada tras la rotación. El proceso se repite durante un
+número fijo de barridos; en cada uno se actualiza tanto la matriz simétrica
+como la matriz acumulada de rotaciones, cuyas columnas convergen a los
+autovectores. Finalmente, la normal del plano se toma como el autovector
+asociado al menor autovalor. En este problema, al tratarse de matrices
+$3 \times 3$, el costo computacional es bajo y no se requieren dependencias
+externas.
+
+\subsection{Arquitectura}
+
+Se extiende el pipeline del nodo con la clase \texttt{GroundEstimator}.
+Esta clase recibe como entrada la nube de puntos ya alineada a gravedad
+(frame donde $Y$ apunta hacia abajo) y produce como salida el plano del
+suelo estimado, junto con listas de índices clasificando cada punto como
+suelo (\texttt{GROUND}), obstáculo (\texttt{OBSTACLE}) o techo
+(\texttt{CEILING}). El resto del módulo (DepthProjector, ImuFilter, GravityAligner)
+se mantiene sin cambios.
+
+
+\subsection{Método: pipeline de ocho etapas}
+\label{sec:lm-v3-pipeline}
+
+El pipeline de \texttt{GroundEstimator} sigue ocho etapas secuenciales sobre
+cada fotograma de profundidad.
+
+\paragraph{Etapa 1: Diagnóstico de la nube.}
+Se calcula sobre una muestra aleatoria de $m$ puntos (por defecto $m = 200$)
+la distancia al vecino más cercano, su media $\bar{d}_{NN}$ y desviación
+estándar $\sigma_{NN}$ (ecuación~\ref{eq:nn-dist}). Adicionalmente se estima
+la densidad volumétrica de la nube y el porcentaje de puntos outliers
+(aquellos cuya distancia NN supera $\bar{d}_{NN} + 3\,\sigma_{NN}$). Estas
+estadísticas se exponen públicamente para monitoreo y ajuste de parámetros
+en tiempo de ejecución.
+
+\paragraph{Etapa 2: Submuestreo por voxel grid.}
+La nube completa se reduce mediante un voxel grid de resolución $s =
+0{,}05\,\text{m}$ por defecto (sección~\ref{subsec:lm-v3-voxel}). Se utiliza
+una tabla hash con clave $(i_x, i_y, i_z) = \lfloor \mathbf{p}/s \rfloor$
+para acumular los puntos de cada celda y promediarlos en tiempo $O(n)$.
+
+\paragraph{Etapa 3: Tolerancia adaptativa.}
+Si el parámetro de configuración \texttt{ground\_inlier\_tol} vale $0$ (valor
+por defecto), se fija $\varepsilon$ automáticamente según la
+ecuación~\ref{eq:adaptive-tol} a partir de $\sigma_{NN}$ calculado en la
+Etapa 1. En caso contrario, el valor configurado se utiliza directamente,
+lo que permite ajustar el comportamiento del algoritmo durante el desarrollo
+sin modificar el código.
+
+\paragraph{Etapa 4: RANSAC jerárquico.}
+Se ejecuta el ciclo RANSAC (sección~\ref{subsec:lm-v3-ransac}) en dos fases.
+La primera fase trabaja exclusivamente sobre los puntos candidatos a suelo,
+definidos como aquellos cuya coordenada $Y \geq h_{\min}$, donde $h_{\min}$
+es un parámetro configurable (por defecto $1{,}3\,\text{m}$).
+
+El fundamento geométrico es el siguiente: en el frame alineado a gravedad,
+$Y = 0$ corresponde a la posición de la cámara e $Y$ crece hacia abajo. La
+cámara se monta en la cabeza del usuario, de modo que la distancia vertical
+al suelo es aproximadamente la altura de la persona más un pequeño delta de
+soporte. Como consecuencia, el suelo siempre se encuentra a $Y \geq h_{\min}$,
+donde $h_{\min}$ es la altura mínima esperada de los usuarios del sistema.
+Los puntos con $Y < h_{\min}$ están entre la cámara y el suelo (obstáculos,
+cuerpo del usuario) y no constituyen candidatos válidos. El valor
+$h_{\min} = 1{,}3\,\text{m}$ representa el peor caso conservador: si la
+persona mide más, el filtro solo incorpora algunos puntos de obstáculos
+adicionales en la fase 1, sin afectar la detección del plano.
+
+Esta primera fase usa el $70\,$\% de las iteraciones disponibles. Si la
+calidad del mejor candidato supera el umbral mínimo configurado (fracción de
+inliers $\geq \rho_{\min}$, por defecto $0{,}3$), se transita directamente a
+la Etapa 5. En caso contrario, la segunda fase amplía la búsqueda al conjunto
+completo de puntos con las iteraciones restantes. Esta estrategia reduce el
+número esperado de iteraciones en escenarios típicos con suelo visible.
+
+\paragraph{Etapa 5: Validación geométrica.}
+Se verifica que el plano candidato satisfaga dos criterios:
+\begin{enumerate}
+  \item El ángulo entre la normal del plano y el eje $Y$ es menor que
+        $\alpha_{\max}$ (por defecto $15°$), condición que garantiza que
+        el plano detectado es aproximadamente horizontal.
+  \item La fracción de inliers supera $\rho_{\min}$.
+\end{enumerate}
+Un plano que no pase esta validación es descartado y la estimación devuelve
+falla para ese fotograma.
+
+\paragraph{Etapa 6: Refinamiento por mínimos cuadrados.}
+Con el plano candidato como punto de partida, se colectan todos los puntos
+de la nube \emph{completa} (no downsampled) cuya distancia al plano es
+inferior a $1{,}5\,\varepsilon$ y se aplica el ajuste por mínimos cuadrados de la
+sección~\ref{subsec:lm-v3-ls}. El plano refinado tiene menor sesgo porque
+utiliza más puntos y no está restringido al subconjunto voxelizado.
+
+\paragraph{Etapa 7: Clasificación.}
+Cada punto de la nube original recibe una de las siguientes etiquetas,
+determinadas exclusivamente por criterios geométricos:
+\begin{itemize}
+  \item \texttt{GROUND}: la distancia al plano refinado satisface
+        $|\delta| < \varepsilon$. Estos puntos se publican en el tópico
+        de suelo \texttt{/local\_mapper/debug/ground\_cloud}.
+
+  \item \texttt{CEILING}: la coordenada satisface $Y_i <
+        -\delta_{\text{techo}}$, donde $\delta_{\text{techo}}$ es un
+        margen configurable (parámetro \texttt{ceiling\_delta\_m},
+        valor por defecto $0{,}1\,\text{m}$). Dado que en el frame
+        alineado $Y = 0$ corresponde a la posición de la cámara e $Y$
+        crece hacia abajo, valores negativos de $Y$ indican puntos
+        situados por encima de la cámara. Como la cámara se monta en
+        la cabeza del usuario, estos puntos pertenecen al techo u
+        otras superficies sobre la cabeza que no representan obstáculos
+        chocables. Los puntos \texttt{CEILING} se descartan: no se
+        añaden al tópico de obstáculos ni al mapa de ocupación.
+
+  \item \texttt{OBSTACLE}: todo punto que no sea \texttt{GROUND} ni
+        \texttt{CEILING}. Comprende paredes, objetos en el camino, el
+        cuerpo del propio usuario y cualquier superficie entre la cámara
+        y el suelo. Estos puntos se publican en
+        \texttt{/local\_mapper/debug/obstacle\_cloud} y alimentan la
+        grilla de ocupación.
+\end{itemize}
+
+\paragraph{Etapa 8: Análisis de performance.}
+Se registran los tiempos de ejecución de cada etapa mediante
+\texttt{clock\_gettime(CLOCK\_MONOTONIC)} para facilitar el ajuste del
+presupuesto computacional en la plataforma destino (Raspberry Pi 5).
+
+\subsection{Implementación}
+
+\subsubsection{Interfaz de \texttt{GroundEstimator}}
+
+La clase \texttt{GroundEstimator} expone la siguiente interfaz mínima:
+
+\begin{itemize}
+  \item \texttt{explicit GroundEstimator(const Config\& cfg)}: constructor
+        que recibe una estructura de configuración con los parámetros de
+        todas las etapas.
+  \item \texttt{bool estimate(const std::vector<Point3D>\& cloud)}: ejecuta
+        el pipeline completo y retorna \texttt{true} si se detectó un plano
+        válido. Los resultados quedan disponibles en los getters.
+  \item \texttt{const Plane\& groundPlane()}: parámetros del plano estimado
+        (normal, distancia, calidad, número de inliers).
+  \item \texttt{const std::vector<int>\& groundIndices()}: índices de los
+        puntos clasificados como suelo.
+  \item \texttt{const std::vector<int>\& obstacleIndices()}: índices de los
+        puntos clasificados como obstáculo.
+  \item \texttt{float cameraHeightM()}: distancia de la cámara al plano del
+        suelo en metros, equivalente a $|d^*|$ de la
+        ecuación~\ref{eq:plane-d}.
+  \item \texttt{const CloudStats\& cloudStats()}: estadísticas de la Etapa 1.
+  \item \texttt{const PerfStats\& perfStats()}: tiempos y conteos de la
+        Etapa 8.
+\end{itemize}
+
+La estructura \texttt{Config} agrupa los parámetros de cada etapa y
+proporciona valores por defecto conservadores para el caso de uso previsto:
+cámara montada en la cabeza del usuario, por lo que la distancia vertical al
+suelo es aproximadamente la altura de la persona más un pequeño delta de
+soporte. El parámetro \texttt{min\_person\_height\_m} se fija en el peor caso
+($1{,}3\,\text{m}$): si la persona resulta ser más alta, el filtro solo incluye
+alguno puntos de obstáculos adicionales en la primera fase del RANSAC, sin
+afectar la detección del plano del suelo.
+
+\subsubsection{Integración en el nodo ROS}
+
+La iteración V3 del nodo \texttt{DepthProjectionNode} añade los siguientes
+elementos respecto a V2:
+
+\begin{enumerate}
+  \item Cinco nuevos parámetros ROS (\texttt{voxel\_size\_m},
+        \texttt{ransac\_max\_iter}, \texttt{ground\_inlier\_tol},
+        \texttt{min\_person\_height\_m}, \texttt{ceiling\_delta\_m}) que
+        se leen de \texttt{params.yaml} en el constructor.
+  \item Un objeto \texttt{GroundEstimator} inicializado con esos parámetros.
+  \item El cuaternión de alineación gravitacional $q$ se calcula una única vez
+        por mensaje IMU en \texttt{onImu()} y se almacena como miembro
+        \texttt{q\_} de la clase. En \texttt{onDepth()}, ese valor cacheado
+        se emplea para rotar explícitamente los puntos válidos al frame
+        \texttt{gravity\_aligned\_frame}, produciendo la nube que se pasa
+        a \texttt{ground\_estimator\_.estimate()}. Esta estrategia evita
+        recalcular la orientación en cada frame de profundidad y mantiene
+        coherencia temporal entre la nube y la estimación del plano.
+  \item Cuatro nuevos publicadores de tipo \texttt{PointCloud2}:
+        \texttt{ground\_cloud} (puntos clasificados como suelo),
+        \texttt{obstacle\_cloud} (puntos clasificados como obstáculo),
+        \texttt{ceiling\_cloud} (puntos descartados por estar sobre la cámara)
+        y \texttt{raw\_cloud} (nube cruda en \texttt{gravity\_aligned\_frame},
+        sin rotar, para verificación visual del alineamiento).
+        Los primeros tres se publican en \texttt{gravity\_aligned\_frame}
+        con coordenadas ya rotadas; \texttt{raw\_cloud} se publica con
+        coordenadas de cámara directamente en ese frame, de modo que en
+        RViz se observe la oscilación al inclinar el dispositivo.
+        La nube cruda principal (\texttt{depth\_cloud}) se publica en
+        \texttt{camera\_depth\_optical\_frame}: RViz aplica la TF dinámica
+        publicada en \texttt{onImu()} para mostrarla alineada, sin necesidad
+        de una copia rotada explícita.
+\end{enumerate}
+
+La rotación de los puntos al frame alineado se aplica mediante el método
+\texttt{Quaternion::rotatePoint()} de \texttt{GravityAligner}
+(véase la sección~\ref{sec:lm-gravity-aligner}), que implementa la
+operación $\mathbf{p}' = q\,\mathbf{p}\,q^{*}$ con aritmética de
+cuaterniones unitarios en punto flotante de simple precisión.
+
+\subsubsection{Ausencia de dependencias externas}
+
+La implementación de \texttt{GroundEstimator} es C++17 puro, sin dependencias
+de ROS ni de bibliotecas de álgebra lineal (PCL, Eigen). El algoritmo de
+Jacobi para el cálculo de autovectores $3 \times 3$, la tabla hash para
+el voxel grid y el generador de números pseudoaleatorios de la biblioteca
+estándar son suficientes para el problema. Esto facilita el testing unitario
+mediante GTest sin necesitar el entorno de ROS.
+
+\subsection{Experimentos propuestos}
+
+Los siguientes experimentos permiten evaluar el desempeño del sistema en
+condiciones reales antes de integrar la detección del suelo con el mapeador
+de ocupación.
+
+\paragraph{Superficie plana perfecta.}
+Apuntar la cámara hacia un suelo liso (azulejo o tablero) a distintas
+distancias ($0{,}5\,\text{m}$, $1\,\text{m}$, $2\,\text{m}$). Verificar
+que el pipeline estima un plano con calidad superior a $0{,}6$ y que la
+altura estimada $h$ coincide con la medición manual en $\pm 5\,\text{cm}$.
+
+\paragraph{Inclinación deliberada.}
+Inclinar la cámara $\pm 20°$ respecto de la horizontal sin mover el
+dispositivo del mismo punto. Con la alineación gravitacional activa (V2),
+el plano del suelo debe seguir siendo detectado correctamente. Sin ella,
+la Etapa 5 debería rechazar el plano.
+
+\paragraph{Escena con obstáculos.}
+Colocar objetos (caja, silla) frente a la cámara y verificar que los puntos
+de tales objetos no son clasificados como \texttt{GROUND}.
+
+\paragraph{Benchmark de performance.}
+Medir \texttt{PerfStats.time\_total\_ms} durante $100$ fotogramas con la
+cámara a $30\,\text{fps}$. El presupuesto objetivo es $< 15\,\text{ms}$ por
+fotograma en Raspberry Pi 5, lo que deja margen para el resto del pipeline
+de navegación.
