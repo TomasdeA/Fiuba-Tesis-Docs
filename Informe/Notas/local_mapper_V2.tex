@@ -194,9 +194,9 @@ $\mathbf{p}'$, es la de la ecuación~\ref{eq:hamilton-tqc}:
   \label{eq:hamilton-tqc}
   \mathbf{p}' = \begin{pmatrix} p'_x \\ p'_y \\ p'_z \end{pmatrix}
     = \begin{pmatrix}
-        t_w q_x + t_x q_w + t_y q_z - t_z q_y \\
-        t_w q_y + t_y q_w + t_z q_x - t_x q_z \\
-        t_w q_z + t_z q_w + t_x q_y - t_y q_x
+        -t_w q_x + t_x q_w - t_y q_z + t_z q_y \\
+        -t_w q_y + t_x q_z + t_y q_w - t_z q_x \\
+        -t_w q_z - t_x q_y + t_y q_x + t_z q_w
       \end{pmatrix}
 \end{equation}
 Esta expansión es equivalente a aplicar una matriz de rotación
@@ -348,10 +348,12 @@ transferencia $H(s) = \omega_c / (s + \omega_c)$, donde
 $\omega_c = 2\pi f_c$. Al discretizarlo por el método de Euler hacia
 adelante con paso $T_s = 1/f_s$, la constante de tiempo discreta resulta en
 la ecuación~\ref{eq:alpha}:
+
 \begin{equation}
   \label{eq:alpha}
   \alpha = \frac{2\pi f_c}{2\pi f_c + f_s}
 \end{equation}
+
 La frecuencia de muestreo del IMU del D435i es $f_s = 200\,\text{Hz}$,
 valor indicado en la hoja de datos del fabricante~\cite{RS-D400} y verificado
 experimentalmente midiendo el tópico ROS correspondiente (200 mensajes por
