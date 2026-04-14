@@ -324,8 +324,29 @@ falla para ese fotograma.
 Con el plano candidato como punto de partida, se colectan todos los puntos
 de la nube \emph{completa} (no downsampled) cuya distancia al plano es
 inferior a $1{,}5\,\varepsilon$ y se aplica el ajuste por mínimos cuadrados de la
-sección~\ref{subsec:lm-v3-ls}. El plano refinado tiene menor sesgo porque
-utiliza más puntos y no está restringido al subconjunto voxelizado.
+sección~\ref{subsec:lm-v3-ls}.
+
+La razón por la que esta etapa puede operar sobre la nube completa, a
+diferencia de la Etapa~4, reside en la diferencia de complejidad
+computacional entre RANSAC y el ajuste por mínimos cuadrados. RANSAC
+requiere $K$ iteraciones y en cada una recorre la nube entera para contar
+inliers, resultando en un costo $O(K \cdot n)$; con $K = 100$ y
+$n \approx 300\,000$ puntos, eso supone del orden de $3 \times 10^7$
+evaluaciones de distancia por fotograma. El ajuste por mínimos cuadrados,
+en cambio, consiste en una única pasada sobre los inliers para acumular la
+matriz de covarianza $3 \times 3$ (ecuación~\ref{eq:covariance}), con costo
+$O(n_{\mathrm{inl}})$; incluso con decenas de miles de inliers, esa pasada
+tarda menos de $2\,\text{ms}$ según las mediciones de la Etapa~8.
+
+Utilizar la nube completa en el refinamiento produce además un plano
+con menor sesgo geométrico que si se usara el subconjunto voxelizado.
+El voxel grid reemplaza grupos de puntos por su centroide de celda; si
+la distribución de puntos dentro de cada celda no es simétrica respecto
+al plano real (lo que ocurre frecuentemente cerca de los bordes y en
+superficies con variación de profundidad), los centroides introducen un
+sesgo sistemático en la estimación. Al ajustar sobre las
+medidas originales, ese sesgo desaparece y el estimador converge a la
+solución de mínima varianza.
 
 \paragraph{Etapa 7: Clasificación.}
 Cada punto de la nube original recibe una de las siguientes etiquetas,
@@ -445,6 +466,67 @@ Jacobi para el cálculo de autovectores $3 \times 3$, la tabla hash para
 el voxel grid y el generador de números pseudoaleatorios de la biblioteca
 estándar son suficientes para el problema. Esto facilita el testing unitario
 mediante GTest sin necesitar el entorno de ROS.
+
+\subsubsection{Optimizaciones derivadas del análisis de performance}
+\label{subsec:lm-v3-perf-opt}
+
+La Etapa~8 del pipeline no produce resultados geométricos, sino que
+instrumenta las demás etapas con marcas de tiempo obtenidas mediante
+\texttt{clock\_ge\-ttime(CLOCK\_MO\-NOTONIC)}. El nodo ROS acumula esas
+medidas durante diez segundos y emite una línea de log con el promedio y el
+máximo de cada etapa, lo que permite identificar cuellos de botella sin
+recurrir a herramientas de profiling externas.
+
+Las mediciones realizadas sobre la plataforma de desarrollo (procesador
+Intel Core i7, compilando con \texttt{-O2}) revelaron que las dos etapas
+iniciales del pipeline concentran prácticamente la totalidad del tiempo de
+cómputo: la Etapa~1 (búsqueda de vecinos más cercanos) consume entre
+$3{,}5$ y $5{,}5\,\text{ms}$, mientras que la Etapa~2 (construcción del voxel
+grid) consume entre $5{,}0$ y $7{,}5\,\text{ms}$. Las etapas restantes
+(RANSAC y refinamiento por mínimos cuadrados) resultan significativamente
+más rápidas, con tiempos promedio inferiores a $2\,\text{ms}$ cada una.
+En consecuencia, el tiempo total del pipeline ronda los $12$\,--\,$18\,\text{ms}$
+por fotograma.
+
+El análisis de dependencias de datos del pipeline revela que la Etapa~1 y
+la Etapa~2 son completamente independientes entre sí: ambas reciben
+exclusivamente la nube de entrada \texttt{cloud} como argumento de solo
+lectura, sin acceder a ningún estado mutable compartido. La Etapa~3 requiere
+$\sigma_{NN}$ producido por la Etapa~1, y la Etapa~4 requiere la nube
+voxelizada producida por la Etapa~2. Por tanto, existe una dependencia de
+datos hacia adelante: las dos primeras etapas deben completarse
+\emph{entre sí} antes de que pueda iniciarse la Etapa~4, pero no existe
+ninguna dependencia entre ellas. Este patrón corresponde a una
+bifurcación-unión (\emph{fork-join}), que es la estructura canónica de
+paralelismo de datos descrita por Herlihy y Shavit \cite{herlihy2012art}.
+
+La independencia entre la Etapa~1 y la Etapa~2 permite ejecutarlas
+concurrentemente. La implementación utiliza \texttt{std::async} con política
+\texttt{std::launch::async} de la biblioteca estándar de C++17
+\cite{stroustrup2013cpp}, que garantiza la creación de un hilo de sistema
+operativo independiente para cada tarea. Cada hilo ejecuta la función
+correspondiente sobre la misma nube (acceso de solo lectura, sin condición de
+carrera) y deposita su resultado en un objeto \texttt{std::future}. El hilo
+principal sincroniza ambas tareas mediante \texttt{future::get()} antes de
+continuar con la Etapa~3, consumiendo los dos resultados de forma segura.
+
+El tiempo de pared esperado para el par de etapas paralelas es, en el
+mejor caso, $\max(t_1, t_2)$ en vez de $t_1 + t_2$, lo que reduce el
+aporte de las dos etapas dominantes de aproximadamente $10\,\text{ms}$ a
+aproximadamente $6\,\text{ms}$. La ganancia efectiva depende de la
+disponibilidad de núcleos: la plataforma destino (Raspberry Pi~5) cuenta
+con cuatro núcleos ARM Cortex-A76, de modo que los dos hilos adicionales
+no compiten con el hilo principal de ROS.
+
+Adicionalmente, se introdujo un filtro previo al voxel grid: los puntos con
+$Y_i < -\delta_{\text{techo}}$ se descartan antes de la construcción de la
+tabla hash. Estos puntos corresponden a la clase \texttt{CEILING} y son
+igualmente descartados al final del pipeline en la Etapa~7, por lo que su
+exclusión anticipada es semánticamente transparente. La reducción en la
+entrada al voxel grid es modesta cuando la cámara apunta hacia el frente,
+pero se vuelve significativa cuando el usuario inclina la cabeza hacia abajo
+o cuando el techo es bajo, escenarios en los que la nube puede contener
+entre el $10\,$\% y el $30\,$\% de puntos de tipo \texttt{CEILING}.
 
 \subsection{Experimentos propuestos}
 
