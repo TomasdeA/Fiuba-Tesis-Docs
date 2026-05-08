@@ -1,0 +1,409 @@
+% ─────────────────────────────────────────────────────────────────────────────
+%
+% raspi_docker_config.tex
+%
+% Documentación de la configuración de despliegue en Raspberry Pi:
+%   - Entorno Docker: imagen única para PC (amd64) y Raspberry Pi (arm64)
+%   - Diferencias de configuración entre ambas plataformas
+%   - Servicio systemd nav-mapper.service para arranque automático
+%   - Procedimiento de instalación y operación del servicio
+%
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Configuración de despliegue en Raspberry Pi}
+\label{sec:raspi-deploy}
+
+El sistema se desarrolla y prueba en una PC de escritorio con arquitectura
+\texttt{amd64} y se despliega en una Raspberry Pi con arquitectura
+\texttt{arm64}. Para garantizar paridad de entorno entre ambas plataformas
+se utiliza Docker como capa de aislamiento: una única imagen base se
+construye de forma nativa en cada arquitectura, y las diferencias de
+plataforma se resuelven íntegramente dentro del \texttt{Dockerfile} en tiempo
+de construcción, sin afectar al código fuente de los paquetes ROS2.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{Entorno Docker}
+\label{sec:docker-env}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{Imagen base y construcción multi-plataforma}
+
+Ambas plataformas parten de la imagen oficial \texttt{ros:humble-ros-base},
+que provee ROS~2 Humble sobre Ubuntu~22.04. La imagen se construye de forma
+nativa en cada máquina (no se usa emulación QEMU), por lo que el argumento
+\texttt{TARGETARCH} es rellenado automáticamente por el daemon de Docker con
+el valor correcto: \texttt{amd64} en la PC y \texttt{arm64} en la Raspberry
+Pi.
+
+La imagen resultante en la Raspberry Pi se etiqueta como
+\texttt{tesis-ros2:humble-cpu-arm64}; en la PC como
+\texttt{tesis-ros2:humble-cpu}.
+
+\subsubsection{Capas comunes a ambas plataformas}
+
+Las siguientes dependencias se instalan en todas las arquitecturas:
+
+\begin{itemize}
+  \item Herramientas de construcción: \texttt{colcon}, \texttt{vcstool},
+        \texttt{cmake}, \texttt{clang-format}.
+  \item Paquetes ROS2: \texttt{realsense2-camera},
+        \texttt{vision\_opencv}, \texttt{rmw\_cyclonedds\_cpp},
+        \texttt{imu\_filter\_madgwick}, \texttt{rtabmap-ros},
+        \texttt{rviz2}.
+  \item Librería de acceso GPIO: \texttt{libgpiod-dev} (usada por el
+        paquete \texttt{gpio\_rosbag\_controller} para disparar grabaciones
+        mediante un pulsador físico).
+\end{itemize}
+
+\subsubsection{Diferencias exclusivas de la PC (amd64)}
+
+En la PC se instalan herramientas gráficas que no tienen sentido en la
+Raspberry Pi, donde no hay display conectado:
+
+\begin{itemize}
+  \item \texttt{ros-humble-rqt} y \texttt{ros-humble-rqt-image-view}:
+        paneles de introspección de tópicos en tiempo real.
+  \item Soporte \texttt{GTK3} / \texttt{Mesa GL}: necesario para las
+        ventanas de OpenCV (\texttt{imshow}) y RViz2.
+\end{itemize}
+
+\subsubsection{Diferencias exclusivas de la Raspberry Pi (arm64)}
+
+El paquete oficial de apt \texttt{ros-humble-realsense2-camera} enlaza
+contra \texttt{librealsense2} versión~2.56, que internamente usa el
+\emph{backend de kernel} (\texttt{V4L2/UVC}). Este backend requiere
+permisos de root y en Raspberry Pi OS presenta problemas de inicialización
+con la cámara D435i. Para resolverlo se compila \texttt{librealsense}
+v2.57.6 desde su código fuente activando el \emph{RSUSB backend}, que
+opera en espacio de usuario sobre \texttt{libusb-1.0}:
+
+\begin{verbatim}
+cmake .. \
+  -DFORCE_RSUSB_BACKEND=ON \
+  -DBUILD_EXAMPLES=OFF \
+  -DBUILD_WITH_OPENMP=OFF
+make -j2 && make install
+\end{verbatim}
+
+La biblioteca resultante queda en \texttt{/usr/local/lib/librealsense2.so.2.57.*}.
+Para que el wrapper de ROS2 la utilice en lugar de la versión de apt se crea
+un enlace simbólico sobre el archivo que instala el paquete:
+
+\begin{verbatim}
+ln -sf /usr/local/lib/librealsense2.so.2.57.* \
+       /opt/ros/humble/lib/aarch64-linux-gnu/librealsense2.so.2.56
+\end{verbatim}
+
+Además se configura el orden de búsqueda de la carga dinámica para que
+\texttt{/usr/local/lib} y \texttt{/usr/local/bin} tengan precedencia:
+
+\begin{verbatim}
+ENV PATH="/usr/local/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/lib:${LD_LIBRARY_PATH}"
+\end{verbatim}
+
+Esta misma configuración se replica en \texttt{/etc/bash.bashrc} para que
+también esté disponible en sesiones interactivas.
+
+Por limitaciones de la Pi, la compilación de librealsense usa sólo
+\texttt{-j2} (dos hilos) para no agotar la memoria RAM durante el build de
+la imagen.
+
+\subsubsection{Usuario en el contenedor}
+
+El contenedor crea internamente un usuario cuyo nombre, UID y GID se
+inyectan en tiempo de construcción mediante argumentos \texttt{ARG}:
+
+\begin{verbatim}
+docker compose build
+  --build-arg USERNAME=tomasdea
+  --build-arg USER_UID=$(id -u)
+  --build-arg USER_GID=$(id -g)
+\end{verbatim}
+
+En la práctica estos valores son leídos desde las variables de entorno del
+\texttt{docker-compose.raspi.yml}. Esto asegura que los archivos creados
+dentro del contenedor (bags, logs, archivos de build) tengan el mismo
+propietario que el usuario del host, evitando problemas de permisos al
+acceder a los volúmenes montados.
+
+\subsubsection{Volúmenes y dispositivos montados}
+
+El workspace del host se monta en el mismo path dentro del contenedor:
+
+\begin{verbatim}
+${HOST_WS}:${CONTAINER_WS}
+\end{verbatim}
+
+De este modo \texttt{HOST\_WS} y \texttt{CONTAINER\_WS} apuntan al mismo
+directorio físico (\texttt{/home/tomasdea/Tesis/develop/Fiuba-Tesis} en la
+Pi), lo que simplifica la depuración: editar un archivo en el host es
+equivalente a hacerlo en el contenedor.
+
+En la Raspberry Pi también se montan los dispositivos necesarios para el
+hardware:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\toprule
+\textbf{Recurso montado} & \textbf{Finalidad} \\
+\midrule
+\texttt{/dev} (completo) & Acceso a la cámara RealSense y al UART \\
+\texttt{/dev/bus/usb}    & Acceso USB explícito (RSUSB backend) \\
+\texttt{/sys}            & Información de topología de hardware \\
+\texttt{/run/udev}       & Eventos de conexión de dispositivos \\
+\texttt{/dev/gpiochip0}  & GPIO para el pulsador de grabación \\
+\bottomrule
+\end{tabular}
+\caption{Dispositivos del host montados en el contenedor (Raspberry Pi).}
+\label{tab:raspi-mounts}
+\end{table}
+
+En la PC de desarrollo no se monta \texttt{/dev/gpiochip0} ni se agrega el
+grupo \texttt{gpio} al contenedor, ya que esa funcionalidad es exclusiva de
+la Pi. En cambio, sí se monta \texttt{/tmp/.X11-unix} para permitir la
+apertura de ventanas gráficas (RViz2, \texttt{imshow}) en el display del
+host.
+
+\subsubsection{Contexto de shell y variable WS\_PATH}
+
+El archivo \texttt{docker/context.sh} se monta como
+\texttt{/etc/profile.d/context.sh} en el contenedor (solo lectura).
+\texttt{/etc/profile.d/} es un directorio especial de Linux que todos los
+shells de \emph{login} (\texttt{bash -l}) ejecutan automáticamente al
+iniciar. El archivo realiza dos tareas:
+
+\begin{enumerate}
+  \item Detecta si el proceso está corriendo dentro de un contenedor Docker
+        (consulta \texttt{/.dockerenv}, \texttt{/proc/1/cgroup} y la
+        variable \texttt{RUNNING\_IN\_CONTAINER}) y exporta
+        \texttt{SHELL\_CONTEXT=container} o \texttt{host} según corresponda.
+  \item Sourcea \texttt{\$WS\_PATH/tools/dev/context\_env.sh}, que define
+        aliases y helpers de desarrollo (\texttt{tesis-run}, \texttt{tesis-build},
+        etc.) y personaliza el prompt del bash con el tag \texttt{[docker]}
+        o \texttt{[local]}.
+\end{enumerate}
+
+La variable \texttt{WS\_PATH} se inyecta desde el \texttt{docker-compose}
+en tiempo de ejecución mediante:
+
+\begin{verbatim}
+environment:
+  - WS_PATH=${CONTAINER_WS}
+\end{verbatim}
+
+y también a través de \texttt{BASH\_ENV=/etc/profile.d/context.sh}, que
+hace que el archivo de contexto se sourcea incluso en shells
+\emph{no-interactivos} (importante para el servicio systemd).
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{Servicio systemd \texttt{nav-mapper}}
+\label{sec:systemd-service}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\subsubsection{¿Qué es systemd?}
+
+\textbf{systemd} es el gestor de sistema e inicialización (\emph{init system})
+estándar en las distribuciones Linux modernas, incluyendo Raspberry Pi OS.
+Es el primer proceso que arranca el kernel (PID~1) y es responsable de
+iniciar todos los demás procesos del sistema en el orden correcto.
+
+Un \textbf{servicio} (o \emph{unit} de tipo \texttt{service}) es un
+archivo de texto con extensión \texttt{.service} que describe cómo
+iniciar, detener, reiniciar y monitorear un proceso. systemd gestiona el
+ciclo de vida completo del proceso: lo arranca al encender el equipo, lo
+reinicia si falla, captura su salida estándar y la envía al journal del
+sistema (consultable con \texttt{journalctl}).
+
+La alternativa sin systemd sería entrar por SSH a la Pi cada vez que
+se enciende, navegar al directorio, sourcear ROS2 y ejecutar el launch
+manualmente. El servicio elimina ese paso y hace el sistema autónomo.
+
+\subsubsection{Estructura de un archivo \texttt{.service}}
+
+Un archivo \texttt{.service} tiene tres secciones obligatorias:
+
+\begin{description}
+  \item[\texttt{[Unit]}] Metadatos y dependencias. Define qué otros
+    servicios deben estar activos antes de que este pueda arrancar
+    (\texttt{After=}, \texttt{Requires=}).
+  \item[\texttt{[Service]}] Configuración del proceso: usuario que lo ejecuta,
+    variables de entorno, comando de arranque (\texttt{ExecStart}),
+    política de reinicio.
+  \item[\texttt{[Install]}] A qué \emph{target} (equivalente a un runlevel)
+    pertenece el servicio. \texttt{multi-user.target} equivale al modo
+    de operación normal con red pero sin entorno gráfico.
+\end{description}
+
+\subsubsection{Archivo \texttt{nav-mapper.service}}
+
+El archivo de servicio del proyecto se encuentra en
+\texttt{src/nav\_bringup/scripts/nav-mapper.service}. A continuación se
+describe cada directiva:
+
+\paragraph{Sección \texttt{[Unit]}}
+
+\begin{verbatim}
+After=network.target docker.service
+Requires=docker.service
+\end{verbatim}
+
+\texttt{After} establece el \emph{orden} de arranque: systemd espera a que
+\texttt{network.target} (red disponible, necesaria para DDS/ROS2) y
+\texttt{docker.service} (daemon de Docker) estén activos antes de iniciar
+este servicio. \texttt{Requires} declara una \emph{dependencia dura}: si
+Docker no está disponible, el servicio no arranca.
+
+\paragraph{Sección \texttt{[Service]}}
+
+\begin{verbatim}
+User=tomasdea
+Group=tomasdea
+\end{verbatim}
+
+El proceso se ejecuta con el usuario \texttt{tomasdea} (no como root).
+Esto es importante porque el contenedor Docker hereda el mismo usuario
+y porque los archivos del workspace (bags, logs) quedarán con el
+propietario correcto.
+
+\begin{verbatim}
+Environment="HOME=/home/tomasdea"
+Environment="ROS_DOMAIN_ID=0"
+Environment="WS_PATH=/home/tomasdea/Tesis/develop/Fiuba-Tesis"
+\end{verbatim}
+
+systemd no sourcea \texttt{.bashrc} ni \texttt{.profile}: el proceso
+arranca con un entorno mínimo. Por eso todas las variables necesarias se
+declaran explícitamente con \texttt{Environment=}. \texttt{WS\_PATH} es
+consumida por \texttt{docker compose} para montar el volumen correcto y
+también es inyectada dentro del contenedor.
+
+\begin{verbatim}
+ExecStart=/usr/bin/docker compose \
+  -f ${WS_PATH}/docker-compose.raspi.yml \
+  run --rm dev \
+  bash -lc 'exec ros2 launch nav_bringup nav.launch.py \
+            use_hw:=false use_gpio_recorder:=false'
+\end{verbatim}
+
+En lugar de sourcear ROS2 directamente en el host, el servicio levanta un
+contenedor efímero usando el perfil de Raspberry Pi. El flag \texttt{--rm}
+elimina el contenedor al terminar, evitando acumulación. El flag \texttt{-l}
+de \texttt{bash} activa el modo \emph{login shell}, que ejecuta
+\texttt{/etc/profile.d/context.sh} (montado por el compose), el cual
+sourcea ROS2 y el workspace automáticamente. Esto es equivalente al flujo
+manual de desarrollo con \texttt{tesis-run}.
+
+\begin{verbatim}
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+\end{verbatim}
+
+Si el proceso termina con código de error (p.\,ej.\ la cámara no se detecta
+al arrancar), systemd lo reinicia automáticamente tras 5~segundos.
+\texttt{TimeoutStopSec=30s} da tiempo a que \texttt{ros2 bag record} (si
+está activo) haga \texttt{flush} y cierre el bag limpiamente antes de que
+systemd envíe \texttt{SIGKILL}.
+
+\begin{verbatim}
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=nav-mapper
+\end{verbatim}
+
+Toda la salida del proceso (incluyendo los \texttt{RCLCPP\_INFO} de los
+nodos ROS2) se envía al journal de systemd con el identificador
+\texttt{nav-mapper}, lo que permite filtrarla fácilmente:
+\texttt{journalctl -u nav-mapper -f}.
+
+\subsubsection{Instalación del servicio en la Raspberry Pi}
+
+Los pasos para instalar y habilitar el servicio son los siguientes:
+
+\begin{enumerate}
+  \item Copiar el archivo al directorio de servicios del sistema:
+\begin{verbatim}
+sudo cp src/nav_bringup/scripts/nav-mapper.service \
+        /etc/systemd/system/
+\end{verbatim}
+
+  \item Recargar el índice de units de systemd para que detecte el nuevo
+        archivo:
+\begin{verbatim}
+sudo systemctl daemon-reload
+\end{verbatim}
+
+  \item Habilitar el servicio para que arranque automáticamente en cada
+        inicio del sistema:
+\begin{verbatim}
+sudo systemctl enable nav-mapper.service
+\end{verbatim}
+
+  \item Iniciarlo manualmente por primera vez (sin necesidad de reiniciar):
+\begin{verbatim}
+sudo systemctl start nav-mapper.service
+\end{verbatim}
+
+  \item Verificar que está corriendo:
+\begin{verbatim}
+systemctl status nav-mapper.service
+\end{verbatim}
+
+  \item Monitorear la salida en tiempo real:
+\begin{verbatim}
+journalctl -u nav-mapper -f
+\end{verbatim}
+\end{enumerate}
+
+Para detener el servicio sin deshabilitarlo (útil durante desarrollo):
+\begin{verbatim}
+sudo systemctl stop nav-mapper.service
+\end{verbatim}
+
+Para deshabilitar el arranque automático permanentemente:
+\begin{verbatim}
+sudo systemctl disable nav-mapper.service
+\end{verbatim}
+
+\subsubsection{Permisos de Docker sin sudo}
+
+Para que el usuario \texttt{tomasdea} pueda ejecutar comandos de Docker
+sin \texttt{sudo} (requerido para que el servicio funcione sin elevar
+privilegios), debe pertenecer al grupo \texttt{docker}:
+
+\begin{verbatim}
+sudo usermod -aG docker tomasdea
+\end{verbatim}
+
+El cambio de grupo toma efecto en la próxima sesión de login o reinicio.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{Resumen de diferencias PC vs.\ Raspberry Pi}
+\label{sec:docker-diff-summary}
+% ─────────────────────────────────────────────────────────────────────────────
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Aspecto} & \textbf{PC (amd64)} & \textbf{Raspberry Pi (arm64)} \\
+\midrule
+Imagen Docker         & \texttt{tesis-ros2:humble-cpu}       & \texttt{tesis-ros2:humble-cpu-arm64} \\
+Compose file          & \texttt{docker-compose.yml}           & \texttt{docker-compose.raspi.yml}    \\
+librealsense          & Paquete apt v2.56                     & Compilada desde fuente v2.57.6       \\
+Backend RealSense     & Kernel (V4L2/UVC)                     & RSUSB (espacio de usuario)           \\
+Herramientas gráficas & RViz2, rqt, imshow                   & No instaladas                        \\
+Display               & \texttt{/tmp/.X11-unix} montado       & No aplica                            \\
+GPIO                  & No montado                            & \texttt{/dev/gpiochip0} + grupo 986  \\
+\texttt{pid: host}    & No                                    & Sí (necesario para GPIO)             \\
+\texttt{RMW}          & No fijado explícitamente              & \texttt{rmw\_cyclonedds\_cpp}        \\
+Arranque automático   & Manual (\texttt{tesis-run})           & Servicio systemd                     \\
+Build librealsense    & No aplica                             & \texttt{-j2} (límite de RAM)         \\
+\bottomrule
+\end{tabular}
+\caption{Diferencias de configuración entre la PC de desarrollo y la
+  Raspberry Pi de despliegue.}
+\label{tab:docker-pc-vs-raspi}
+\end{table}

@@ -285,29 +285,53 @@ lo que permite ajustar el comportamiento del algoritmo durante el desarrollo
 sin modificar el código.
 
 \paragraph{Etapa 4: RANSAC jerárquico.}
-Se ejecuta el ciclo RANSAC (sección~\ref{subsec:lm-v3-ransac}) en dos fases.
-La primera fase trabaja exclusivamente sobre los puntos candidatos a suelo,
-definidos como aquellos cuya coordenada $Y \geq h_{\min}$, donde $h_{\min}$
-es un parámetro configurable (por defecto $1{,}3\,\text{m}$).
+Se ejecuta el ciclo RANSAC (sección~\ref{subsec:lm-v3-ransac}) en dos fases,
+con tres mecanismos para hacer robusta la detección en condiciones reales de
+operación (véase la sección~\ref{subsec:lm-v3-ground-robustness} para la
+justificación detallada de cada uno).
 
-El fundamento geométrico es el siguiente: en el frame alineado a gravedad,
-$Y = 0$ corresponde a la posición de la cámara e $Y$ crece hacia abajo. La
-cámara se monta en la cabeza del usuario, de modo que la distancia vertical
-al suelo es aproximadamente la altura de la persona más un pequeño delta de
-soporte. Como consecuencia, el suelo siempre se encuentra a $Y \geq h_{\min}$,
-donde $h_{\min}$ es la altura mínima esperada de los usuarios del sistema.
-Los puntos con $Y < h_{\min}$ están entre la cámara y el suelo (obstáculos,
-cuerpo del usuario) y no constituyen candidatos válidos. El valor
-$h_{\min} = 1{,}3\,\text{m}$ representa el peor caso conservador: si la
-persona mide más, el filtro solo incorpora algunos puntos de obstáculos
-adicionales en la fase 1, sin afectar la detección del plano.
+El primer filtro descarta toda coordenada $Y < h_{\min}$ ($h_{\min} = 1{,}3\,\text{m}$
+por defecto). En el frame alineado, $Y = 0$ es la posición de la cámara e $Y$
+aumenta hacia abajo; la cámara se monta en la cabeza del usuario, por lo que
+el suelo siempre queda a $Y \geq h_{\min}$ (altura mínima esperada del
+usuario). Los puntos por encima de ese umbral corresponden a obstáculos o al
+cuerpo del usuario y no constituyen candidatos válidos.
 
-Esta primera fase usa el $70\,$\% de las iteraciones disponibles. Si la
-calidad del mejor candidato supera el umbral mínimo configurado (fracción de
-inliers $\geq \rho_{\min}$, por defecto $0{,}3$), se transita directamente a
-la Etapa 5. En caso contrario, la segunda fase amplía la búsqueda al conjunto
-completo de puntos con las iteraciones restantes. Esta estrategia reduce el
-número esperado de iteraciones en escenarios típicos con suelo visible.
+Sobre el conjunto filtrado $\mathcal{F}$ se construye un histograma de la coordenada
+$Y$ con celdas de ancho $\Delta_Y$ (por defecto $0{,}05\,\text{m}$). El bin
+más poblado localiza el nivel $Y^*$ de la superficie horizontal dominante.
+A partir de ese pico se define la banda de suelo:
+\begin{equation}
+  \label{eq:floor-band}
+  \mathcal{B} = \bigl\{i \in \mathcal{F} \;:\; Y^* - \delta_l \leq Y_i \leq Y^* + \delta_h\bigr\}
+\end{equation}
+donde $\delta_l = 0{,}10\,\text{m}$ y $\delta_h = 0{,}20\,\text{m}$ son márgenes
+configurables que absorben la inclinación leve del suelo y el ruido del sensor.
+El muestreo de las hipótesis de RANSAC se realiza exclusivamente sobre $\mathcal{B}$,
+lo que concentra la búsqueda en la zona más probable del suelo.
+
+El conteo de inliers emplea una tolerancia por punto:
+\begin{equation}
+  \label{eq:variable-tol}
+  \varepsilon_i = \max\bigl(\varepsilon,\; k \cdot \lVert \mathbf{p}_i \rVert\bigr)
+\end{equation}
+donde $\varepsilon$ es la tolerancia global de la Etapa~3 y $k = 0{,}015$
+(parámetro \texttt{floor\_noise\_k}). Los inliers se evalúan únicamente sobre $\mathcal{B}$
+y la métrica de calidad se define como:
+\begin{equation}
+  \label{eq:relative-quality}
+  \rho = \frac{|\text{inliers} \cap \mathcal{B}|}{|\mathcal{B}|}
+\end{equation}
+Este denominador relativo a la banda, en lugar del total de puntos de la nube,
+hace que el umbral $\rho_{\min}$ se interprete como fracción del suelo
+detectado respecto al suelo candidato, independientemente de cuántos puntos
+no relacionados con el suelo haya en la escena.
+
+La primera fase emplea el $70\,$\% de las iteraciones muestreando desde $\mathcal{B}$.
+Si $\rho \geq \rho_{\min}$ (por defecto $0{,}3$), se transita a la Etapa~5.
+En caso contrario, la segunda fase amplía el pool de muestreo al conjunto
+completo $\mathcal{F}$ con las iteraciones restantes, lo que cubre escenarios
+en que la banda del histograma no representó bien el suelo.
 
 \paragraph{Etapa 5: Validación geométrica.}
 Se verifica que el plano candidato satisfaga dos criterios:
@@ -527,6 +551,78 @@ entrada al voxel grid es modesta cuando la cámara apunta hacia el frente,
 pero se vuelve significativa cuando el usuario inclina la cabeza hacia abajo
 o cuando el techo es bajo, escenarios en los que la nube puede contener
 entre el $10\,$\% y el $30\,$\% de puntos de tipo \texttt{CEILING}.
+
+\subsubsection{Robustez ante suelo parcialmente visible}
+\label{subsec:lm-v3-ground-robustness}
+
+\paragraph{Problema observado.}
+Durante las pruebas con la cámara en posición de uso real (montada en la
+cabeza del usuario y apuntando al frente), la detección del plano del suelo
+fallaba sistemáticamente a pesar de que el suelo era visible en la nube de
+puntos. El diagnóstico reveló dos causas independientes.
+
+La primera causa es estructural: cuando la cámara apunta hacia el frente,
+el suelo ocupa una fracción pequeña del campo de visión, típicamente entre
+el $5\,$\% y el $8\,$\% del total de puntos. Con la métrica original
+$\rho = |\text{inliers}| / n_{\text{total}}$ y umbral $\rho_{\min} = 0{,}3$,
+tres décimas partes de la nube deberían ser inliers del plano del suelo para
+que la detección prosperara, condición geométricamente imposible cuando el
+suelo representa sólo una pequeña fracción de la escena. El algoritmo
+rechazaba el plano correcto en la Etapa~5 aunque RANSAC hubiera ajustado
+correctamente la superficie.
+
+La segunda causa es metrológica: la tolerancia global $\varepsilon = 3\,\sigma_{NN}$
+se calcula a partir de la distribución de distancias al vecino más cercano
+sobre la nube completa, dominada por puntos cercanos a la cámara. La
+cámara D435 exhibe un error axial que crece con la distancia al cuadrado en
+condiciones generales \cite{RS-D400}, y cuya componente perpendicular al
+suelo escala aproximadamente como $k \cdot \lVert\mathbf{p}\rVert$ para
+superficies aproximadamente horizontales \cite{IntelRealSenseDepthTuning}.
+Para puntos del suelo a $2\, \text{m}$--$3\,\text{m}$ de la cámara, la
+tolerancia global resultaba demasiado estrecha, causando que esos puntos
+fueran descartados como outliers aun perteneciendo al plano.
+
+\paragraph{Solución implementada.}
+Se introdujeron tres mecanismos complementarios, descritos formalmente en
+la Etapa~4 del pipeline (ecuaciones~\ref{eq:floor-band},
+\ref{eq:variable-tol} y~\ref{eq:relative-quality}).
+
+El histograma de $Y$ localiza el nivel del suelo sin asumir que el suelo
+domina la nube: el pico del histograma es el nivel más frecuente en la
+franja de alturas esperadas, y la banda $\mathcal{B}$ concentra el muestreo
+en esa zona. La calidad relativa $\rho = |\text{inliers} \cap \mathcal{B}| / |\mathcal{B}|$
+desacopla el umbral de la fracción que el suelo representa en la nube total;
+con $\rho_{\min} = 0{,}3$, basta que el $30\,$\% de los candidatos a suelo
+sean consistentes con el plano ajustado, independientemente de cuántas
+paredes u obstáculos estén presentes. Por último, la tolerancia variable
+$\varepsilon_i = \max(\varepsilon, k\cdot\lVert\mathbf{p}_i\rVert)$ adapta
+el criterio de inlier al nivel de ruido esperado en cada punto según su
+distancia, sin requerir ningún parámetro de calibración adicional más allá
+del factor $k$.
+
+\paragraph{Mejora observada.}
+Tras introducir los tres mecanismos, la detección del plano del suelo opera
+correctamente con la cámara apuntando al frente en entornos de interior
+típicos. La figura~\ref{fig:lm-ground-robustness} muestra una comparación
+directa del comportamiento antes y después de la modificación: a la
+izquierda, la clasificación falla y todos los puntos del suelo son etiquetados
+como obstáculos; a la derecha, el plano es detectado correctamente y los
+puntos del suelo reciben la etiqueta \texttt{GROUND}.
+
+\begin{figure}[htbp]
+  \centering
+  % Reemplazar con \includegraphics[width=\linewidth]{fig/ground-detection-comparison.png}
+  % cuando la imagen esté disponible.
+  \fbox{\parbox{0.9\linewidth}{\centering\vspace{2cm}Imagen: antes/después de la mejora de detección del suelo\vspace{2cm}}}
+  \caption{Comparación de la clasificación antes (izquierda) y después (derecha)
+           de incorporar el histograma de $Y$, la calidad relativa a la banda y
+           la tolerancia variable $\varepsilon_i = \max(\varepsilon, k\cdot\lVert\mathbf{p}_i\rVert)$.
+           La cámara apunta hacia el frente; el suelo ocupa menos del $10\,$\% de la nube.
+           A la izquierda, todos los puntos del suelo se clasifican erróneamente como
+           \texttt{OBSTACLE}. A la derecha, el plano es detectado y los puntos
+           del suelo reciben la etiqueta \texttt{GROUND} (verde).}
+  \label{fig:lm-ground-robustness}
+\end{figure}
 
 \subsection{Experimentos propuestos}
 

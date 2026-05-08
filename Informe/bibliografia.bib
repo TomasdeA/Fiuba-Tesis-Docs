@@ -329,6 +329,7 @@
   doi     = {10.1109/TPAMI.2017.2658577}
 }
 
+% http://www.r-5.org/files/books/computers/algo-list/image-processing/vision/Richard_Hartley_Andrew_Zisserman-Multiple_View_Geometry_in_Computer_Vision-EN.pdf
 @book{Hartley2004,
   author    = {Richard Hartley and Andrew Zisserman},
   title     = {Multiple View Geometry in Computer Vision},
@@ -337,7 +338,6 @@
   year      = {2004},
   isbn      = {978-0-521-54051-3}
 }
-% http://www.r-5.org/files/books/computers/algo-list/image-processing/vision/Richard_Hartley_Andrew_Zisserman-Multiple_View_Geometry_in_Computer_Vision-EN.pdf
 
 @article{Scharstein2002,
   author  = {Daniel Scharstein and Richard Szeliski},
@@ -484,4 +484,138 @@
   year         = {2000},
   howpublished = {Apollo Lunar Surface Journal},
   url          = {https://apollojournals.org/alsj/gimbals.html}
+}
+
+% Pipeline de segmentación no supervisada en nubes de puntos 3D de interiores
+% mediante region growing y RANSAC para clasificación por objetos.
+% Disponible en: https://isprs-archives.copernicus.org/articles/XLIV-4-W1-2020/111/2020/
+@inproceedings{Poux2020segmentation,
+  author    = {Poux, Florent and Mattes, Christian and Kobbelt, Leif},
+  title     = {Unsupervised Segmentation of Indoor {3D} Point Cloud:
+               Application to Object-based Classification},
+  booktitle = {The International Archives of the Photogrammetry, Remote
+               Sensing and Spatial Information Sciences},
+  volume    = {XLIV-4/W1-2020},
+  pages     = {111--118},
+  year      = {2020},
+  doi       = {10.5194/isprs-archives-XLIV-4-W1-2020-111-2020}
+}
+
+% ─── Referencias para nav_odometry / RgbdTracker ──────────────────────────────
+
+% Detector de esquinas FAST (Features from Accelerated Segment Test).
+% Artículo seminal del método de prueba de segmento para detección rápida de esquinas.
+@inproceedings{Rosten2006FAST,
+  author    = {Edward Rosten and Tom Drummond},
+  title     = {Machine Learning for High-Speed Corner Detection},
+  booktitle = {European Conference on Computer Vision (ECCV)},
+  pages     = {430--443},
+  year      = {2006},
+  doi       = {10.1007/11744023_34}
+}
+
+% Algoritmo de seguimiento de Lucas y Kanade (1981).
+% Formulación original del estimador de flujo óptico diferencial de ventana.
+@inproceedings{Lucas1981LK,
+  author    = {Bruce D. Lucas and Takeo Kanade},
+  title     = {An Iterative Image Registration Technique with an Application to Stereo Vision},
+  booktitle = {International Joint Conference on Artificial Intelligence (IJCAI)},
+  pages     = {674--679},
+  year      = {1981}
+}
+
+% Extensión piramidal del algoritmo LK para desplazamientos grandes.
+% Nota técnica de Jean-Yves Bouguet (Intel Corp.).
+@techreport{Bouguet2000Pyramid,
+  author      = {Jean-Yves Bouguet},
+  title       = {Pyramidal Implementation of the {L}ucas-{K}anade Feature Tracker},
+  institution = {Intel Corporation, Microprocessor Research Labs},
+  year        = {2000}
+}
+
+% Método EPnP: solución eficiente y no iterativa del problema Perspective-n-Point.
+% Complejidad O(N); requisito mínimo teórico de cuatro correspondencias.
+@article{Lepetit2009EPnP,
+  author  = {Vincent Lepetit and Francesc Moreno-Noguer and Pascal Fua},
+  title   = {{EP}n{P}: An Accurate {O}(n) Solution to the {P}n{P} Problem},
+  journal = {International Journal of Computer Vision},
+  volume  = {81},
+  number  = {2},
+  pages   = {155--166},
+  year    = {2009},
+  doi     = {10.1007/s11263-008-0152-6}
+}
+
+% Método de Shepperd para la extracción numéricamente estable de cuaterniones
+% a partir de una matriz de rotación.
+% Marquardt: algoritmo de mínimos cuadrados no lineales (Levenberg-Marquardt).
+% https://epubs.siam.org/doi/10.1137/0111030
+@article{Marquardt1963LM,
+  author  = {Donald W. Marquardt},
+  title   = {An Algorithm for Least-Squares Estimation of Nonlinear Parameters},
+  journal = {Journal of the Society for Industrial and Applied Mathematics},
+  volume  = {11},
+  number  = {2},
+  pages   = {431--441},
+  year    = {1963},
+  doi     = {10.1137/0111030}
+}
+
+@article{Shepperd1978,
+  author  = {S. W. Shepperd},
+  title   = {Quaternion from Rotation Matrix},
+  journal = {Journal of Guidance and Control},
+  volume  = {1},
+  number  = {3},
+  pages   = {223--224},
+  year    = {1978},
+  doi     = {10.2514/3.55767}
+}
+
+% Shi y Tomasi: criterio de calidad de features basado en el autovalor mínimo
+% del Hessiano local, en lugar del residuo fotométrico (SSD), que depende del
+% contenido de textura de la ventana y no solo de la calidad del tracking.
+% https://ieeexplore.ieee.org/document/323794
+@inproceedings{ShiTomasi1994,
+  author    = {Jianbo Shi and Carlo Tomasi},
+  title     = {Good Features to Track},
+  booktitle = {Proceedings of the IEEE Conference on Computer Vision and
+               Pattern Recognition (CVPR)},
+  pages     = {593--600},
+  year      = {1994},
+  doi       = {10.1109/CVPR.1994.323794}
+}
+
+% Segmentación semántica de nubes de puntos 3D basada en voxeles y grafos,
+% con pipeline de siete etapas (voxelización, extracción de características
+% geométricas/relacionales y clasificación no supervisada).
+% Disponible en: https://www.mdpi.com/2220-9964/8/5/213
+@article{Poux2019voxel,
+  author    = {Poux, Florent and Billen, Roland},
+  title     = {Voxel-based {3D} Point Cloud Semantic Segmentation:
+               Unsupervised Geometric and Relationship Featuring vs
+               Deep Learning Methods},
+  journal   = {{ISPRS} International Journal of Geo-Information},
+  volume    = {8},
+  number    = {5},
+  pages     = {213},
+  year      = {2019},
+  publisher = {MDPI},
+  doi       = {10.3390/ijgi8050213}
+}
+
+% Sistema de mapeo y SLAM con cámara RGB-D (Kinect). Usa la imagen a color para
+% la extracción de características visuales (SIFT/SURF) en lugar de la imagen
+% infrarroja, evitando la interferencia del patrón estructurado proyectado por
+% el emisor IR del sensor sobre la escena.
+% https://ieeexplore.ieee.org/document/6594910
+@article{Endres2014,
+  author  = {Felix Endres and J{\"u}rgen Hess and J{\"u}rgen Sturm and Daniel Cremers and Wolfram Burgard},
+  title   = {3-{D} Mapping With an {RGB-D} Camera},
+  journal = {IEEE Transactions on Robotics},
+  volume  = {30},
+  number  = {1},
+  pages   = {177--187},
+  year    = {2014},
+  doi     = {10.1109/TRO.2013.2279412}
 }
