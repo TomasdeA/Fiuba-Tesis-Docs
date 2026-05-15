@@ -1,7 +1,45 @@
-Las personas con ceguera o baja visión enfrentan dificultades significativas al desplazarse por entornos desconocidos o dinámicos. Las herramientas de asistencia tradicionales, como el bastón blanco, presentan limitaciones en alcance y resolución espacial, y no advierten eficazmente obstáculos ubicados a la altura de la cabeza. En paralelo, disciplinas como la robótica móvil han consolidado un conjunto de tecnologías de percepción, mapeo y comunicación entre procesos que permiten a vehículos autónomos interpretar su entorno en tiempo real, pero que rara vez se aplican al problema de la movilidad personal asistida.
+Las personas con ceguera o baja visión enfrentan dificultades significativas al desplazarse por
+entornos desconocidos o dinámicos. Las herramientas de asistencia tradicionales, como el bastón
+blanco, presentan limitaciones en alcance y resolución espacial, y no advierten eficazmente
+obstáculos ubicados a la altura de la cabeza. En paralelo, disciplinas como la robótica móvil han
+consolidado un conjunto de tecnologías de percepción, mapeo y comunicación entre procesos que
+permiten a vehículos autónomos interpretar su entorno en tiempo real, pero que rara vez se aplican
+al problema de la movilidad personal asistida.
 
-El eje central de este trabajo, en tanto tesis de ingeniería, es estudiar, evaluar y adaptar esas tecnologías, entre ellas la percepción de profundidad por visión estéreo activa, las grillas de ocupación probabilísticas, la fusión de datos inerciales y el framework ROS2, para determinar las alternativas más adecuadas con las que construir una herramienta de asistencia funcional, portátil y de bajo costo. El aporte no reside en la creación de técnicas nuevas, sino en la selección, integración y validación de soluciones ya probadas en otros rubros, evaluando sus compromisos de diseño bajo las restricciones propias de un dispositivo de asistencia personal: cómputo embebido limitado, portabilidad y baja latencia. La elección del canal háptico como interfaz de salida se fundamenta en el principio de sustitución sensorial \cite{BachyRita1969}: el cerebro puede reorganizarse para interpretar estímulos táctiles como información espacial cuando la visión está reducida o ausente. Sobre esa base, el proyecto global busca traducir información espacial visual en estímulos hápticos interpretables para la navegación; se estructura en dos etapas complementarias, (i)~captación del entorno y mapeo local y (ii)~traducción a interfaz háptica, y la presente tesis, enmarcada en la modalidad \textit{Tesis de Ingeniería Electrónica}, aborda exclusivamente la primera.
+El eje central de este trabajo, en tanto tesis de ingeniería, es estudiar, evaluar y adaptar esas
+tecnologías, entre ellas la percepción de profundidad por visión estéreo activa, las grillas de
+ocupación probabilísticas, la fusión de datos inerciales y el framework ROS2, para determinar las
+alternativas más adecuadas con las que construir una herramienta de asistencia funcional, portátil
+y de bajo costo. El aporte no reside en la creación de técnicas nuevas, sino en la selección,
+integración y validación de soluciones ya probadas en otros rubros, evaluando sus compromisos de
+diseño bajo las restricciones propias de un dispositivo de asistencia personal: cómputo embebido
+limitado, portabilidad y baja latencia. La elección del canal háptico como interfaz de salida se
+fundamenta en el principio de sustitución sensorial \cite{BachyRita1969}: el cerebro puede
+reorganizarse para interpretar estímulos táctiles como información espacial cuando la visión está
+reducida o ausente. Sobre esa base, el proyecto global busca traducir información espacial visual
+en estímulos hápticos interpretables para la navegación; se estructura en dos etapas
+complementarias, (i)~captación del entorno y mapeo local y (ii)~traducción a interfaz háptica, y la
+presente tesis, enmarcada en la modalidad \textit{Tesis de Ingeniería Electrónica}, aborda
+exclusivamente la primera.
 
-En concreto, se desarrolla en ROS2 un módulo de percepción que, a partir de la cámara Intel RealSense D435i montada sobre la cabeza del usuario y ejecutándose en una Raspberry Pi~5, genera en tiempo real una representación compacta del entorno inmediato. El sistema se organiza en dos pipelines paralelos. El primero, orientado a baja latencia, reduce la imagen de profundidad densa a una grilla de $10 \times 5$ celdas con estadísticas por región (media, mínimo y conteo de puntos válidos). Esta resolución se elige deliberadamente para ser compatible con arreglos de actuadores vibrotáctiles de baja complejidad, que operan con un número acotado de canales independientes. La grilla se convierte a señales de intensidad háptica y se transmite por enlace serial a un microcontrolador (ESP32) encargado de controlar los actuadores vibrotáctiles. El segundo pipeline construye y mantiene un mapa local de ocupación 2.5D egocéntrico basado en log-odds, con trazado de rayos Bresenham, desplazamiento dinámico (\emph{scroll}) y compensación de orientación mediante la IMU integrada en el sensor, lo que permite conservar información reciente de obstáculos y reutilizarla frente a oclusiones temporales y cambios de pose. Ambos pipelines se integran a través de un nodo de fusión háptica que combina la percepción instantánea con las capas de mapeo local para producir la salida destinada a los actuadores.
+En concreto, se desarrolla en ROS2 un módulo de percepción que, a partir de la cámara Intel
+RealSense D435i montada sobre la cabeza del usuario y ejecutándose en una Raspberry Pi~5, genera en
+tiempo real una representación compacta del entorno inmediato. El sistema se organiza en tres
+pipelines paralelos.
+El primero, orientado a baja latencia, reduce la imagen de profundidad densa a
+una grilla de $10 \times 5$ celdas con estadísticas por región, la convierte en señales de
+intensidad háptica y la transmite por enlace serial a un microcontrolador (ESP32) que controla los
+actuadores vibrotáctiles.
+El segundo filtra y acondiciona la nube de puntos: aplica un ajuste respecto a la gravedad, elimina
+los puntos correspondientes al piso y al techo, y mejora la distribución espacial asociada a cada
+motor.
+El tercero construye y mantiene un mapa local de ocupación 2.5D egocéntrico basado en log-odds, con
+trazado de rayos Bresenham, desplazamiento dinámico (\emph{scroll}) y odometría por RGB-D e IMU,
+conservando información reciente de obstáculos frente a oclusiones temporales.
+Los dos primeros ofrecen alternativas independientes de salida háptica; el tercero se integra al
+segundo mediante un nodo de fusión que combina la percepción instantánea con los obstáculos no
+visibles almacenados en el mapa local.
 
-El desempeño se evalúa mediante métricas cuantitativas de error de profundidad, latencia extremo a extremo, precisión y \textit{recall} en detección de obstáculos, estabilidad temporal del mapa local y consumo de recursos computacionales en la plataforma embebida objetivo. En el cuerpo del documento se presenta la arquitectura completa, las decisiones de diseño y los detalles de implementación, referenciando el código fuente del repositorio cuando procede. El capítulo de experimentos describe los ensayos previstos y el protocolo de medición; los resultados empíricos se incorporarán al capítulo correspondiente una vez completadas las ejecuciones experimentales.
+El desempeño se evalúa mediante métricas cuantitativas de error de profundidad, latencia extremo a
+extremo, precisión y \textit{recall} en detección de obstáculos, estabilidad temporal del mapa
+local y consumo de recursos computacionales en la plataforma embebida objetivo.

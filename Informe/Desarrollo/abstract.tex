@@ -1,7 +1,39 @@
-People who are blind or have low vision face significant difficulties when navigating unfamiliar or dynamic environments. Traditional assistive tools such as the white cane have limited range and spatial resolution, and fail to effectively detect obstacles at head height. Meanwhile, fields such as mobile robotics have consolidated a set of perception, mapping and inter-process communication technologies that enable autonomous vehicles to interpret their surroundings in real time, yet these technologies are seldom applied to the problem of personal assisted mobility.
+People who are blind or have low vision face significant difficulties when navigating unfamiliar or
+dynamic environments. Traditional assistive tools such as the white cane have limited range and
+spatial resolution, and fail to effectively detect obstacles at head height. Meanwhile, fields such
+as mobile robotics have consolidated a set of perception, mapping and inter-process communication
+technologies that enable autonomous vehicles to interpret their surroundings in real time, yet
+these technologies are seldom applied to the problem of personal assisted mobility.
 
-The core focus of this work, as an engineering thesis, is to study, evaluate and adapt those technologies, including active stereo depth sensing, probabilistic occupancy grids, inertial data fusion and the ROS2 framework, in order to identify the most suitable alternatives for building a functional, portable and low-cost assistive device. The contribution does not lie in the creation of novel techniques but rather in the selection, integration and validation of solutions already proven in other domains, assessing their design trade-offs under the constraints inherent to a personal assistive device: limited embedded computing, portability and low latency. Grounded in the principle of sensory neuroplasticity, the broader project seeks to translate visual spatial information into haptic stimuli that can be interpreted for navigation. It is structured in two complementary stages: (i)~environment capture and local mapping, and (ii)~translation into a haptic interface. This thesis, submitted under the \textit{Electronic Engineering Thesis} track, addresses exclusively the first stage.
+The core focus of this work, as an engineering thesis, is to study, evaluate and adapt those
+technologies, including active stereo depth sensing, probabilistic occupancy grids, inertial data
+fusion and the ROS2 framework, in order to identify the most suitable alternatives for building a
+functional, portable and low-cost assistive device. The contribution does not lie in the creation
+of novel techniques but rather in the selection, integration and validation of solutions already
+proven in other domains, assessing their design trade-offs under the constraints inherent to a
+personal assistive device: limited embedded computing, portability and low latency. The choice of
+the haptic channel as the output interface is grounded in the principle of sensory substitution
+\cite{BachyRita1969}: the brain can reorganize to interpret tactile stimuli as spatial information
+when vision is reduced or absent. On that basis, the broader project seeks to translate visual
+spatial information into haptic stimuli interpretable for navigation; it is structured in two
+complementary stages: (i)~environment capture and local mapping, and (ii)~translation into a haptic
+interface. This thesis, submitted under the \textit{Electronic Engineering Thesis} track, addresses
+exclusively the first stage.
 
-Specifically, a perception module is developed in ROS2 that, using an Intel RealSense D435i camera mounted on the user's head and running on a Raspberry Pi~5, generates a compact real-time representation of the immediate surroundings. The system is organized into two parallel pipelines. The first, optimized for low latency, reduces the dense depth image to a $10 \times 5$ cell grid with per-region statistics (mean, minimum and valid-point count), converts it to haptic intensity signals and transmits it over a serial link to a microcontroller (ESP32) that drives vibrotactile actuators. The second pipeline builds and maintains a 2.5D egocentric local occupancy map based on log-odds, with Bresenham ray casting, dynamic scrolling and orientation compensation through the sensor's built-in IMU, thereby preserving recent obstacle information and reusing it against temporary occlusions and pose changes. Both pipelines are merged by a haptic fusion node that combines instantaneous perception with local mapping layers to produce the output fed to the actuators.
+Specifically, a perception module is developed in ROS2 that, using an Intel RealSense D435i camera
+mounted on the user's head and running on a Raspberry Pi~5, generates a compact real-time
+representation of the immediate surroundings. The system is organized into three parallel
+pipelines. The first, optimized for low latency, reduces the dense depth image to a $10 \times 5$
+cell grid with per-region statistics, converts it to haptic intensity signals and transmits it over
+a serial link to a microcontroller (ESP32) that drives the vibrotactile actuators. The second
+pipeline filters and conditions the point cloud: it applies a gravity-aligned correction, removes
+points detected as floor and ceiling, and improves the spatial distribution assigned to each motor.
+The third builds and maintains a 2.5D egocentric local occupancy map based on log-odds, with
+Bresenham ray casting, dynamic scrolling and RGB-D and IMU odometry, preserving recent obstacle
+information against temporary occlusions. The first two offer independent haptic output
+alternatives; the third integrates into the second through a haptic fusion node that combines
+instantaneous perception with non-visible obstacles stored in the local map.
 
-System performance is assessed through quantitative metrics including depth error, end-to-end latency, obstacle detection precision and recall, temporal stability of the local map, and computational resource consumption on the target embedded platform. The body of the document presents the complete architecture, design decisions and implementation details, referencing the source code repository where applicable. The experiments chapter describes the planned trials and measurement protocol; empirical results will be incorporated into the corresponding chapter once experimental runs are completed.
+System performance is assessed through quantitative metrics including depth error, end-to-end
+latency, obstacle detection precision and recall, temporal stability of the local map, and
+computational resource consumption on the target embedded platform.
