@@ -28,7 +28,7 @@ cell grid with per-region statistics, converts it to haptic intensity signals an
 a serial link to a microcontroller (ESP32) that drives the vibrotactile actuators. The second
 pipeline filters and conditions the point cloud: it applies a gravity-aligned correction, removes
 points detected as floor and ceiling, and improves the spatial distribution assigned to each motor.
-The third builds and maintains a 2.5D egocentric local occupancy map based on log-odds, with
+The third builds and maintains a 2D egocentric local occupancy map based on log-odds, with
 Bresenham ray casting, dynamic scrolling and RGB-D and IMU odometry, preserving recent obstacle
 information against temporary occlusions. The first two offer independent haptic output
 alternatives; the third integrates into the second through a haptic fusion node that combines
