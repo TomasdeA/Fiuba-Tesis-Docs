@@ -377,7 +377,7 @@ $1 \to 0$ (apagado)   & Enviar SIGINT al proceso de grabación & SÓLIDO durante
 \toprule
 \textbf{Estado LED}  & \textbf{Significado} \\
 \midrule
-APAGADO  & Inactivo — no se está grabando \\
+APAGADO  & Inactivo,  no se está grabando \\
 SÓLIDO   & Transición (iniciando o deteniendo grabación) \\
 PARPADEO & Grabación activa \\
 \bottomrule
@@ -584,8 +584,8 @@ setup del workspace antes de lanzar el nodo:
 ExecStart=/bin/bash -c '
   source /opt/ros/humble/setup.bash &&
   source /home/pi/nav_mapper/install/setup.bash &&
-  exec ros2 launch gpio_rosbag_controller
-       gpio_rosbag_controller.launch.py'
+  exec ros2 launch rosbag_controller
+       rosbag_controller.launch.py'
 \end{verbatim}
 
 La política \texttt{Restart=on-failure} con \texttt{RestartSec=5s}

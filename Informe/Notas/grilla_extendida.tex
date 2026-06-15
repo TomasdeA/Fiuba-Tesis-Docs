@@ -1,0 +1,184 @@
+\section{Grilla local extendida por odometría}
+
+\subsection{Idea general}
+
+El nodo propuesto implementa una \textbf{grilla local extendida egocéntrica}. A diferencia del
+\texttt{local\_mapper}, no busca construir un mapa de ocupación probabilístico ni mantener
+una representación métrica persistente del entorno. Su objetivo es más acotado: extender
+la apertura angular útil de la grilla de profundidad instantánea usando una memoria temporal
+corta de mediciones anteriores, reubicadas con la odometría reciente.
+
+La cámara entrega una medición real dentro de su campo de visión frontal, aproximadamente
+entre \(-70^\circ\) y \(+70^\circ\). La grilla extendida publica una salida angular de
+aproximadamente \(270^\circ\), cubriendo \(-135^\circ\) a \(+135^\circ\). Los sectores
+centrales se completan con la medición actual de profundidad; los sectores laterales
+\([-135^\circ,-70^\circ]\) y \([70^\circ,135^\circ]\) se completan con mediciones previas,
+transformadas al punto de vista actual mediante la odometría.
+
+En palabras simples: el sistema recuerda durante pocos segundos lo que la cámara acaba de
+ver, y lo desplaza/rota según el movimiento estimado del usuario para que siga apareciendo
+en la grilla local aunque haya salido del campo visual instantáneo.
+
+\subsection{Problema que se busca resolver}
+
+La grilla de profundidad directa tiene una limitación geométrica: sólo representa lo que
+está delante de la cámara. En navegación corporal o asistencia háptica esto produce una
+zona ciega lateral. Un obstáculo detectado al frente puede quedar fuera de la grilla apenas
+el usuario rota la cabeza o avanza, aunque siga siendo relevante para la decisión inmediata.
+
+El problema no requiere necesariamente un mapa global. Para una interfaz háptica reactiva,
+esta memoria no debe reemplazar la señal háptica normal: la grilla frontal que recibe el
+usuario debe seguir proviniendo de la medición actual. La grilla extendida funciona como
+señal auxiliar para advertir obstáculos laterales cercanos fuera del FOV instantáneo. Alcanza
+con preservar información local durante una ventana corta, siempre que:
+
+\begin{itemize}
+  \item la odometría sea suficientemente coherente en el corto plazo;
+  \item las mediciones viejas expiren rápido;
+  \item los saltos de odometría invaliden la memoria lateral;
+  \item la salida conserve el formato de grilla que ya consume el resto del sistema.
+\end{itemize}
+
+Por eso este nodo apunta a robustez local, no a precisión milimétrica. El criterio de éxito
+no es reconstruir exactamente el entorno, sino evitar que obstáculos recientemente medidos
+desaparezcan de la memoria lateral por estar fuera del FOV actual.
+
+\subsection{Relación con enfoques existentes}
+
+La idea se parece parcialmente a tres familias de métodos:
+
+\begin{itemize}
+  \item \textbf{Costmaps locales con ventana móvil}: en Nav2, el \textit{local costmap}
+  puede operar como una ventana local en \texttt{odom}, actualizada con observaciones de
+  sensores. La documentación de Nav2 describe el uso de capas de obstáculos y ventanas
+  locales para navegación de corto plazo. Ver:
+  \url{https://github.com/ros-navigation/navigation2/blob/main/nav2_costmap_2d/README.md}
+  y \url{https://docs.nav2.org/setup_guides/sensors/mapping_localization.html}.
+
+  \item \textbf{Fusión temporal de profundidad}: existen trabajos donde mapas de
+  profundidad consecutivos se fusionan usando transformaciones obtenidas por odometría
+  visual, incluso desde un punto de vista egocéntrico, para mejorar percepción reactiva
+  sin construir un mapa global pesado. Un ejemplo es ``Gaussian Mixture Models for
+  Temporal Depth Fusion'', NASA/JPL:
+  \url{https://ntrs.nasa.gov/citations/20210007922}.
+
+  \item \textbf{Mapas egocéntricos}: en robótica móvil se usan representaciones locales
+  centradas en el robot para mantener bajo el costo computacional y limitar el efecto de
+  deriva. La propuesta de esta tesis toma esa lógica, pero la reduce a una grilla polar
+  de profundidad mínima, orientada a salida háptica.
+\end{itemize}
+
+La diferencia principal es que aquí no se pretende producir un \texttt{OccupancyGrid} ni
+un costmap navegable estándar. Se conserva el contrato de \texttt{DepthGrid}: cada celda
+representa una distancia de obstáculo, no una probabilidad de ocupación ni un costo de
+planificación.
+
+\subsection{Factibilidad}
+
+La propuesta es factible si se cumplen condiciones moderadas sobre la odometría. No hace
+falta una pose precisa a largo plazo, porque la memoria de la grilla es corta. Sí hace falta
+que, durante uno o dos segundos, la orientación en yaw y la traslación horizontal sean
+coherentes. El error admisible depende de la resolución angular de la grilla: con una salida
+de 18 columnas en \(270^\circ\), cada columna cubre aproximadamente \(15^\circ\). Un error
+de yaw de pocos grados todavía cae dentro de la misma celda o de una celda vecina; un error
+de decenas de grados vuelve insegura la memoria lateral.
+
+El pipeline actual de odometría ya tiene elementos adecuados para este objetivo:
+
+\begin{itemize}
+  \item orientación por IMU con filtro complementario;
+  \item corrección visual opcional de yaw mediante RGBD;
+  \item traslación visual con PnP y RANSAC;
+  \item rechazo de saltos por velocidad y traslación máxima plausible.
+\end{itemize}
+
+Para esta aplicación la odometría debe priorizar \textbf{consistencia y recuperación ante
+fallos}. Si el tracker visual falla o la pose salta, es preferible borrar la memoria lateral
+y publicar sólo la grilla actual antes que conservar obstáculos re-proyectados en posiciones
+incorrectas. El nodo implementado incorpora compuertas de edad de odometría, salto máximo de
+posición y salto máximo de yaw.
+
+\subsection{Comparación con \texttt{local\_mapper}}
+
+No es estrictamente ``mejor'' que \texttt{local\_mapper}; resuelve otro problema.
+
+\begin{itemize}
+  \item \texttt{local\_mapper} produce un mapa de ocupación 2D en \texttt{odom}, con
+  log-odds, ray casting y olvido espacial. Es más general y más apto para visualización o
+  planificación local.
+
+  \item La grilla extendida produce una \texttt{DepthGrid} angular y liviana para alerta
+  lateral auxiliar. No estima espacio libre con ray casting ni infiere ocupación
+  probabilística.
+\end{itemize}
+
+Para una salida háptica reactiva, la grilla extendida puede complementar a la grilla normal
+porque conserva la semántica de distancia por celda y tiene bajo costo computacional. No debe
+usarse como reemplazo directo de la señal enviada al hardware en condiciones normales. Para
+navegación autónoma o planificación, el mapa de ocupación sigue siendo más apropiado.
+
+\subsection{Diseño implementado}
+
+El nodo \texttt{extended\_depth\_grid} se agregó al paquete \texttt{depth\_grid\_encoder}.
+Suscribe:
+
+\begin{itemize}
+  \item \texttt{/perception/depth\_grid}: grilla actual de profundidad;
+  \item \texttt{/nav\_odom}: odometría en el marco \texttt{odom}.
+\end{itemize}
+
+Publica:
+
+\begin{itemize}
+  \item \texttt{/perception/extended\_depth\_grid}: grilla extendida de profundidad,
+  pensada como señal auxiliar de alerta lateral y no como entrada directa del actuador
+  háptico principal.
+\end{itemize}
+
+Por cada celda válida de la grilla actual se calcula un punto 2D en el plano horizontal,
+usando la distancia mínima de la celda y el ángulo de la columna. Ese punto se guarda en
+coordenadas \texttt{odom} junto con su fila, estadística de profundidad y timestamp. Al
+componer la salida, cada punto histórico se proyecta desde la pose actual: si cae fuera del
+FOV real de la cámara pero dentro del FOV extendido, se usa para completar la columna lateral
+correspondiente.
+
+Los parámetros principales son:
+
+\begin{itemize}
+  \item \texttt{input\_fov\_deg}: FOV real usado por la grilla de entrada;
+  \item \texttt{output\_fov\_deg}: FOV de salida, por defecto \(270^\circ\);
+  \item \texttt{history\_ttl\_s}: vida máxima de mediciones históricas;
+  \item \texttt{max\_odom\_age\_s}: edad máxima aceptada de la odometría;
+  \item \texttt{max\_odom\_jump\_m} y \texttt{max\_odom\_jump\_yaw\_deg}: compuertas
+  para descartar memoria ante saltos.
+\end{itemize}
+
+\subsection{Riesgos y validación necesaria}
+
+Los riesgos principales son:
+
+\begin{itemize}
+  \item \textbf{deriva de yaw}: desplaza obstáculos laterales a columnas incorrectas;
+  \item \textbf{objetos dinámicos}: una persona u obstáculo móvil puede quedar recordado
+  durante el TTL aunque ya no esté allí;
+  \item \textbf{oclusiones}: un obstáculo lateral recordado puede haber sido superado o
+  tapado por otro objeto;
+  \item \textbf{forma de salida}: si se publican 18 columnas para \(270^\circ\), la salida
+  no debe enviarse sin adaptación al hardware existente de 10 columnas. En esta etapa se
+  consume desde el visualizador como señal de alerta.
+\end{itemize}
+
+La validación recomendada es progresiva:
+
+\begin{enumerate}
+  \item probar con bag o cámara fija que el nodo publica grillas con dimensiones correctas;
+  \item visualizar \texttt{/perception/extended\_depth\_grid} y confirmar que el centro
+  coincide con la grilla original;
+  \item rotar lentamente la cámara frente a un obstáculo fijo y verificar que el obstáculo
+  migra hacia columnas laterales durante el TTL;
+  \item provocar saltos o pérdida de odometría y confirmar que la memoria se limpia;
+  \item activar la alerta en el visualizador y verificar que la grilla frontal normal no
+  cambia;
+  \item evaluar la política de alerta lateral para obstáculos fuera del FOV a menos de
+  \(0.5\,\mathrm{m}\), antes de cualquier decisión de integración háptica.
+\end{enumerate}

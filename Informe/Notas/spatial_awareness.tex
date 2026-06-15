@@ -1,0 +1,875 @@
+% ─────────────────────────────────────────────────────────────────────────────
+%
+% Especificación y decisiones de diseño del módulo spatial_awareness.
+% Documento base para la implementación y para el informe de tesis.
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Conciencia espacial de obstáculos fuera del campo comunicado}
+\label{sec:spatial-awareness}
+
+El sistema de percepción desarrollado hasta esta etapa comunica al usuario los
+obstáculos contenidos en una grilla frontal generada a partir del fotograma de
+profundidad actual. La apertura horizontal de esa grilla puede configurarse en
+tiempo de ejecución. Como consecuencia, existen obstáculos que fueron
+observados e incorporados al mapa local, pero que dejan de estar representados
+en la señal háptica frontal cuando quedan a los lados o detrás del usuario.
+
+Esta situación es especialmente relevante durante el desplazamiento. Por
+ejemplo, una pared inicialmente observada puede quedar fuera del campo
+comunicado cuando el usuario gira la cabeza y, aun así, continuar
+aproximándose lateralmente a ella. El flujo frontal normal deja de advertirla,
+aunque el obstáculo permanece disponible en el mapa de ocupación acumulado.
+
+Para cubrir este caso se propone el paquete \texttt{spatial\_awareness}. Su
+objetivo es detectar riesgo de colisión con celdas ocupadas que se encuentran
+fuera del campo angular ya comunicado al usuario. El nodo no sustituye la
+representación frontal ni vuelve a señalizar obstáculos contenidos en ella.
+Opera únicamente como una capa complementaria para las regiones izquierda,
+derecha y trasera.
+
+La activación de una advertencia requiere simultáneamente que:
+%
+\begin{enumerate}
+  \item exista una celda o agrupación de celdas ocupadas fuera del campo
+    comunicado;
+  \item la distancia entre la cámara y el obstáculo esté dentro del intervalo
+    operativo;
+  \item la velocidad del usuario tenga una componente positiva en dirección
+    al obstáculo; y
+  \item el mapa y la odometría sean recientes y válidos.
+\end{enumerate}
+
+La intensidad se determina principalmente mediante el tiempo estimado hasta
+la colisión (\emph{time to collision}, TTC). De esta manera, distancia y
+velocidad no se tratan como factores independientes arbitrarios: ambas
+variables se combinan en una magnitud cinemática directamente relacionada con
+la urgencia de la advertencia.
+
+\subsection{Alcance y restricciones}
+\label{subsec:sa-scope}
+
+La primera implementación queda limitada a las siguientes condiciones:
+%
+\begin{itemize}
+  \item la fuente de odometría es RTAB-Map;
+  \item el cálculo horizontal utiliza la convención interna del proyecto:
+    $X$ hacia la derecha, $Y$ hacia abajo y $Z$ hacia adelante;
+  \item el mapa de entrada es el
+    \texttt{/local\_mapper/occupancy\_grid}, expresado en el marco
+    \texttt{odom};
+  \item el campo comunicado es horizontal, simétrico respecto del eje frontal
+    de la cámara;
+  \item el módulo considera únicamente celdas ya presentes en el mapa local;
+    no puede detectar obstáculos que nunca hayan sido observados por la
+    cámara; y
+  \item la antigüedad individual de cada celda no se evalúa en esta etapa. La
+    gestión temporal de las observaciones se incorporará posteriormente en el
+    \texttt{local\_mapper}, sin modificar la responsabilidad de
+    \texttt{spatial\_awareness}.
+\end{itemize}
+
+El nombre del paquete y del nodo es \texttt{spatial\_awareness}. Se descarta
+la variante \texttt{spatial\_awarness}, utilizada inicialmente en el nombre de
+la rama, por contener un error ortográfico.
+
+\subsection{Arquitectura}
+\label{subsec:sa-architecture}
+
+El módulo se implementará como un nodo ROS~2 independiente en C++17. La
+separación respecto de \texttt{local\_mapper} permite mantener responsabilidades
+claras: el mapeador estima ocupación y \texttt{spatial\_awareness} interpreta
+ese mapa en función del movimiento del usuario y del campo comunicado.
+
+El flujo de datos propuesto es:
+%
+\begin{center}
+\texttt{RTAB-Map}
+$\longrightarrow$
+\texttt{nav\_odom}
+$\longrightarrow$
+\texttt{spatial\_awareness}
+
+\texttt{local\_mapper}
+$\longrightarrow$
+\texttt{occupancy\_grid}
+$\longrightarrow$
+\texttt{spatial\_awareness}
+
+\texttt{aperture\_deg}
+$\longrightarrow$
+\texttt{spatial\_awareness}
+$\longrightarrow$
+\texttt{collision\_risk}
+\end{center}
+
+La Tabla~\ref{tab:sa-topics} resume las interfaces previstas.
+
+\begin{table}[ht]
+  \centering
+  \caption{Topics del nodo \texttt{spatial\_awareness}.}
+  \label{tab:sa-topics}
+  \small
+  \begin{tabular}{llp{7cm}}
+    \hline
+    \textbf{Dirección} & \textbf{Topic y tipo} & \textbf{Descripción} \\
+    \hline
+    Sub &
+    \texttt{/local\_mapper/occupancy\_grid}
+    (\texttt{nav\_msgs/OccupancyGrid}) &
+    Mapa local acumulado en el marco \texttt{odom}. \\
+
+    Sub &
+    \texttt{nav\_odom}
+    (\texttt{nav\_msgs/Odometry}) &
+    Pose y velocidad provenientes de RTAB-Map. \\
+
+    Sub &
+    \texttt{/perception/depth\_grid/aperture\_deg}
+    (\texttt{std\_msgs/Float32}) &
+    Semiángulo horizontal comunicado al usuario. \\
+
+    Pub &
+    \texttt{/spatial\_awareness/collision\_risk}
+    (\texttt{custom\_interfaces/SpatialAwareness}) &
+    Riesgo independiente hacia izquierda, derecha y atrás. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+El estado de apertura debe estar disponible también para nodos que se inicien
+después de haber enviado el último comando. Por ello, se recomienda publicar
+el valor efectivo con QoS \texttt{transient\_local}, o introducir un topic de
+estado separado del topic de comando. El valor consumido por
+\texttt{spatial\_awareness} debe ser el valor aplicado por el encoder, no
+solamente la última solicitud emitida por una interfaz gráfica.
+
+\subsubsection{Interfaz de salida}
+\label{subsubsec:sa-output}
+
+El consumidor futuro necesita distinguir izquierda, derecha y atrás, junto
+con la intensidad correspondiente. Se propone un único mensaje con tres
+canales para garantizar que los estados pertenezcan al mismo instante y evitar
+la sincronización de tres topics independientes.
+
+La interfaz se divide en dos mensajes:
+
+\begin{verbatim}
+# custom_interfaces/msg/DirectionalRisk.msg
+bool active
+float32 intensity
+float32 distance_m
+float32 closing_speed_mps
+float32 time_to_collision_s
+\end{verbatim}
+
+\begin{verbatim}
+# custom_interfaces/msg/SpatialAwareness.msg
+std_msgs/Header header
+bool valid
+DirectionalRisk left
+DirectionalRisk right
+DirectionalRisk rear
+\end{verbatim}
+
+El campo \texttt{intensity} se expresa en el intervalo $[0,100]$. Los campos
+de distancia, velocidad de cierre y TTC no son necesarios para el actuador
+final, pero se conservan para diagnóstico, visualización, calibración y
+reproducibilidad experimental.
+
+\texttt{valid=false} indica que no puede calcularse un estado confiable por
+falta o antigüedad excesiva del mapa o de la odometría. Cuando los datos son
+válidos pero no existe riesgo, \texttt{valid=true} y los tres canales se
+publican con \texttt{active=false} e intensidad nula.
+
+\subsection{Convenciones de coordenadas}
+\label{subsec:sa-frames}
+
+RTAB-Map utiliza externamente la convención REP-103: $X$ hacia adelante, $Y$
+hacia la izquierda y $Z$ hacia arriba. El pipeline de percepción del proyecto
+trabaja internamente con la convención óptica:
+%
+\begin{equation}
+  X_{\text{int}} \text{ hacia la derecha}, \qquad
+  Y_{\text{int}} \text{ hacia abajo}, \qquad
+  Z_{\text{int}} \text{ hacia adelante}.
+\end{equation}
+
+La conversión ya utilizada por \texttt{depth\_obstacle\_filter} para la
+posición es:
+%
+\begin{equation}
+  \label{eq:sa-rtab-position}
+  \mathbf{p}_{\text{int}}
+  =
+  \begin{bmatrix}
+    -p_{\text{ros},y} \\
+    -p_{\text{ros},z} \\
+     p_{\text{ros},x}
+  \end{bmatrix}.
+\end{equation}
+
+\texttt{spatial\_awareness} debe aplicar la misma conversión antes de realizar
+cualquier cálculo geométrico. De esta forma, una velocidad positiva en $X$
+representa desplazamiento hacia la derecha y una velocidad positiva en $Z$
+representa desplazamiento hacia adelante.
+
+Para clasificar obstáculos respecto de la cabeza se necesita además el yaw de
+la cámara. Sea $\mathbf{q}$ la orientación convertida al convenio interno. El
+vector frontal en el marco \texttt{odom} se obtiene como:
+%
+\begin{equation}
+  \label{eq:sa-forward}
+  \mathbf{f}_{xz}
+  =
+  \operatorname{normalize}
+  \left(
+    \Pi_{xz}
+    \left[
+      \mathbf{q}
+      \begin{pmatrix}0\\0\\1\end{pmatrix}
+      \mathbf{q}^{*}
+    \right]
+  \right),
+\end{equation}
+%
+donde $\Pi_{xz}$ proyecta el vector sobre el plano horizontal XZ. El vector
+hacia la derecha se define como:
+%
+\begin{equation}
+  \label{eq:sa-right}
+  \mathbf{r}_{xz} =
+  \begin{pmatrix}f_z\\-f_x\end{pmatrix}.
+\end{equation}
+
+\subsection{Estimación de velocidad}
+\label{subsec:sa-velocity}
+
+El campo \texttt{twist} de \texttt{nav\_msgs/Odometry} es la fuente
+convencional de velocidad para un consumidor ROS~2. Por lo tanto, la primera
+opción será utilizar la velocidad lineal publicada por RTAB-Map, siempre que:
+%
+\begin{itemize}
+  \item sus componentes sean finitas;
+  \item el mensaje tenga una antigüedad menor al timeout configurado;
+  \item la norma se encuentre dentro de límites físicamente plausibles para
+    una persona caminando; y
+  \item se haya verificado experimentalmente el frame en el que RTAB-Map
+    expresa el \texttt{twist}.
+\end{itemize}
+
+Si la velocidad publicada no está disponible, es nula de forma persistente
+durante desplazamiento, presenta discontinuidades o su frame no puede
+establecerse de forma confiable, se utilizará como respaldo una estimación a
+partir de diferencias de posición:
+%
+\begin{equation}
+  \label{eq:sa-velocity-raw}
+  \widehat{\mathbf{v}}_t =
+  \frac{\mathbf{p}_t-\mathbf{p}_{t-1}}{t-t_{t-1}}.
+\end{equation}
+
+La velocidad se calcula en el marco \texttt{odom}, no en el marco instantáneo
+de la cámara. Esto permite compararla directamente con la dirección desde el
+usuario hacia cada celda del mapa.
+
+Para reducir el ruido de la diferenciación se aplica un filtro pasa bajos
+exponencial:
+%
+\begin{equation}
+  \label{eq:sa-velocity-filter}
+  \mathbf{v}_t =
+  \alpha_v\,\widehat{\mathbf{v}}_t
+  +(1-\alpha_v)\,\mathbf{v}_{t-1},
+  \qquad 0 < \alpha_v \leq 1.
+\end{equation}
+
+El parámetro \texttt{min\_motion\_speed\_mps} define la velocidad mínima para
+considerar que el usuario está desplazándose. Se propone inicialmente
+$0{,}10\,\text{m/s}$: es suficientemente menor que una velocidad normal de
+marcha, típicamente cercana a $1\,\text{m/s}$, pero evita activar
+advertencias por jitter de odometría cuando la persona permanece quieta. El
+valor quedará configurable y deberá calibrarse con registros reales.
+
+\subsection{Selección de celdas ocupadas}
+\label{subsec:sa-occupied-cells}
+
+Cada elemento conocido del \texttt{OccupancyGrid} tiene un valor entre 0 y
+100. Una celda se considera candidata cuando:
+%
+\begin{equation}
+  \label{eq:sa-occupancy-threshold}
+  m_i \geq P_{\text{occ,min}} = 65.
+\end{equation}
+
+Las celdas desconocidas, con valor $-1$, se descartan. El umbral inicial de 65
+se mantiene como parámetro porque deberá calibrarse junto con el modelo
+log-odds del mapa.
+
+Para rechazar impactos aislados se exige que cada candidato pertenezca a un
+componente conexo con un número mínimo de celdas ocupadas. Se utilizará
+conectividad de ocho vecinos para no separar superficies diagonales. El
+parámetro propuesto es:
+%
+\begin{equation}
+  N_{\text{cluster,min}} = 3.
+\end{equation}
+
+Con una resolución de $0{,}10\,\text{m}$, tres celdas representan evidencia
+espacial suficiente para rechazar un punto aislado sin exigir una superficie
+grande. Tanto el valor como el tipo de conectividad quedarán encapsulados en
+la librería de cálculo para permitir su validación unitaria.
+
+La posición de una celda se calcula en su centro geométrico y se transforma
+mediante la pose completa de \texttt{info.origin}. No debe asumirse que el
+\texttt{OccupancyGrid} está contenido en el plano XY sin rotación: el mapa
+actual aplica una rotación de $+90^\circ$ alrededor de $X$ para representar
+el plano XZ.
+
+\subsection{Campo comunicado}
+\label{subsec:sa-fov}
+
+El parámetro \texttt{h\_aperture\_deg} conserva la semántica actual de
+semiángulo. Por ejemplo:
+%
+\begin{equation}
+  h_{\text{aperture}}=45^\circ
+  \quad\Longrightarrow\quad
+  \text{campo comunicado}=[-45^\circ,+45^\circ],
+\end{equation}
+%
+es decir, una apertura horizontal total de $90^\circ$.
+
+Para una celda ubicada en $\mathbf{o}_i$ y una cámara ubicada en
+$\mathbf{p}$, se define el vector horizontal relativo:
+%
+\begin{equation}
+  \label{eq:sa-relative}
+  \mathbf{d}_i =
+  \begin{pmatrix}
+    o_{i,x}-p_x\\
+    o_{i,z}-p_z
+  \end{pmatrix}.
+\end{equation}
+
+Su ángulo firmado respecto de la dirección frontal es:
+%
+\begin{equation}
+  \label{eq:sa-angle}
+  \theta_i =
+  \operatorname{atan2}
+  \left(
+    \mathbf{r}_{xz}\cdot\mathbf{d}_i,\,
+    \mathbf{f}_{xz}\cdot\mathbf{d}_i
+  \right).
+\end{equation}
+
+Una celda pertenece al campo ya comunicado cuando:
+%
+\begin{equation}
+  \label{eq:sa-in-fov}
+  |\theta_i| \leq h_{\text{aperture}} + h_{\text{margin}}.
+\end{equation}
+
+El margen angular evita que una misma superficie alterne rápidamente entre el
+flujo frontal y \texttt{spatial\_awareness} por ruido de yaw o discretización
+de celdas. Se propone inicialmente
+$h_{\text{margin}}=3^\circ$. Toda celda que satisface la
+ecuación~\ref{eq:sa-in-fov} se descarta del módulo, porque será comunicada por
+el flujo frontal normal.
+
+La velocidad angular no modifica directamente la intensidad. Si el usuario
+gira y una celda entra en el campo frontal, deja de ser responsabilidad de
+\texttt{spatial\_awareness}; si sale del campo y continúa existiendo riesgo
+cinemático, pasa a ser considerada por este módulo.
+
+\subsection{Modelo geométrico de colisión}
+\label{subsec:sa-collision-model}
+
+El intervalo de distancia operativo se evalúa desde la cámara hasta el centro
+de la celda:
+%
+\begin{equation}
+  \label{eq:sa-distance-range}
+  d_{\min}=0{,}20\,\text{m}
+  \leq d_i = \|\mathbf{d}_i\|
+  \leq d_{\max}=1{,}00\,\text{m}.
+\end{equation}
+
+Las celdas a más de $1\,\text{m}$ no generan señal. Las celdas a menos de
+$0{,}20\,\text{m}$ también se descartan: se encuentran fuera del rango útil
+definido para esta advertencia y se considera que la colisión ya ocurrió o
+que la medición puede corresponder a ruido muy próximo.
+
+El radio corporal se modela mediante un parámetro
+\texttt{body\_radius\_m}, inicialmente igual a $0{,}20\,\text{m}$. Para no
+aplicar dos veces la compensación de proximidad, este radio no se resta de
+$d_i$ ni modifica los límites de la ecuación~\ref{eq:sa-distance-range}. Se
+utiliza para definir un corredor de trayectoria: una celda solo se considera
+riesgo de colisión si su separación lateral respecto de la dirección de
+movimiento es menor que el radio corporal más una tolerancia de celda.
+
+Sea:
+%
+\begin{equation}
+  \mathbf{\hat v} =
+  \frac{\mathbf{v}}{\|\mathbf{v}\|}.
+\end{equation}
+
+La proyección longitudinal y la distancia lateral son:
+%
+\begin{equation}
+  \label{eq:sa-corridor}
+  s_i = \mathbf{d}_i\cdot\mathbf{\hat v},
+  \qquad
+  \ell_i =
+  \left\|
+    \mathbf{d}_i-s_i\mathbf{\hat v}
+  \right\|.
+\end{equation}
+
+La celda pertenece al corredor de colisión cuando:
+%
+\begin{equation}
+  \label{eq:sa-corridor-condition}
+  s_i > 0
+  \quad\land\quad
+  \ell_i \leq r_{\text{body}} + r_{\text{cell}},
+\end{equation}
+%
+donde $r_{\text{cell}}$ representa la mitad de la diagonal de la celda. Esta
+condición evita advertir por obstáculos cercanos hacia los cuales el usuario
+no se dirige.
+
+\subsection{Velocidad de cierre y tiempo hasta colisión}
+\label{subsec:sa-ttc}
+
+La dirección unitaria desde la cámara hacia la celda es:
+%
+\begin{equation}
+  \label{eq:sa-direction}
+  \mathbf{\hat d}_i =
+  \frac{\mathbf{d}_i}{\|\mathbf{d}_i\|}.
+\end{equation}
+
+La velocidad de cierre se define como la proyección de la velocidad del
+usuario sobre esa dirección:
+%
+\begin{equation}
+  \label{eq:sa-closing-speed}
+  v_{\text{close},i}
+  =
+  \max\left(0,\mathbf{v}\cdot\mathbf{\hat d}_i\right).
+\end{equation}
+
+Si $v_{\text{close},i}=0$, el usuario se encuentra quieto, se mueve
+tangencialmente o se aleja del obstáculo. En los tres casos no se genera
+advertencia.
+
+Para evitar activaciones por ruido se exige:
+%
+\begin{equation}
+  \label{eq:sa-closing-threshold}
+  v_{\text{close},i} \geq v_{\text{close,min}},
+\end{equation}
+%
+con un valor inicial configurable de $0{,}10\,\text{m/s}$.
+
+El TTC se calcula como:
+%
+\begin{equation}
+  \label{eq:sa-ttc}
+  \operatorname{TTC}_i =
+  \frac{d_i}{v_{\text{close},i}}.
+\end{equation}
+
+Este modelo supone velocidad constante durante el horizonte corto de
+advertencia. Para distancias menores a un metro y velocidades peatonales, la
+aproximación es suficiente como primer criterio y evita introducir un modelo
+de aceleración difícil de estimar de manera robusta con odometría visual.
+
+\subsection{Cálculo de intensidad}
+\label{subsec:sa-intensity}
+
+La intensidad debe aumentar cuando disminuye el tiempo disponible para evitar
+la colisión. Se propone una relación lineal acotada e inversa respecto del TTC:
+%
+\begin{equation}
+  \label{eq:sa-intensity}
+  I_i =
+  100\,
+  \operatorname{clamp}
+  \left(
+    \frac{T_{\max}-\operatorname{TTC}_i}
+         {T_{\max}-T_{\min}},
+    0,\,
+    1
+  \right).
+\end{equation}
+
+$T_{\max}$ representa el horizonte a partir del cual no se emite señal y
+$T_{\min}$ el TTC para intensidad máxima. Como valores iniciales se proponen:
+%
+\begin{equation}
+  T_{\max}=2{,}0\,\text{s},
+  \qquad
+  T_{\min}=0{,}25\,\text{s}.
+\end{equation}
+
+La compuerta espacial de $1\,\text{m}$ continúa aplicándose antes de esta
+ecuación. Por lo tanto, un obstáculo lejano no genera señal aunque la
+estimación de velocidad produzca un TTC bajo por un valor espurio.
+
+Esta formulación conserva el comportamiento requerido:
+%
+\begin{itemize}
+  \item a igual distancia, una mayor velocidad de aproximación produce mayor
+    intensidad;
+  \item a igual velocidad, una menor distancia produce mayor intensidad;
+  \item una velocidad nula o dirigida en sentido opuesto produce intensidad
+    nula; y
+  \item las celdas fuera del intervalo $[0{,}20,1{,}00]\,\text{m}$ no generan
+    señal.
+\end{itemize}
+
+Los parámetros $T_{\min}$ y $T_{\max}$ deberán calibrarse mediante rosbag con
+trayectorias peatonales reales. Si la respuesta lineal no resulta perceptualmente
+adecuada, podrá sustituirse por una curva exponencial o sigmoidea sin cambiar
+la arquitectura ni la interfaz.
+
+\subsection{Clasificación direccional}
+\label{subsec:sa-directions}
+
+Después de descartar el campo frontal, cada candidato se asigna a una de tres
+regiones según el ángulo $\theta_i$:
+%
+\begin{equation}
+  \label{eq:sa-direction-classes}
+  \operatorname{region}(\theta_i)=
+  \begin{cases}
+    \text{derecha} &
+      h_{\text{aperture}}+h_{\text{margin}} < \theta_i < 135^\circ,\\
+    \text{izquierda} &
+      -135^\circ < \theta_i <
+      -h_{\text{aperture}}-h_{\text{margin}},\\
+    \text{atrás} &
+      |\theta_i| \geq 135^\circ.
+  \end{cases}
+\end{equation}
+
+El límite de $135^\circ$ se propone como valor configurable
+$\texttt{rear\_half\_angle\_deg}=45^\circ$, de modo que la región trasera cubra
+$90^{\circ}$ centrados en $180^{\circ}$. Esta división entrega una semántica
+estable al actuador: izquierda y derecha cubren los laterales, mientras que
+atrás representa obstáculos próximos a la dirección opuesta a la mirada.
+
+Para cada región se selecciona la agrupación con mayor intensidad. En caso de
+empate se prioriza el menor TTC y luego la menor distancia. El mensaje puede
+contener hasta tres advertencias activas simultáneamente, una por región.
+
+\subsection{Estabilidad temporal y fallos}
+\label{subsec:sa-robustness}
+
+\subsubsection{Histéresis}
+
+La discretización del mapa y el ruido de velocidad pueden producir
+oscilaciones alrededor de los umbrales. Se aplicarán:
+%
+\begin{itemize}
+  \item histéresis de velocidad, con umbral de activación mayor que el de
+    desactivación;
+  \item margen angular en el borde del campo comunicado;
+  \item filtrado pasa bajos de velocidad; y
+  \item limitación de la variación máxima de intensidad por segundo.
+\end{itemize}
+
+No se mantendrá una señal cuando la velocidad de cierre desaparezca: la
+histéresis solo evita conmutaciones por ruido y debe tener una duración corta.
+
+\subsubsection{Datos obsoletos}
+
+Se mantienen timestamps independientes para mapa, odometría y apertura. Si el
+mapa o la odometría superan su timeout:
+%
+\begin{itemize}
+  \item no se calculan nuevos riesgos;
+  \item se publica, opcionalmente durante un ciclo, un mensaje
+    \texttt{valid=false} con todos los canales desactivados; y
+  \item no se conserva la última intensidad activa.
+\end{itemize}
+
+La recomendación es continuar publicando un estado nulo e inválido a una tasa
+baja, en lugar de guardar silencio. Esto permite al consumidor distinguir
+entre ausencia de riesgo y ausencia de datos. Si el contrato del futuro
+actuador interpreta timeout como apagado seguro, esta política puede
+configurarse para dejar de publicar.
+
+\subsubsection{Frecuencia del mapa}
+
+La cámara se utiliza a 6~Hz, por lo que aplicar un \emph{throttle} adicional
+al \texttt{OccupancyGrid} introduciría una latencia incompatible con una
+advertencia basada en TTC. En consecuencia, el mapa debe publicarse después de
+cada actualización, configurando
+\texttt{occupancy\_publish\_every\_n\_frames=1}. La tasa efectiva del mapa es
+entonces la tasa de la cámara, aproximadamente 6~Hz, con un período de
+$167\,\text{ms}$ entre observaciones.
+
+El nodo \texttt{spatial\_awareness} evalúa y publica el riesgo a 10~Hz usando
+el mapa y la odometría más recientes. Esta frecuencia no crea información
+geométrica nueva entre fotogramas, pero permite reaccionar a actualizaciones
+de odometría y emitir con rapidez un estado inválido o nulo ante timeouts. No
+se modifica en esta etapa la semántica ni el envejecimiento de las celdas del
+mapa.
+
+\subsection{Parámetros configurables}
+\label{subsec:sa-parameters}
+
+\begin{table}[ht]
+  \centering
+  \caption{Parámetros iniciales propuestos para
+  \texttt{spatial\_awareness}.}
+  \label{tab:sa-parameters}
+  \small
+  \begin{tabular}{lcp{7cm}}
+    \hline
+    \textbf{Parámetro} & \textbf{Inicial} & \textbf{Descripción} \\
+    \hline
+    \texttt{occupancy\_threshold} & 65 &
+      Valor mínimo de ocupación de una celda. \\
+    \texttt{min\_cluster\_cells} & 3 &
+      Celdas ocupadas mínimas por componente conexo. \\
+    \texttt{min\_distance\_m} & 0,20 &
+      Distancia celda-cámara por debajo de la cual no se señaliza. \\
+    \texttt{max\_distance\_m} & 1,00 &
+      Alcance máximo de señalización. \\
+    \texttt{body\_radius\_m} & 0,20 &
+      Radio del corredor corporal; no se resta de la distancia medida. \\
+    \texttt{min\_motion\_speed\_mps} & 0,10 &
+      Movimiento mínimo para habilitar el análisis. \\
+    \texttt{min\_closing\_speed\_mps} & 0,10 &
+      Velocidad mínima de aproximación a una celda. \\
+    \texttt{closing\_speed\_hysteresis\_mps} & 0,03 &
+      Reducción del umbral de desactivación para evitar conmutaciones por ruido. \\
+    \texttt{velocity\_filter\_alpha} & 0,25 &
+      Coeficiente del filtro exponencial de velocidad. \\
+    \texttt{ttc\_max\_s} & 2,00 &
+      TTC para intensidad nula. \\
+    \texttt{ttc\_min\_s} & 0,25 &
+      TTC para intensidad máxima. \\
+    \texttt{fov\_margin\_deg} & 3,0 &
+      Margen de exclusión alrededor del campo frontal. \\
+    \texttt{rear\_half\_angle\_deg} & 45,0 &
+      Semiángulo de la región trasera. \\
+    \texttt{odom\_timeout\_s} & 0,25 &
+      Antigüedad máxima de la odometría. \\
+    \texttt{map\_timeout\_s} & 0,30 &
+      Antigüedad máxima del mapa para producir una salida válida. \\
+    \texttt{intensity\_slew\_rate} & 200/s &
+      Variación máxima de intensidad por segundo. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+Todos los valores son hipótesis iniciales de ingeniería y no resultados
+experimentales. Deberán distinguirse como tales en el informe final.
+
+\subsection{Descomposición de software}
+\label{subsec:sa-software}
+
+Se propone separar el cálculo en una librería sin dependencias directas de
+ROS y un nodo de integración:
+%
+\begin{description}
+  \item[\texttt{SpatialRiskEvaluator}] recibe pose 2D, velocidad, apertura y
+    una colección de celdas ocupadas. Devuelve los tres riesgos direccionales.
+    Contiene la selección por FOV, corredor corporal, velocidad de cierre, TTC
+    e intensidad.
+
+  \item[\texttt{OccupancyClusterer}] convierte la grilla en componentes
+    conexos y elimina agrupaciones menores que
+    \texttt{min\_cluster\_cells}.
+
+  \item[\texttt{VelocityEstimator}] valida el \texttt{twist} de RTAB-Map y
+    mantiene el respaldo por diferencia de pose con filtrado temporal.
+
+  \item[\texttt{SpatialAwarenessNode}] administra suscripciones, QoS,
+    timestamps, parámetros, conversión de mensajes y publicación.
+\end{description}
+
+Esta separación permite probar la geometría y el modelo de riesgo con entradas
+deterministas, sin requerir un grafo ROS ni hardware.
+
+\subsection{Plan de implementación}
+\label{subsec:sa-plan}
+
+La implementación se divide en las siguientes etapas:
+%
+\begin{enumerate}
+  \item Crear el paquete C++ \texttt{spatial\_awareness} y su configuración.
+
+  \item Agregar \texttt{DirectionalRisk.msg} y
+    \texttt{SpatialAwareness.msg} a \texttt{custom\_interfaces}.
+
+  \item Implementar y probar la conversión entre la salida REP-103 de RTAB-Map
+    y la convención interna X-derecha, Y-abajo, Z-adelante.
+
+  \item Verificar mediante rosbag la semántica de
+    \texttt{nav\_odom.twist}. Implementar el respaldo por diferencia de pose.
+
+  \item Implementar la decodificación general del
+    \texttt{OccupancyGrid}, respetando resolución, origen y orientación.
+
+  \item Implementar agrupamiento de celdas, exclusión por FOV y clasificación
+    izquierda-derecha-atrás.
+
+  \item Implementar corredor corporal, velocidad de cierre, TTC e intensidad.
+
+  \item Incorporar timeouts, histéresis y limitación de variación.
+
+  \item Integrar el nodo en \texttt{nav\_bringup} con el argumento
+    \texttt{use\_spatial\_awareness}.
+
+  \item Publicar marcadores de diagnóstico en RViz para visualizar el campo
+    excluido, el corredor de movimiento, las agrupaciones candidatas y el
+    riesgo seleccionado en cada dirección.
+
+  \item Configurar el \texttt{local\_mapper} para publicar el mapa en cada
+    fotograma de la cámara, aproximadamente a 6~Hz, sin modificar todavía el
+    modelo temporal por celda.
+
+  \item Validar primero con escenas sintéticas y luego con rosbag de caminatas
+    reales junto a paredes y obstáculos laterales.
+\end{enumerate}
+
+\subsection{Estrategia de pruebas}
+\label{subsec:sa-tests}
+
+\subsubsection{Pruebas unitarias}
+
+La librería deberá cubrir, como mínimo, los siguientes casos:
+%
+\begin{enumerate}
+  \item pared a la derecha fuera del FOV y movimiento hacia la derecha:
+    señal derecha activa;
+  \item misma pared con usuario quieto: ninguna señal;
+  \item misma pared con movimiento en sentido opuesto: ninguna señal;
+  \item obstáculo dentro del FOV: excluido del módulo;
+  \item obstáculo a más de $1\,\text{m}$: excluido;
+  \item obstáculo a menos de $0{,}20\,\text{m}$: excluido;
+  \item celda aislada por debajo del tamaño mínimo de agrupación: excluida;
+  \item movimiento diagonal hacia dos regiones: riesgos independientes;
+  \item obstáculo trasero y retroceso: señal trasera activa;
+  \item giro que hace entrar una pared al FOV: la señal lateral se desactiva;
+  \item mapa u odometría obsoletos: mensaje inválido y señales nulas;
+  \item igualdad de distancia con distintas velocidades: mayor velocidad
+    produce mayor intensidad; y
+  \item igualdad de velocidad con distintas distancias: menor distancia
+    produce mayor intensidad.
+\end{enumerate}
+
+\subsubsection{Pruebas con rosbag}
+
+Se propone registrar los siguientes escenarios:
+%
+\begin{description}
+  \item[E1: pared lateral.] Caminata paralela a una pared con aproximación
+    gradual hacia ella, manteniéndola fuera del campo comunicado.
+
+  \item[E2: alejamiento.] Misma geometría, pero con trayectoria divergente.
+    No debe existir señal.
+
+  \item[E3: cruce diagonal.] Aproximación diagonal a una esquina para evaluar
+    simultáneamente distancia, velocidad y clasificación lateral.
+
+  \item[E4: retroceso.] Obstáculo previamente observado detrás del usuario y
+    desplazamiento hacia atrás.
+
+  \item[E5: transición de FOV.] Giro de cabeza que hace que un obstáculo pase
+    del lateral al campo frontal y viceversa.
+
+  \item[E6: detención.] Frenado frente a un riesgo lateral. La intensidad debe
+    caer al desaparecer la velocidad de cierre.
+\end{description}
+
+Las métricas recomendadas son latencia de activación, tasa de falsos
+positivos, tasa de falsos negativos, continuidad de intensidad, error de TTC
+frente a una referencia obtenida del rosbag y porcentaje de tiempo con datos
+inválidos.
+
+\subsection{Decisiones de diseño}
+\label{subsec:sa-decisions}
+
+\paragraph{Uso exclusivo de obstáculos fuera del campo comunicado.}
+El módulo no duplica la señal frontal. El ángulo consumido representa el campo
+que efectivamente llega al usuario, no necesariamente el campo físico de la
+cámara.
+
+\paragraph{Un mensaje con tres canales.}
+Izquierda, derecha y atrás se publican juntos para mantener coherencia
+temporal. Cada canal conserva intensidad y métricas diagnósticas, aunque el
+actuador final solo requiera dirección e intensidad.
+
+\paragraph{TTC como variable principal de riesgo.}
+El TTC combina distancia y velocidad de cierre en una magnitud interpretable.
+Evita ajustar dos factores independientes sin una justificación cinemática.
+
+\paragraph{Velocidad de RTAB-Map con respaldo por pose.}
+Se prioriza el campo \texttt{twist} por ser la interfaz convencional de
+\texttt{nav\_msgs/Odometry}, pero no se asume que su frame o calidad sean
+correctos sin verificación. La diferenciación de pose proporciona una ruta de
+respaldo determinista.
+
+\paragraph{Radio corporal como corredor, no como resta de distancia.}
+Los límites de $0{,}20$ y $1{,}00\,\text{m}$ se aplican a la distancia
+celda-cámara solicitada. El radio corporal determina si la trayectoria
+intersecta espacialmente una celda y evita descontar dos veces la proximidad
+del cuerpo.
+
+\paragraph{Sin señal cuando el usuario está quieto.}
+La proximidad por sí sola no activa el módulo. Su función es prevenir
+colisiones causadas por el movimiento hacia obstáculos que ya no se están
+comunicando.
+
+\paragraph{Sin uso directo de velocidad angular.}
+La orientación actual determina qué celdas quedan fuera del FOV. Una celda que
+entra al campo frontal deja de señalizarse automáticamente; no es necesario
+agregar la velocidad de giro a la intensidad.
+
+\paragraph{No modificar el envejecimiento del mapa en esta etapa.}
+La edad de observación por celda pertenece al modelo del
+\texttt{local\_mapper}. \texttt{spatial\_awareness} consumirá el estado que el
+mapa publique y solo verificará la antigüedad global del mensaje.
+
+\subsection{Limitaciones y trabajo futuro}
+\label{subsec:sa-future}
+
+El modelo de TTC supone obstáculos estáticos. Una persona u objeto móvil
+requeriría estimar también su velocidad relativa. Además, la odometría visual
+puede degradarse en escenas sin textura, con iluminación adversa o movimiento
+brusco, afectando tanto la posición del mapa como la velocidad estimada.
+
+La ausencia de edad por celda puede mantener temporalmente obstáculos que ya
+no existen. Esta limitación se resolverá posteriormente en
+\texttt{local\_mapper}. También queda pendiente estudiar una representación de
+la huella corporal no circular, el efecto de la posición real de la cámara
+respecto del torso y curvas perceptuales de intensidad obtenidas con usuarios.
+
+Finalmente, la frecuencia y latencia extremo a extremo deberán medirse en la
+Raspberry Pi~5. El objetivo preliminar es evaluar el riesgo a 10~Hz, consumir
+cada mapa generado por la cámara a 6~Hz y mantener una latencia de
+procesamiento inferior a $100\,\text{ms}$ desde la publicación del mapa.
+
+\subsection{Conclusión}
+\label{subsec:sa-conclusion}
+
+El módulo \texttt{spatial\_awareness} extiende la señalización frontal con una
+advertencia cinemática para obstáculos conocidos fuera del campo comunicado.
+Su diseño utiliza el mapa acumulado en \texttt{odom}, la pose y velocidad de
+RTAB-Map, y la apertura efectiva de la grilla háptica. Solo se activa cuando
+el usuario se aproxima a una agrupación ocupada dentro del intervalo de
+$0{,}20$ a $1{,}00\,\text{m}$.
+
+La salida separa izquierda, derecha y atrás, mientras que la intensidad deriva
+del tiempo estimado hasta la colisión. La arquitectura mantiene desacopladas
+la construcción del mapa, la evaluación de riesgo y la futura actuación
+háptica, y deja explícitos los parámetros que deberán calibrarse mediante
+escenas sintéticas y registros de caminata reales.

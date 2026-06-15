@@ -1,0 +1,553 @@
+% ─────────────────────────────────────────────────────────────────────────────
+%
+% Documentación del mapa de ocupación 2D acumulado.
+% Corresponde a la quinta iteración del módulo de percepción local.
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Mapa de ocupación 2D acumulado}
+\label{sec:lm-occupancy}
+
+Las cuatro iteraciones anteriores del módulo de percepción local establecieron
+un pipeline capaz de proyectar la imagen de profundidad a una nube de puntos
+3D, alinear esa nube a la gravedad mediante odometría visual-inercial y
+clasificar los puntos en suelo, obstáculo y techo. Sin embargo, este
+procesamiento opera exclusivamente sobre el fotograma actual: los obstáculos
+que salen del campo visual de la cámara, ya sea porque el usuario giró la
+cabeza o porque el obstáculo quedó a sus espaldas, desaparecen del mapa
+instantáneamente. Para un sistema de asistencia a personas con discapacidad
+visual, esta carencia implica que no puede advertirse sobre obstáculos
+conocidos que se aproximan desde fuera del campo de visión.
+
+La quinta iteración introduce la clase \texttt{OccupancyMapper}, que mantiene
+una rejilla 2D de ocupación acumulada en el tiempo. La rejilla es una
+\textbf{ventana deslizante en el marco \texttt{odom}} (absoluto, fijo en el
+mundo): los obstáculos se insertan y acumulan en coordenadas del mundo,
+independientemente de la orientación de la cámara. Esto resuelve un problema
+fundamental de las representaciones relativas a la cámara: cuando la cámara
+gira en yaw, los ejes locales del frame relativo rotan, pero el contenido
+histórico de la rejilla no puede rotarse con ellos, lo que produce un mapa
+inconsistente tras cualquier giro. Al acumular en \texttt{odom}, los
+obstáculos quedan fijos en el mundo y el mapa es correcto
+independientemente de la orientación de la cámara.
+
+Cuando la cámara se aleja del centro de la ventana, el contenido acumulado
+se desplaza la cantidad de celdas correspondiente al movimiento en
+\texttt{odom} y el origen de la rejilla se actualiza, de modo que
+\texttt{worldToCell()} siga siendo correcto. Los obstáculos que caen fuera
+del área cubierta se descartan.
+
+Cada celda almacena una estimación probabilística de si esa región del suelo
+está ocupada por un obstáculo. La estimación se actualiza en cada fotograma
+mediante el filtro bayesiano en forma logarítmica propuesto por Elfes
+\cite{Elfes1989}, y las regiones del espacio libre son marcadas mediante la
+trazada de rayos con el algoritmo de Bresenham \cite{Bresenham1965}. El
+desplazamiento de la ventana se calcula a partir de la odometría de
+\texttt{nav\_odometry} (véase la sección~\ref{sec:lm-vio}).
+
+El resultado se publica como \texttt{nav\_msgs/OccupancyGrid} en el topic
+\texttt{/local\_mapper/occupancy\_grid} con el frame \texttt{odom},
+compatible con la convención estándar de ROS 2 y visualizable directamente
+en RViz.
+
+\subsection{Marco teórico}
+\label{subsec:lm-v5-teoria}
+
+\subsubsection{Modelo de rejilla de ocupación}
+\label{subsubsec:lm-v5-elfes}
+
+El modelo de rejilla de ocupación (\emph{occupancy grid}) fue introducido por
+Elfes \cite{Elfes1989}. El espacio 2D se divide en celdas de tamaño fijo
+$\Delta$; a cada celda $m_i$ se le asigna una variable aleatoria binaria que
+vale $1$ si la celda está ocupada y $0$ si está libre. El estado del mapa
+completo es el conjunto $\mathcal{M} = \{m_i\}$.
+
+El sensor proporciona una observación $z_t$ en el instante $t$. La estimación
+bayesiana recursiva mantiene la distribución posterior:
+%
+\begin{equation}
+  \label{eq:bayes-occ}
+  P(m_i \mid z_{1:t}) =
+  \frac{P(z_t \mid m_i)\,P(m_i \mid z_{1:t-1})}{P(z_t \mid z_{1:t-1})}
+\end{equation}
+%
+Esta expresión es independiente para cada celda, lo que hace al modelo
+tractable: el mapa de tamaño $N$ admite $N$ actualizaciones independientes por
+fotograma \cite{Thrun2005}.
+
+\subsubsection{Representación en log-odds}
+\label{subsubsec:lm-v5-logodds}
+
+La formulación directa de la ecuación~\ref{eq:bayes-occ} es numéricamente
+problemática: las probabilidades tienden a cero o a uno muy rápidamente y
+la representación en punto flotante pierde precisión. La solución estándar es
+expresar la estimación en unidades de log-odds \cite{Thrun2005}:
+%
+\begin{equation}
+  \label{eq:logodds-def}
+  l(m_i) = \log \frac{P(m_i = 1)}{P(m_i = 0)} = \log \frac{P(m_i = 1)}{1 - P(m_i = 1)}
+\end{equation}
+%
+La conversión inversa es:
+%
+\begin{equation}
+  \label{eq:logodds-inv}
+  P(m_i = 1) = \frac{1}{1 + e^{-l(m_i)}}
+\end{equation}
+%
+El prior uniforme $P(m_i) = 0{,}5$ corresponde a $l_0 = 0$, que es el valor
+inicial de toda celda sin observar.
+
+La actualización bayesiana en la representación log-odds se convierte en una
+suma, lo que garantiza estabilidad numérica y eficiencia computacional. Sea
+$l_{\text{occ}}$ el log-odds del modelo de sensor al observar una celda
+ocupada, y $l_{\text{free}}$ el log-odds al observar una celda libre; bajo la
+hipótesis de independencia entre observaciones y prior uniforme eliminado,
+la actualización queda:
+%
+\begin{equation}
+  \label{eq:logodds-update}
+  l_t(m_i) =
+  \begin{cases}
+    l_{t-1}(m_i) + l_{\text{occ}} & \text{si la celda es observada ocupada}\\
+    l_{t-1}(m_i) + l_{\text{free}} & \text{si la celda es observada libre}
+  \end{cases}
+\end{equation}
+%
+Esta derivación, presentada en la sección~9.2 de Thrun et~al.~\cite{Thrun2005},
+surge de aplicar la regla de Bayes en log-odds y cancelar el prior
+$l_0 = 0$, lo que elimina la resta del término de prior en la expresión
+genérica. Cada celda se actualiza en tiempo $O(1)$.
+
+Los parámetros del modelo de sensor se eligen de forma que:
+$l_{\text{occ}} > |l_{\text{free}}|$, es decir, una observación ocupada tiene
+más peso que una libre. Esto garantiza que un obstáculo detectado una sola vez
+requiera varias observaciones de espacio libre para ser desactivado, lo que es
+deseable para la seguridad de navegación \cite{Elfes1989}. Los valores por
+defecto empleados, $l_{\text{occ}} = \log(0{,}9/0{,}1) \approx 2{,}197$ y
+$l_{\text{free}} = \log(0{,}3/0{,}7) \approx {-0{,}847}$, implican que son
+necesarias aproximadamente $2{,}6$ lecturas de espacio libre para cancelar un
+único impacto de obstáculo.
+
+Los log-odds se acotan en el intervalo $[l_{\min},\, l_{\max}]$ para evitar
+saturación numérica en celdas observadas repetidamente. Con los valores por
+defecto $l_{\min} = -5$ y $l_{\max} = +5$, las probabilidades extremas son
+$P \approx 0{,}67\,$\% (libre confirmado) y $P \approx 99{,}3\,$\% (ocupado
+confirmado).
+
+\subsubsection{Proyección 2D sobre el plano del suelo}
+\label{subsubsec:lm-v5-proyeccion}
+
+La rejilla representa el plano horizontal del suelo en el marco \texttt{odom}.
+Cada punto 3D de obstáculo $\mathbf{p}^{\text{ga}} = (p_x, p_y, p_z)$, que
+el \texttt{GroundEstimator} entrega en \texttt{gravity\_aligned\_frame}, debe
+convertirse a coordenadas del marco \texttt{odom} antes de insertarse en la
+rejilla. Esto se hace rotando por $\mathbf{q}_{\text{yaw}}$ (la orientación
+de la cámara reducida a solo yaw, en el convenio Y-abajo descrito en la
+sección~\ref{sec:lm-vio}) y sumando la posición actual del sensor:
+%
+\begin{equation}
+  \label{eq:ga-to-odom}
+  \mathbf{p}^{\text{odom}} = \mathbf{q}_{\text{yaw}} \cdot \mathbf{p}^{\text{ga}}
+  + (x_{\text{odom}},\; 0,\; z_{\text{odom}})
+\end{equation}
+%
+La proyección al plano del suelo ignora la coordenada vertical $p_y^{\text{odom}}$,
+obteniendo la huella (\emph{footprint}) del obstáculo en el plano XZ de
+\texttt{odom}:
+%
+\begin{equation}
+  \label{eq:ga-to-grid}
+  (x_{\text{grid}},\, z_{\text{grid}}) = (p_x^{\text{odom}},\, p_z^{\text{odom}})
+\end{equation}
+%
+El sensor se pasa también en coordenadas \texttt{odom}: $(x_{\text{odom}},\,
+z_{\text{odom}})$.
+
+\subsubsection{Ventana deslizante: \texttt{shift}}
+\label{subsubsec:lm-v5-shift}
+
+La rejilla tiene un tamaño fijo de $N \times N$ celdas. Cuando la cámara se
+desplaza y se acerca a un borde de la ventana, el contenido completo de la
+rejilla se desplaza para mantenerla centrada en la posición actual del sensor.
+A diferencia del enfoque relativo al frame de la cámara, donde el shift debía
+expresarse en coordenadas del frame local, con la rejilla en el marco
+\texttt{odom} el desplazamiento en celdas se calcula directamente desde la
+diferencia de posición en \texttt{odom}, sin ninguna rotación:
+%
+\begin{equation}
+  \label{eq:odom-delta}
+  \mathbf{d}_{\text{odom}} = (x_t - x_{t-1},\; 0,\; z_t - z_{t-1})
+\end{equation}
+%
+El desplazamiento en celdas es:
+%
+\begin{equation}
+  \label{eq:shift-cells}
+  \Delta c_i = \left\lfloor \frac{-d_{\text{odom},x}}{\Delta} + \tfrac{1}{2} \right\rfloor,
+  \qquad
+  \Delta c_j = \left\lfloor \frac{-d_{\text{odom},z}}{\Delta} + \tfrac{1}{2} \right\rfloor
+\end{equation}
+%
+donde el signo negativo refleja que si la cámara avanza $+X$ en
+\texttt{odom}, el contenido de la rejilla debe correrse $-X$ para que los
+obstáculos queden en las celdas correctas. Las celdas que salen por un borde
+se descartan; las que entran por el borde opuesto se inicializan a
+$l_0 = 0$ (prior uniforme).
+
+Adicionalmente, \texttt{shift()} actualiza las coordenadas del origen de la
+rejilla en \texttt{odom}:
+%
+\begin{equation}
+  \label{eq:origin-update}
+  x_{\text{orig}} \mathrel{-}= \Delta c_i \cdot \Delta,
+  \qquad
+  z_{\text{orig}} \mathrel{-}= \Delta c_j \cdot \Delta
+\end{equation}
+%
+Este paso es imprescindible: sin él, \texttt{worldToCell()} usaría un origen
+desactualizado al convertir coordenadas \texttt{odom} a índices de celda en
+el fotograma siguiente.
+
+\subsubsection{Discretización en rejilla}
+\label{subsubsec:lm-v5-rejilla}
+
+La rejilla es un arreglo cuadrado de $N \times N$ celdas de lado $\Delta\,\text{m}$.
+Su origen $(x_{\text{orig}}, z_{\text{orig}})$ es la posición en \texttt{odom}
+del vértice $(c_i, c_j) = (0, 0)$; en el arranque del nodo se centra en la
+posición inicial de la cámara:
+%
+\begin{equation}
+  \label{eq:grid-origin}
+  x_{\text{orig}}^{(0)} = z_{\text{orig}}^{(0)} = -\frac{N \cdot \Delta}{2}
+\end{equation}
+%
+Con cada llamada a \texttt{shift()} el origen se desplaza según la
+ecuación~\ref{eq:origin-update}, por lo que $x_{\text{orig}}$ y
+$z_{\text{orig}}$ siempre apuntan al vértice actual de la ventana en
+\texttt{odom}. La conversión de coordenadas \texttt{odom} $(x, z)$ a índice
+de celda $(c_i, c_j)$ es:
+%
+\begin{equation}
+  \label{eq:world-to-cell}
+  c_i = \left\lfloor \frac{x - x_{\text{orig}}}{\Delta} \right\rfloor,
+  \qquad
+  c_j = \left\lfloor \frac{z - z_{\text{orig}}}{\Delta} \right\rfloor
+\end{equation}
+%
+Un punto se considera fuera del mapa si $c_i \notin [0, N)$ o
+$c_j \notin [0, N)$; en ese caso se descarta sin actualizar la rejilla.
+La rejilla interna se indexa con aritmética \emph{row-major} \cite{stroustrup2013cpp}:
+el índice lineal de la celda $(c_i, c_j)$ es $c_i \cdot N + c_j$, donde
+$c_i$ recorre el eje $X$ y $c_j$ el eje $Z$.
+
+Con los parámetros por defecto ($\Delta = 0{,}10\,\text{m}$, $N = 200$), la
+ventana cubre un área de $20\,\text{m} \times 20\,\text{m}$ centrada en la
+posición actual de la cámara.
+
+\subsubsection{Ray casting por el algoritmo de Bresenham}
+\label{subsubsec:lm-v5-bresenham}
+
+Para marcar el espacio libre entre el sensor y cada obstáculo detectado se
+utiliza el algoritmo de Bresenham \cite{Bresenham1965}. Dado el segmento entre
+la celda del sensor $(c_{i0}, c_{j0})$ y la celda del obstáculo
+$(c_{i1}, c_{j1})$, el algoritmo genera la secuencia de celdas de la rejilla
+que el segmento de recta atraviesa, usando exclusivamente aritmética entera.
+
+El algoritmo evita errores de acumulación propios de la evaluación de la recta
+parametrizada, y garantiza que cada celda intermedia sea visitada exactamente
+una vez. La variable de error $e$ mantiene la diferencia acumulada entre la
+recta ideal y la discretización; cuando desborda se efectúa un paso en el eje
+secundario. En la implementación utilizada, con $\Delta x = |c_{i1} - c_{i0}|$
+y $\Delta z = |c_{j1} - c_{j0}|$:
+%
+\begin{equation}
+  \label{eq:bresenham-recurrence}
+  e_0 = \Delta x - \Delta z, \qquad
+  e \leftarrow e + 2 \Delta x \;\text{ (paso en $z$)}, \quad
+  e \leftarrow e - 2 \Delta z \;\text{ (paso en $x$)}
+\end{equation}
+%
+La celda del obstáculo en el extremo del rayo \emph{no} recibe la
+actualización de espacio libre: se actualiza como celda ocupada mediante la
+ecuación~\ref{eq:logodds-update} con incremento $l_{\text{occ}}$.
+
+En condiciones típicas de uso (nube de obstáculos de $\approx\!1\,000$~puntos
+a distancias de $0{,}5$--$4\,\text{m}$, resolución $\Delta = 0{,}10\,\text{m}$),
+cada rayo recorre entre 5 y 40 celdas, con lo que la actualización de la
+rejilla completa por fotograma tiene una complejidad práctica
+$O(N_{\text{obs}} \cdot r)$, donde $N_{\text{obs}}$ es el número de puntos
+de obstáculo y $r$ la longitud media de los rayos en celdas.
+
+\subsection{Implementación}
+\label{subsec:lm-v5-impl}
+
+\subsubsection{Clase \texttt{OccupancyMapper}}
+\label{subsubsec:lm-v5-clase}
+
+La clase \texttt{local\_mapper::OccupancyMapper} encapsula la rejilla y
+expone la siguiente interfaz pública:
+%
+\begin{itemize}
+  \item \textbf{Constructor}: \texttt{OccupancyMapper(const Config\&)}.
+    Inicializa la rejilla de $N \times N$ flotantes a $0{,}0$ (prior uniforme).
+    Calcula las coordenadas del origen mediante la
+    ecuación~\ref{eq:grid-origin}. Los parámetros clave de \texttt{Config}
+    son: \texttt{cell\_size\_m}, \texttt{grid\_size}, \texttt{l\_occ},
+    \texttt{l\_free}, \texttt{l\_min}, \texttt{l\_max}, \texttt{max\_range\_m}
+    y \texttt{forget\_radius\_m}.
+
+  \item \textbf{Desplazamiento}: \texttt{shift(shift\_ci, shift\_cj)}.
+    Corre todo el contenido de la rejilla $(\Delta c_i, \Delta c_j)$ celdas
+    según las ecuaciones~\ref{eq:shift-cells}--\ref{eq:origin-update}.
+    Actualiza $x_{\text{orig}}$ y $z_{\text{orig}}$ para que
+    \texttt{worldToCell()} siga siendo correcto. Las celdas nuevas se
+    inicializan a $0$ (prior uniforme). Se llama \emph{antes} de
+    \texttt{update()} en cada fotograma.
+
+  \item \textbf{Actualización}: \texttt{update(obstacle\_pts, sensor\_x, sensor\_z)}.
+    Recibe los puntos de obstáculo en coordenadas XZ del marco \texttt{odom}
+    (según la sección~\ref{subsubsec:lm-v5-proyeccion}) y la posición del
+    sensor también en \texttt{odom}. Ejecuta el pipeline de actualización
+    descrito a continuación.
+
+  \item \textbf{Resultado}: \texttt{logOdds()} retorna el vector de log-odds,
+    indexado \emph{row-major} con $c_i \leftrightarrow X$.
+
+  \item \textbf{Conversión de salida}: el método estático
+    \texttt{logOddsToNavMsg(l)} convierte un log-odds a un valor entero en el
+    rango $[0, 100]$ compatible con \texttt{nav\_msgs/OccupancyGrid}, o a
+    $-1$ para celdas sin ninguna observación (log-odds exactamente igual a
+    cero).
+\end{itemize}
+
+\subsubsection{Pipeline de actualización por fotograma}
+\label{subsubsec:lm-v5-pipeline}
+
+El método \texttt{update()} ejecuta los pasos siguientes para cada fotograma:
+%
+\begin{enumerate}
+  \item \textbf{Conversión de la posición del sensor a celda}. Si el sensor
+    (posición actual de la cámara en \texttt{odom}) cae fuera de la ventana
+    de la rejilla, se omite el fotograma. En condiciones normales esto no
+    ocurre porque \texttt{shift()} mantiene la ventana centrada.
+
+  \item \textbf{Borrado local} (pase $O(N^2)$).
+    Antes de insertar las nuevas observaciones, se recorre toda la rejilla.
+    Las celdas ya observadas (log-odds $\neq 0$) cuya distancia al sensor
+    supera \texttt{forget\_radius\_m} se reinician al prior uniforme
+    (log-odds $= 0$). Esto garantiza que la información del mapa sea
+    estrictamente local dentro del radio especificado. Las celdas en prior
+    se omiten para reducir el trabajo en la mayoría del grid no observado.
+
+  \item \textbf{Filtro de rango} para cada punto de obstáculo. Se calcula la
+    distancia horizontal al sensor; si supera \texttt{max\_range\_m} el punto
+    se descarta. Esto evita que mediciones muy lejanas con mayor ruido
+    contaminen el mapa \cite{IntelRealSenseDepthTuning}.
+
+  \item \textbf{Conversión del obstáculo a celda} mediante la
+    ecuación~\ref{eq:world-to-cell}. Si la celda está fuera de los límites,
+    el punto se descarta.
+
+  \item \textbf{Actualización de celda ocupada}. Se incrementa el log-odds de
+    la celda del obstáculo en $l_{\text{occ}}$, acotando en $[l_{\min},\, l_{\max}]$.
+
+  \item \textbf{Ray casting de espacio libre} (si \texttt{enable\_raycasting = true}).
+    Se traza un rayo con el algoritmo de Bresenham desde la celda del sensor
+    hasta la celda del obstáculo (extremo excluido) y se aplica
+    $l_{\text{free}}$ a cada celda intermedia. Para evitar que múltiples
+    rayos pasen por la misma celda en un único fotograma y acumulen
+    $k \cdot l_{\text{free}}$, lo que borraría en un instante el historial
+    acumulado, cada celda libre solo puede actualizarse una vez por llamada
+    a \texttt{update()}, mediante una máscara booleana de tamaño $N^2$.
+\end{enumerate}
+
+El método trabaja íntegramente sobre el vector interno de log-odds, sin
+ninguna copia adicional de datos.
+
+\subsubsection{Integración del \texttt{OccupancyMapper} en el nodo}
+\label{subsubsec:lm-v5-transform-node}
+
+El nodo \texttt{depth\_projection\_node} ejecuta el siguiente flujo en cada
+fotograma, dentro de \texttt{onDepth()}:
+
+\begin{enumerate}
+  \item \texttt{onOdom()} (llamado cuando llega un mensaje de odometría)
+    almacena la posición actual de la cámara $(x_t, z_t)$ en el marco
+    \texttt{odom} y el cuaternión de yaw $\mathbf{q}_{\text{yaw}}$.
+
+  \item \texttt{onDepth()} calcula el desplazamiento de la cámara desde el
+    fotograma anterior con la ecuación~\ref{eq:odom-delta} y obtiene el shift
+    en celdas con la ecuación~\ref{eq:shift-cells}. Llama a
+    \texttt{occupancy\_mapper\_.shift($\Delta c_i$, $\Delta c_j$)}, que
+    también actualiza el origen según la ecuación~\ref{eq:origin-update}.
+    Si todavía no hay posición previa registrada (primer fotograma), el
+    \emph{shift} se omite.
+
+  \item Los puntos de obstáculo obtenidos del \texttt{GroundEstimator}
+    (en \texttt{gravity\_aligned\_frame}) se transforman a \texttt{odom}
+    mediante la ecuación~\ref{eq:ga-to-odom}, se proyectan al plano XZ
+    (ecuación~\ref{eq:ga-to-grid}) y se pasan a
+    \texttt{occupancy\_mapper\_.update()} junto con la posición del sensor
+    $(x_{\text{odom}}, z_{\text{odom}})$.
+
+  \item Tras la actualización, si al menos un suscriptor escucha el topic
+    \texttt{/local\_mapper/occupancy\_grid}, se construye y publica el mensaje
+    \texttt{nav\_msgs/OccupancyGrid}.
+\end{enumerate}
+
+\subsubsection{Publicación del \texttt{OccupancyGrid}}
+\label{subsubsec:lm-v5-occgrid}
+
+El mensaje \texttt{nav\_msgs/OccupancyGrid} utiliza la convención de indexado
+$\text{data}[\text{col} + \text{row} \cdot \text{width}]$, donde
+\texttt{col} crece en la dirección $X$ y \texttt{row} crece en la dirección
+$Y$ del frame del mapa. Dado que la rejilla interna indexa en \emph{row-major}
+con $c_i \leftrightarrow X$ y $c_j \leftrightarrow Z$.  Dado que la
+rotación de $+90^{\circ}$ en el origen alinea la dirección $X$ local con
+$c_i$ y la dirección $Y$ local (filas) con $c_j$, la correspondencia
+con el campo \texttt{data} es directa; véase la
+ecuación~\ref{eq:grid-data-index}.
+%
+El campo \texttt{info.origin} del mensaje recibe las coordenadas actuales del
+vértice $(0, 0)$ de la rejilla en \texttt{odom}, con
+\texttt{origin.position.x} $= x_{\text{orig}}$,
+\texttt{origin.position.y} $= h_{\text{piso}}$ (altura del piso estimada por
+el \texttt{GroundEstimator}) y
+\texttt{origin.position.z} $= z_{\text{orig}}$.
+
+El campo \texttt{info.origin.orientation} recibe un cuaternión de $+90^{\circ}$
+alrededor del eje $X$, con componentes $(w, x, y, z) = (\tfrac{\sqrt{2}}{2},
+\tfrac{\sqrt{2}}{2}, 0, 0)$. Esta rotación hace que el eje $Y$ local del
+grid, en el que \texttt{nav\_msgs/OccupancyGrid} extiende las filas, quede
+alineado con el eje $Z$ de \texttt{odom} (dirección de avance). Sin esta
+rotación, el grid se dibujaría en el plano $XY$ vertical de \texttt{odom}
+en lugar del plano $XZ$ horizontal que corresponde al suelo.
+
+Con la orientación corregida, la celda $(c_i, c_j)$ se ubica en \texttt{odom}
+en:
+%
+\begin{equation}
+  \label{eq:cell-world-pos}
+  \mathbf{p}_{\text{odom}}(c_i, c_j)
+  = \bigl(x_{\text{orig}} + c_i \Delta,\; h_{\text{piso}},\; z_{\text{orig}} + c_j \Delta\bigr)
+\end{equation}
+%
+La relación entre el vector interno de log-odds y el campo \texttt{data} del
+mensaje es directa, sin transposición:
+%
+\begin{equation}
+  \label{eq:grid-data-index}
+  \texttt{data}[c_i + c_j \cdot N]
+  = \texttt{logOddsToNavMsg}\!\left(\text{grid}[c_i \cdot N + c_j]\right)
+\end{equation}
+%
+donde $c_i$ corresponde a la columna (\texttt{col}, dirección $X$) y $c_j$
+a la fila (\texttt{row}, dirección $Z$ tras la rotación de origen).
+
+\subsection{Integración en el nodo \texttt{depth\_projection\_node}}
+\label{subsec:lm-v5-integracion}
+
+La Tabla~\ref{tab:v5-topics} resume el topic nuevo introducido por esta
+iteración.
+
+\begin{table}[ht]
+  \centering
+  \caption{Topic publicado por el \texttt{OccupancyMapper} (V5).}
+  \label{tab:v5-topics}
+  \begin{tabular}{llp{6cm}}
+    \hline
+    \textbf{Dirección} & \textbf{Topic} & \textbf{Descripción} \\
+    \hline
+    Pub & \texttt{/local\_mapper/occupancy\_grid} &
+      \texttt{nav\_msgs/OccupancyGrid}.
+      Rejilla 2D deslizante en el marco \texttt{odom}
+      (QoS: \texttt{transient\_local}). \\
+    \hline
+  \end{tabular}
+\end{table}
+
+La clase \texttt{OccupancyMapper} se compila dentro de la librería estática
+\texttt{local\_mapper\_lib}, junto con \texttt{DepthProjector},
+\texttt{GroundEstimator} y las demás clases del paquete. El ejecutable
+\texttt{depth\_projection\_node} enlaza con \texttt{local\_mapper\_lib} sin
+ninguna dependencia adicional en tiempo de compilación.
+
+\subsection{Parámetros configurables}
+\label{subsec:lm-v5-params}
+
+La Tabla~\ref{tab:v5-params} lista los parámetros del
+\texttt{OccupancyMapper} declarados en el nodo y configurables desde
+\texttt{params.yaml}.
+
+\begin{table}[ht]
+  \centering
+  \caption{Parámetros del \texttt{OccupancyMapper} (prefijo \texttt{occupancy\_}).}
+  \label{tab:v5-params}
+  \small
+  \begin{tabular}{lcp{7cm}}
+    \hline
+    \textbf{Parámetro} & \textbf{Valor por defecto} & \textbf{Descripción} \\
+    \hline
+    \texttt{cell\_size\_m}        & $0{,}10$  & Lado de cada celda cuadrada. \\
+    \texttt{grid\_size}           & $200$     & Celdas por lado ($N$). Cubre $20\,\text{m}\times20\,\text{m}$. \\
+    \texttt{l\_occ}               & $2{,}197$ & Incremento log-odds por hit de obstáculo. \\
+    \texttt{l\_free}              & $-0{,}847$ & Incremento log-odds por celda libre (rayo). \\
+    \texttt{l\_min}               & $-5{,}0$  & Saturación inferior del log-odds. \\
+    \texttt{l\_max}               & $+5{,}0$  & Saturación superior del log-odds. \\
+    \texttt{max\_range\_m}        & $5{,}0$   & Distancia máxima de los obstáculos incluidos (m). \\
+    \texttt{forget\_radius\_m}    & $5{,}0$   & Radio de localidad (m); las celdas más alejadas se reinician al prior en cada fotograma. \\
+    \texttt{enable\_raycasting}   & \texttt{true} & Activa la actualización de celdas libres. \\
+    \hline
+  \end{tabular}
+\end{table}
+
+\subsection{Decisiones de diseño}
+\label{subsec:lm-v5-design}
+
+\paragraph{Marco \texttt{odom} en lugar de frame relativo a la cámara.}
+Una alternativa natural es acumular los obstáculos en coordenadas relativas
+al frame de la cámara (\texttt{gravity\_aligned\_frame}). Sin embargo, este
+enfoque tiene un defecto fundamental: cuando la cámara gira en yaw, los ejes
+locales del frame relativo rotan, pero el contenido histórico de la rejilla
+(un arreglo de celdas rectangulares) no puede rotarse en el mismo acto. El
+resultado es que los obstáculos acumulados quedan con un ángulo incorrecto en
+el nuevo sistema de referencia tras cualquier giro. Además, en el enfoque
+relativo el \emph{shift} en celdas debe expresarse en el frame rotado
+(aplicando $\mathbf{q}_{\text{yaw}}^{-1}$ al desplazamiento en \texttt{odom}),
+lo que introduce una dependencia adicional y una fuente extra de error.
+
+Al acumular en \texttt{odom} (frame absoluto, fijo en el mundo), los
+obstáculos quedan fijos en sus coordenadas del mundo independientemente de
+la orientación de la cámara. El \emph{shift} se calcula directamente desde
+la diferencia de posición en \texttt{odom}, sin ningún paso de rotación.
+El costo es que cada punto de obstáculo debe convertirse de
+\texttt{gravity\_aligned\_frame} a \texttt{odom} antes de insertarse
+(ecuación~\ref{eq:ga-to-odom}), operación de costo $O(N_{\text{obs}})$
+mediante una rotación de cuaternión por punto.
+
+\paragraph{Localidad estricta mediante \texttt{forget\_radius\_m}.}
+En cada fotograma las celdas cuya distancia al sensor supera
+\texttt{forget\_radius\_m} se reinician al prior uniforme. Esto mantiene el
+mapa estrictamente local: no persisten datos a distancias a las que el sensor
+no puede detectar obstáculos de modo confiable (acorde con
+\texttt{max\_range\_m}), y la memoria del grid no acumula err or de odometría
+de forma indefinida. El radio de olvido se configura con el mismo valor
+por defecto que el rango máximo de detección ($5\,\text{m}$).
+
+\paragraph{Sin dependencias externas.}
+La clase \texttt{OccupancyMapper} está implementada en C++17 puro, sin
+dependencias de PCL, Eigen ni ninguna otra librería externa. Esto es
+consistente con el resto del paquete \texttt{local\_mapper} y facilita el
+testing unitario y la ejecución en la Raspberry Pi 5.
+
+\paragraph{Orientación del origen y mapeo de índices.}
+La indexación \emph{row-major} interna con $c_i \leftrightarrow X$ y
+$c_j \leftrightarrow Z$ es práctica para el ray casting y la actualización
+de celdas. El campo \texttt{data} de \texttt{nav\_msgs/OccupancyGrid}
+indexa primero en la dirección local $X$ (columnas, eje rápido) y luego
+en la dirección local $Y$ (filas, eje lento). La rotación de $+900^{\circ}$
+alrededor de $X$ aplicada en \texttt{info.origin.orientation} hace que la
+dirección local $Y$ del grid coincida con el eje $Z$ del marco
+\texttt{odom}, de modo que la ecuación~\ref{eq:grid-data-index} no
+requiere transposición: \texttt{data}[$c_i + c_j \cdot N$] recibe
+directamente el valor de la celda ($c_i$, $c_j$) de la rejilla interna.

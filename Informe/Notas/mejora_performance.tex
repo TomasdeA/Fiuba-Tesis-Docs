@@ -1,0 +1,679 @@
+% ─────────────────────────────────────────────────────────────────────────────
+%
+% mejora_performance.tex
+%
+% Nota de ingeniería sobre la optimización de performance del pipeline
+% de percepción en Raspberry Pi con RealSense D435i.
+%
+% ─────────────────────────────────────────────────────────────────────────────
+
+\section{Mejora de performance del pipeline de percepción}
+\label{sec:mejora-performance}
+
+Esta nota documenta el proceso de diagnóstico y optimización del pipeline de
+percepción ejecutado en Raspberry Pi con una cámara Intel RealSense D435i. El
+problema inicial se manifestó como bloqueos intermitentes o sensación de
+``cuelgue'' al ejecutar el sistema con la configuración:
+
+\begin{verbatim}
+ros2 launch nav_bringup nav.launch.py \
+  use_realsense:=true \
+  use_hw:=false \
+  pipeline_mode:=filtered \
+  use_perception:=true \
+  use_visual_odometry:=false \
+  use_local_mapper:=false \
+  use_rviz:=false \
+  use_viz:=false
+\end{verbatim}
+
+En esta configuración se utiliza la RealSense como fuente de profundidad e
+IMU, se ejecuta el pipeline filtrado de obstáculos y se desactiva la odometría
+visual. El objetivo fue identificar si la causa de los bloqueos provenía del
+driver USB/cámara, del procesamiento de percepción, o de una combinación de
+ambos.
+
+\subsection{Configuración inicial y síntomas}
+\label{subsec:perf-sintomas}
+
+La cámara se configuró explícitamente en el launch para publicar profundidad a
+$640 \times 480$ píxeles y $6\,\mathrm{Hz}$:
+
+\begin{verbatim}
+depth_module.depth_profile = 640x480x6
+\end{verbatim}
+
+La tasa de $6\,\mathrm{Hz}$ implica un presupuesto temporal de:
+
+\begin{equation}
+  T_{\mathrm{frame}} = \frac{1000}{6} \approx 166{,}7\,\mathrm{ms}
+\end{equation}
+
+Por lo tanto, cualquier etapa de procesamiento que supere de manera sostenida
+ese tiempo comienza a acumular cola de mensajes. El síntoma percibido por el
+usuario no necesariamente aparece como una caída del nodo, sino como latencia
+creciente: el sistema sigue procesando, pero lo hace sobre frames viejos.
+
+En paralelo aparecieron advertencias del driver de RealSense:
+
+\begin{verbatim}
+control_transfer returned error, index: 768,
+error: Resource temporarily unavailable, number: 11
+\end{verbatim}
+
+y, en algunas corridas, también:
+
+\begin{verbatim}
+control_transfer returned error, index: 768,
+error: Success, number: 0
+\end{verbatim}
+
+Estas advertencias provienen de \texttt{librealsense}/USB y no de los nodos de
+percepción. Se observó que se intensificaban al mover la cámara, lo que sugiere
+un componente físico asociado al cable, conector, alimentación o ruido en el
+bus USB. Sin embargo, las mediciones de performance mostraron que también
+existía un cuello de botella algorítmico claro en el pipeline filtrado.
+
+\subsection{Instrumentación utilizada}
+\label{subsec:perf-instrumentacion}
+
+Se utilizaron tres fuentes principales de medición:
+
+\begin{enumerate}
+  \item Logs de performance de \texttt{depth\_obstacle\_filter}.
+  \item Logs de performance de \texttt{obstacle\_grid\_encoder}.
+  \item \texttt{ros2 topic delay} sobre el tópico crudo de profundidad:
+        \texttt{/camera/camera/depth/image\_rect\_raw}.
+\end{enumerate}
+
+El log de \texttt{depth\_obstacle\_filter} separa el tiempo total por frame en
+etapas:
+
+\begin{itemize}
+  \item \texttt{proj}: retroproyección de la imagen de profundidad a puntos 3D.
+  \item \texttt{range}: filtrado de rango y descarte de valores inválidos.
+  \item \texttt{ground}: rotación a frame alineado a gravedad, estimación de
+        suelo y clasificación suelo/obstáculo/techo.
+  \item \texttt{publish}: armado y publicación de mensajes.
+  \item \texttt{total}: tiempo total medido por el nodo para procesar el frame.
+  \item \texttt{age}: edad del mensaje al finalizar el procesamiento.
+\end{itemize}
+
+La edad del mensaje se calcula como:
+
+\begin{equation}
+  \mathrm{age} = t_{\mathrm{now}} - t_{\mathrm{stamp}}
+\end{equation}
+
+donde $t_{\mathrm{stamp}}$ es el timestamp del mensaje de profundidad. Por lo
+tanto, \texttt{age} incluye tanto el retardo de cámara/ROS como el tiempo de
+procesamiento del nodo.
+
+Para separar ambos efectos se midió el tópico crudo:
+
+\begin{verbatim}
+ros2 topic delay /camera/camera/depth/image_rect_raw
+\end{verbatim}
+
+El resultado típico fue:
+
+\begin{verbatim}
+average delay: 0.010s - 0.014s
+max: 0.071s
+\end{verbatim}
+
+Esto indica que la cámara entregaba la imagen con un retardo promedio de apenas
+$10$ a $14\,\mathrm{ms}$. En consecuencia, cuando
+\texttt{depth\_obstacle\_filter} reportaba \texttt{age} cercano a
+$150\,\mathrm{ms}$, la mayor parte correspondía al procesamiento del propio
+nodo y no a una cola previa en el driver.
+
+\subsection{Medición inicial del pipeline filtrado}
+\label{subsec:perf-medicion-inicial}
+
+La primera medición mostró que \texttt{obstacle\_grid\_encoder} no era el
+cuello de botella. Sus tiempos típicos se mantuvieron en torno a:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Nodo} & \textbf{Métrica} & \textbf{Valor observado} \\
+\midrule
+\texttt{obstacle\_grid\_encoder} & \texttt{avg\_total} & $9$--$10\,\mathrm{ms}$ \\
+\texttt{obstacle\_grid\_encoder} & \texttt{max\_total} & $10$--$13\,\mathrm{ms}$ \\
+\texttt{obstacle\_grid\_encoder} & \texttt{avg\_age} & $160$--$185\,\mathrm{ms}$ \\
+\texttt{obstacle\_grid\_encoder} & puntos de entrada & $160\,000$--$200\,000$ \\
+\bottomrule
+\end{tabular}
+\caption{Mediciones iniciales del codificador de grilla de obstáculos.}
+\label{tab:perf-obstacle-grid-inicial}
+\end{table}
+
+En cambio, \texttt{depth\_obstacle\_filter} operaba muy cerca del presupuesto
+de $166{,}7\,\mathrm{ms}$ por frame:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Etapa} & \textbf{Valor típico} & \textbf{Comentario} \\
+\midrule
+\texttt{proj} & $18$--$29\,\mathrm{ms}$ & Proyección de $307\,200$ píxeles \\
+\texttt{range} & $9$--$14\,\mathrm{ms}$ & Filtrado de profundidad \\
+\texttt{ground} & $109$--$119\,\mathrm{ms}$ & Etapa dominante \\
+\texttt{total} & $142$--$152\,\mathrm{ms}$ & Muy cerca del presupuesto \\
+\texttt{max\_total} & $162$--$181\,\mathrm{ms}$ & Supera el período de frame \\
+\texttt{age} & $150$--$180\,\mathrm{ms}$ & Latencia final del frame \\
+\bottomrule
+\end{tabular}
+\caption{Medición inicial de \texttt{depth\_obstacle\_filter} con resolución completa.}
+\label{tab:perf-depth-filter-inicial}
+\end{table}
+
+En esa configuración se procesaban:
+
+\begin{verbatim}
+pts proj = 307200
+valid    = 260k - 274k
+obs      = 160k - 180k
+\end{verbatim}
+
+El desglose interno de \texttt{GroundEstimator} mostraba:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Subetapa} & \textbf{Valor observado} & \textbf{Interpretación} \\
+\midrule
+\texttt{GE total} & $74$--$86\,\mathrm{ms}$ & Costo total del estimador \\
+\texttt{voxel} & $53$--$61\,\mathrm{ms}$ & Costo dominante inicial \\
+\texttt{ransac} & $\sim 1\,\mathrm{ms}$ & Bajo debido al downsampling \\
+\texttt{refine} & $12$--$16\,\mathrm{ms}$ & Refinamiento sobre inliers \\
+\bottomrule
+\end{tabular}
+\caption{Costo interno inicial del estimador de suelo.}
+\label{tab:perf-ground-estimator-inicial}
+\end{table}
+
+La conclusión inicial fue que el voxel grid, introducido para reducir la nube
+antes de RANSAC, se había convertido en un costo significativo. Esto ocurrió
+porque el RANSAC ya no se ejecutaba sobre toda la nube sino sobre una banda
+geométrica cercana al máximo de $Y$ medido, por lo que el beneficio del voxel
+global dejó de compensar su costo.
+
+\subsection{Desactivación configurable del voxel grid}
+\label{subsec:perf-voxel-disable}
+
+Se agregó el parámetro:
+
+\begin{verbatim}
+enable_voxel_filter: false
+\end{verbatim}
+
+Cuando este parámetro está deshabilitado, \texttt{GroundEstimator} saltea el
+voxel grid y usa la nube original para la búsqueda de la banda de suelo. La
+medición mostró una mejora en promedio:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Métrica} & \textbf{Con voxel} & \textbf{Sin voxel} & \textbf{Resultado} \\
+\midrule
+\texttt{voxel} & $53$--$61\,\mathrm{ms}$ & $\sim 0{,}7\,\mathrm{ms}$ & Mejora grande \\
+\texttt{GE total} & $80$--$86\,\mathrm{ms}$ & $53$--$79\,\mathrm{ms}$ & Mejora promedio \\
+\texttt{total} & $148$--$152\,\mathrm{ms}$ & $116$--$145\,\mathrm{ms}$ & Mejora promedio \\
+\texttt{ransac} & $\sim 1\,\mathrm{ms}$ & $7$--$18\,\mathrm{ms}$ & Aumenta \\
+\bottomrule
+\end{tabular}
+\caption{Efecto de desactivar el voxel grid global.}
+\label{tab:perf-voxel-disable}
+\end{table}
+
+Sin embargo, también aparecieron picos severos:
+
+\begin{verbatim}
+ransac   = 296ms
+GE total = 357ms
+total    = 454ms
+age      = 1326ms
+\end{verbatim}
+
+El motivo fue que, al quitar el voxel grid, el conteo de inliers de RANSAC podía
+quedar trabajando sobre bandas con decenas o cientos de miles de puntos. Esto
+eliminó el costo fijo del voxel, pero dejó sin acotar el peor caso de RANSAC.
+
+\subsection{Limitación de puntos de banda en RANSAC}
+\label{subsec:perf-ransac-limit}
+
+Para acotar el peor caso se agregó el parámetro:
+
+\begin{verbatim}
+ransac_max_band_points: 5000
+\end{verbatim}
+
+El algoritmo sigue construyendo la banda candidata de suelo de la misma forma,
+pero si la banda supera ese máximo, se submuestrea de manera determinística
+antes de contar inliers. Esto mantiene estable la latencia del conteo sin
+reintroducir el voxel grid global.
+
+Con el limitador activo y \texttt{enable\_voxel\_filter: false}, las mediciones
+se estabilizaron:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Métrica} & \textbf{Valor típico con limitador} & \textbf{Comentario} \\
+\midrule
+\texttt{ransac} & $13$--$25\,\mathrm{ms}$ & Sin picos de cientos de ms \\
+\texttt{GE total} & $72$--$86\,\mathrm{ms}$ & Estable \\
+\texttt{total} & $136$--$151\,\mathrm{ms}$ & Bajo el presupuesto en promedio \\
+\texttt{max\_total} & $152$--$188\,\mathrm{ms}$ & Algunos picos cerca del límite \\
+\texttt{age} & $154$--$176\,\mathrm{ms}$ & Sin cola acumulada severa \\
+\bottomrule
+\end{tabular}
+\caption{Efecto del limitador de puntos de banda en RANSAC.}
+\label{tab:perf-ransac-limit}
+\end{table}
+
+Esta etapa confirmó que la combinación ``sin voxel global + RANSAC acotado''
+era mejor que el pipeline original con voxel, pero el sistema aún trabajaba
+relativamente cerca del límite de $6\,\mathrm{Hz}$.
+
+\subsection{Submuestreo temprano de profundidad}
+\label{subsec:perf-depth-stride}
+
+Como no fue posible utilizar resoluciones menores de la RealSense de manera
+confiable en el entorno probado, se mantuvo la cámara en $640 \times 480$ a
+$6\,\mathrm{Hz}$ y se introdujo submuestreo de píxeles dentro del nodo:
+
+\begin{verbatim}
+depth_pixel_stride: 2
+\end{verbatim}
+
+El parámetro se aplicó en \texttt{DepthProjector}, es decir, antes de construir
+la nube de puntos. Esto reduce el costo de todas las etapas posteriores:
+
+\begin{itemize}
+  \item proyección,
+  \item filtrado de rango,
+  \item rotación a frame alineado,
+  \item estimación de suelo,
+  \item publicación de nube,
+  \item codificación de la grilla.
+\end{itemize}
+
+Con \texttt{depth\_pixel\_stride: 2}, la cantidad de muestras baja de:
+
+\begin{equation}
+  640 \times 480 = 307\,200
+\end{equation}
+
+a aproximadamente:
+
+\begin{equation}
+  320 \times 240 = 76\,800
+\end{equation}
+
+La mejora observada fue sustancial:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Métrica} & \textbf{Antes} & \textbf{Con stride 2} & \textbf{Mejora} \\
+\midrule
+\texttt{pts proj} & $307\,200$ & $76\,800$ & $4\times$ menos puntos \\
+\texttt{proj} & $18$--$29\,\mathrm{ms}$ & $5$--$7\,\mathrm{ms}$ & $\sim 3\times$ \\
+\texttt{range} & $9$--$14\,\mathrm{ms}$ & $2{,}4$--$3{,}5\,\mathrm{ms}$ & $\sim 3\times$ \\
+\texttt{ground} & $100$--$118\,\mathrm{ms}$ & $26$--$35\,\mathrm{ms}$ & $\sim 3$--$4\times$ \\
+\texttt{GE total} & $72$--$86\,\mathrm{ms}$ & $19$--$23\,\mathrm{ms}$ & $\sim 4\times$ \\
+\texttt{ransac} & $13$--$25\,\mathrm{ms}$ & $1{,}6$--$6{,}2\,\mathrm{ms}$ & Estable \\
+\texttt{total} & $136$--$151\,\mathrm{ms}$ & $35$--$50\,\mathrm{ms}$ & $\sim 3\times$ \\
+\texttt{age} & $150$--$176\,\mathrm{ms}$ & $52$--$63\,\mathrm{ms}$ & $\sim 3\times$ \\
+\bottomrule
+\end{tabular}
+\caption{Comparación antes y después de aplicar \texttt{depth\_pixel\_stride: 2}.}
+\label{tab:perf-depth-stride}
+\end{table}
+
+Ejemplos representativos de la medición final:
+
+\begin{verbatim}
+pts proj=76800 valid=65276
+proj=6.73ms range=3.21ms ground=33.33ms
+total=44.77ms age=57.0ms
+GE total=22.58ms voxel=0.17ms ransac=3.89ms refine=3.84ms
+\end{verbatim}
+
+\begin{verbatim}
+pts proj=76800 valid=66769
+proj=6.82ms range=3.25ms ground=33.05ms
+total=45.26ms age=62.9ms
+GE total=21.84ms voxel=0.17ms ransac=2.66ms refine=4.15ms
+\end{verbatim}
+
+\begin{verbatim}
+pts proj=76800 valid=66246
+proj=4.87ms range=2.43ms ground=26.13ms
+total=35.09ms age=51.7ms
+GE total=19.31ms voxel=0.16ms ransac=6.24ms refine=2.50ms
+\end{verbatim}
+
+El codificador de grilla también redujo su costo:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Métrica} & \textbf{Antes de stride} & \textbf{Con stride 2} \\
+\midrule
+\texttt{avg\_total} & $8$--$10\,\mathrm{ms}$ & $2{,}4$--$4{,}2\,\mathrm{ms}$ \\
+\texttt{max\_total} & $9$--$13\,\mathrm{ms}$ & $2{,}8$--$6{,}7\,\mathrm{ms}$ \\
+\texttt{avg\_points\_in} & $140\,000$--$170\,000$ & $28\,000$--$45\,000$ \\
+\texttt{avg\_age} & $160$--$180\,\mathrm{ms}$ & $59$--$68\,\mathrm{ms}$ \\
+\bottomrule
+\end{tabular}
+\caption{Efecto del stride sobre \texttt{obstacle\_grid\_encoder}.}
+\label{tab:perf-grid-stride}
+\end{table}
+
+\subsection{Publicación asíncrona de \texttt{ObstacleCloud}}
+\label{subsec:perf-obstaclecloud-async}
+
+Luego de reducir el costo algorítmico de proyección, filtrado y estimación de
+suelo, apareció un segundo cuello de botella que no estaba representado de
+forma explícita en las primeras mediciones. El log original sólo informaba una
+etapa genérica de publicación, pero el tiempo total del callback seguía siendo
+mucho mayor que la suma de las etapas principales.
+
+Para aislar este costo se agregó una métrica específica:
+
+\begin{verbatim}
+obs_pub = tiempo asociado a preparar/publicar /depth_obstacle_filter/obstacle_cloud
+\end{verbatim}
+
+La medición mostró que la serialización y publicación de
+\texttt{/depth\_obstacle\_filter/obstacle\_cloud}, implementada como
+\texttt{sensor\_msgs/PointCloud2}, era el bloqueo dominante del callback de
+profundidad. Un ejemplo representativo antes del cambio fue:
+
+\begin{verbatim}
+obs_pub=108.88/202.65ms
+total=116.70/211.58ms
+\end{verbatim}
+
+y en otras ventanas:
+
+\begin{verbatim}
+obs_pub=148.56/348.20ms
+total=157.31/356.63ms
+
+obs_pub=157.99/330.19ms
+total=166.61/339.07ms
+\end{verbatim}
+
+En esas mismas mediciones, el costo real de cómputo del filtro era bajo:
+
+\begin{verbatim}
+proj   ~= 2ms
+range  ~= 1ms
+ground ~= 5ms - 10ms
+\end{verbatim}
+
+Por lo tanto, el problema ya no estaba en RANSAC ni en la clasificación de
+suelo, sino en que el callback de profundidad quedaba bloqueado mientras se
+construía, serializaba y publicaba una nube de puntos. Esto generaba una cola
+creciente de frames y aumentaba la edad de los mensajes, aun cuando el cálculo
+geométrico ya entraba dentro del presupuesto temporal.
+
+La solución aplicada fue separar la publicación de \texttt{ObstacleCloud} en un
+thread dedicado. El callback de profundidad ahora:
+
+\begin{enumerate}
+  \item calcula la nube filtrada,
+  \item recorta la nube al volumen realmente consumido por
+        \texttt{obstacle\_grid\_encoder},
+  \item copia el último trabajo de publicación en una cola de tamaño uno,
+  \item retorna sin esperar a que finalice la serialización/publicación del
+        \texttt{PointCloud2}.
+\end{enumerate}
+
+El thread publicador consume esa cola y publica siempre el último frame
+disponible. Si el publicador se atrasa, el trabajo pendiente se reemplaza por
+el más reciente. Esta política evita acumular frames viejos y prioriza latencia
+baja, que es más importante para realimentación háptica que publicar todos los
+frames históricos.
+
+La configuración quedó controlada por:
+
+\begin{verbatim}
+async_obstacle_cloud_publish: true
+prune_obstacle_cloud_for_grid: true
+\end{verbatim}
+
+El recorte previo usa los mismos límites espaciales que consume la grilla:
+
+\begin{verbatim}
+obstacle_cloud_x_min_m: -1.0
+obstacle_cloud_x_max_m:  1.0
+obstacle_cloud_y_min_m: -0.20
+obstacle_cloud_y_default_max_m: 2.20
+obstacle_cloud_y_margin_m: 0.10
+\end{verbatim}
+
+Luego del cambio, la métrica \texttt{obs\_pub} pasó a medir principalmente el
+costo de preparar y encolar el trabajo, no la publicación bloqueante completa.
+Los valores observados bajaron de cientos de milisegundos a pocos
+milisegundos:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Métrica} & \textbf{Antes} & \textbf{Después} & \textbf{Impacto} \\
+\midrule
+\texttt{obs\_pub promedio} & $108$--$158\,\mathrm{ms}$ & $0{,}5$--$1{,}8\,\mathrm{ms}$ & Elimina el bloqueo \\
+\texttt{obs\_pub máximo} & $202$--$348\,\mathrm{ms}$ & $1{,}3$--$2{,}8\,\mathrm{ms}$ & Sin picos críticos \\
+\texttt{total promedio} & $116$--$166\,\mathrm{ms}$ & $5$--$16\,\mathrm{ms}$ & Callback liviano \\
+\texttt{total máximo} & $211$--$356\,\mathrm{ms}$ & $10$--$29\,\mathrm{ms}$ & Bajo presupuesto \\
+\bottomrule
+\end{tabular}
+\caption{Impacto de publicar \texttt{ObstacleCloud} en un thread separado.}
+\label{tab:perf-obstaclecloud-async}
+\end{table}
+
+Un log posterior al cambio muestra el nuevo orden de magnitud:
+
+\begin{verbatim}
+frames=65 age=277.9ms
+proj=1.59/3.71ms range=0.57/1.25ms ground=2.87/8.37ms
+obs_pub=0.56/1.32ms total=5.60/10.68ms
+\end{verbatim}
+
+\begin{verbatim}
+frames=44 age=1472.8ms
+proj=2.11/2.59ms range=0.89/1.14ms ground=6.97/13.15ms
+obs_pub=1.08/2.06ms total=11.06/17.63ms
+\end{verbatim}
+
+El valor de \texttt{age} puede seguir creciendo si la RealSense deja de
+entregar frames, por ejemplo ante eventos:
+
+\begin{verbatim}
+uvc streamer watchdog triggered on endpoint: 130
+\end{verbatim}
+
+pero esos casos quedan claramente separados del costo de procesamiento del
+pipeline. Después de esta optimización, cuando aparecen pausas largas la causa
+observada está en cámara/USB/driver, no en el callback de percepción.
+
+\subsection{Configuración de RealSense según odometría visual}
+\label{subsec:perf-realsense-config}
+
+Durante el diagnóstico se identificó que, cuando
+\texttt{use\_visual\_odometry:=false}, no era necesario publicar color ni
+alinear profundidad a color. Se modificó el launch principal para que el nodo
+RealSense se configure dinámicamente según \texttt{use\_visual\_odometry}.
+
+Con odometría visual desactivada:
+
+\begin{verbatim}
+enable_color = false
+align_depth.enable = false
+depth_module.depth_profile = realsense_depth_profile
+\end{verbatim}
+
+Con odometría visual activada:
+
+\begin{verbatim}
+enable_color = true
+align_depth.enable = true
+depth_module.depth_profile = realsense_depth_profile
+rgb_camera.color_profile = realsense_color_profile
+\end{verbatim}
+
+Esto reduce tráfico USB y carga de CPU en el modo usado para estas mediciones.
+El cambio no altera el comportamiento cuando se requiere RGB-D para odometría
+visual. Durante las pruebas finales se usaron perfiles de menor resolución,
+por ejemplo:
+
+\begin{verbatim}
+realsense_depth_profile:=424x240x15
+\end{verbatim}
+
+y, para priorizar estabilidad del enlace USB por sobre tasa máxima:
+
+\begin{verbatim}
+realsense_depth_profile:=424x240x6
+\end{verbatim}
+
+\subsection{Modo alternativo de orientación por IMU legacy}
+\label{subsec:perf-imu-legacy}
+
+Se agregó además un selector de fuente de orientación para
+\texttt{depth\_obstacle\_filter}:
+
+\begin{verbatim}
+orientation_source: nav_odom
+\end{verbatim}
+
+o bien:
+
+\begin{verbatim}
+orientation_source: imu_legacy
+\end{verbatim}
+
+El modo \texttt{nav\_odom} mantiene el comportamiento actual: se lanza
+\texttt{nav\_odometry} y \texttt{depth\_obstacle\_filter} toma roll/pitch desde
+el tópico \texttt{nav\_odom}. El modo \texttt{imu\_legacy} no lanza
+\texttt{nav\_odometry}; en su lugar, \texttt{depth\_obstacle\_filter} se
+suscribe al acelerómetro de la RealSense y utiliza \texttt{ImuFilter} junto con
+\texttt{GravityAligner}. Este cambio quedó preparado para comparar la
+estabilidad de la estimación de altura cuando la orientación proviene sólo del
+acelerómetro filtrado.
+
+La motivación para este selector surgió de los rechazos de altura:
+
+\begin{verbatim}
+[camera_height] conservada: piso poco confiable
+valid=1 quality=1.000 inliers=... tilt=8.7deg
+\end{verbatim}
+
+El filtro de altura estaba configurado con:
+
+\begin{verbatim}
+height_max_ground_tilt_deg: 8.0
+\end{verbatim}
+
+Por lo tanto, planos detectados con inclinación apenas superior a $8^\circ$
+eran rechazados. Esto no era un problema de performance, sino de criterio
+geométrico y/o de calidad de la orientación usada para alinear la nube.
+
+\subsection{Estado final recomendado}
+\label{subsec:perf-estado-final}
+
+La configuración de performance que produjo el mejor comportamiento medido fue:
+
+\begin{verbatim}
+depth_pixel_stride: 2
+enable_voxel_filter: false
+ransac_max_band_points: 5000
+prune_obstacle_cloud_for_grid: true
+async_obstacle_cloud_publish: true
+perf_log_enabled: true
+\end{verbatim}
+
+En las pruebas finales se utilizó además un perfil de profundidad reducido:
+
+\begin{verbatim}
+realsense_depth_profile:=424x240x15
+\end{verbatim}
+
+Con esta configuración, el callback principal de percepción opera con amplio
+margen respecto del presupuesto de $66{,}7\,\mathrm{ms}$ correspondiente a
+$15\,\mathrm{Hz}$:
+
+\begin{table}[H]
+\centering
+\begin{tabular}{lll}
+\toprule
+\textbf{Métrica final} & \textbf{Valor típico} & \textbf{Evaluación} \\
+\midrule
+\texttt{total} & $5$--$16\,\mathrm{ms}$ & Muy por debajo del límite \\
+\texttt{obs\_pub} & $0{,}5$--$1{,}8\,\mathrm{ms}$ & No bloqueante \\
+\texttt{GE total} & $1{,}4$--$10{,}9\,\mathrm{ms}$ & Estable, salvo escenas difíciles \\
+\texttt{obstacle\_grid} & $0{,}5$--$1{,}5\,\mathrm{ms}$ & No limitante \\
+\texttt{depth/grid rate} & $8$--$14\,\mathrm{Hz}$ & Limitado por RealSense/USB \\
+\bottomrule
+\end{tabular}
+\caption{Estado final del pipeline luego de las optimizaciones.}
+\label{tab:perf-final}
+\end{table}
+
+El problema de performance quedó entonces separado de los problemas restantes:
+
+\begin{enumerate}
+  \item Las advertencias USB/UVC de RealSense siguen indicando una posible
+        fragilidad física o de alimentación, especialmente ante mensajes como
+        \texttt{uvc streamer watchdog triggered on endpoint: 130}.
+  \item La estabilidad de la altura depende de la calidad de la orientación y
+        del umbral \texttt{height\_max\_ground\_tilt\_deg}. Una prueba futura
+        razonable es comparar \texttt{orientation\_source:=nav\_odom} contra
+        \texttt{orientation\_source:=imu\_legacy}.
+  \item El submuestreo espacial puede perder obstáculos pequeños. Aunque las
+        mediciones de performance son claramente mejores, la configuración
+        \texttt{depth\_pixel\_stride: 2} debe validarse en escenarios reales de
+        navegación y seguridad.
+\end{enumerate}
+
+\subsection{Conclusiones}
+\label{subsec:perf-conclusiones}
+
+El análisis mostró que el bloqueo inicial no se explicaba únicamente por las
+advertencias USB de RealSense. El pipeline filtrado estaba operando al límite
+de la Raspberry Pi: con resolución completa, \texttt{depth\_obstacle\_filter}
+tardaba típicamente $135$--$150\,\mathrm{ms}$ por frame y ocasionalmente
+superaba el período de $166{,}7\,\mathrm{ms}$.
+
+La primera optimización, desactivar el voxel grid global, redujo el promedio
+pero introdujo picos de RANSAC. La segunda, limitar la cantidad de puntos de la
+banda de RANSAC, estabilizó esos picos. Luego, el submuestreo temprano de la
+imagen de profundidad con \texttt{depth\_pixel\_stride: 2} redujo la nube de
+entrada de $307\,200$ a $76\,800$ puntos y bajó el costo geométrico del filtro.
+
+Sin embargo, la mejora de mayor impacto apareció al instrumentar por separado
+la publicación de \texttt{ObstacleCloud}. Esa medición mostró que
+\texttt{obs\_pub} podía consumir $100$--$160\,\mathrm{ms}$ en promedio y
+superar los $300\,\mathrm{ms}$ en picos, aun cuando el procesamiento geométrico
+ya era barato. Al mover la publicación del \texttt{PointCloud2} a un thread
+separado y usar una cola de tamaño uno con política de último frame, el callback
+principal bajó a valores típicos de $5$--$16\,\mathrm{ms}$.
+
+Con estos cambios, el sistema dejó de estar limitado por CPU en el pipeline de
+percepción. Los problemas restantes pertenecen a dos categorías distintas:
+robustez física del enlace RealSense/USB, evidenciada por eventos UVC watchdog,
+y estabilidad geométrica de la estimación de suelo/altura.

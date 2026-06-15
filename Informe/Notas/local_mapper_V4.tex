@@ -924,6 +924,20 @@ Las Ramas~2--4 se evalúan sólo si la condición de la Rama~1 no se cumple
 (la selección es una cadena \emph{if}$/$\emph{else if}$/$\emph{else if}$/$\emph{else}). El cuaternión resultante se normaliza
 explícitamente antes de devolverse.
 
+El vector de traslación $\mathbf{t}_{\text{PnP}}$ entregado por \texttt{solvePnP}
+expresa la posición del origen del frame de referencia $t-1$ vista desde la
+cámara en $t$: satisface $\mathbf{P}^{(t)} = \mathbf{R}\,\mathbf{P}^{(t-1)} + \mathbf{t}_{\text{PnP}}$.
+El desplazamiento de la cámara entre los dos instantes, en el frame $t-1$, es el opuesto:
+%
+\begin{equation}
+  \label{eq:pnp-sign}
+  \Delta\mathbf{t}_{\text{cam}} = -\mathbf{t}_{\text{PnP}}
+\end{equation}
+%
+Esta negación se aplica explícitamente en \texttt{RgbdTracker} antes de
+devolver el resultado, de modo que $\Delta\mathbf{t}_{\text{cam}}$ tenga
+signo intuitivo: positivo en $Z$ cuando la cámara avanza.
+
 Tras un resultado válido, el fotograma de referencia se actualiza con los
 puntos inliers del PnP. Si el número de puntos retenidos cae por debajo
 de $N_{\max} / 2$, se ejecuta una nueva detección FAST en el fotograma
@@ -963,8 +977,9 @@ tres cadencias independientes:
         tracker se almacena la orientación corriente del filtro en
         \texttt{q\_at\_capture}.
       \item \textbf{Odometría visual.} \texttt{RgbdTracker.process()} produce
-        la traslación relativa $\Delta\mathbf{t}_{\text{cam}}$ y la rotación
-        relativa $\Delta\mathbf{R}_{\text{vis}}$, expresadas en el marco de la
+        la traslación relativa $\Delta\mathbf{t}_{\text{cam}} = -\mathbf{t}_{\text{PnP}}$
+        (ver ecuación~\ref{eq:pnp-sign}) y la rotación relativa
+        $\Delta\mathbf{R}_{\text{vis}}$, expresadas en el marco de la
         cámara en $t-1$. Si la velocidad implícita
         $|\Delta\mathbf{t}_{\text{cam}}| / \Delta t$ supera
         \texttt{max\_velocity\_mps} ($3{,}0\;\text{m/s}$), la estimación se
@@ -1199,6 +1214,41 @@ valores por defecto y la descripción de su efecto sobre el pipeline.
 \hline
 \end{tabularx}
 \end{table}
+
+\subsubsection{Herramienta de diagnóstico de trayectoria (\texttt{odometry\_path})}
+\label{sec:lm-vio-odom-path}
+
+Para facilitar la evaluación visual de la calidad de la odometría durante el
+desarrollo, se implementó el nodo de diagnóstico \texttt{odometry\_path},
+incluido en el paquete \texttt{output\_viewer}. El nodo se suscribe al tópico
+\texttt{nav\_odom} (\texttt{nav\_msgs/Odometry}) y acumula las posiciones
+sucesivas en un mensaje \texttt{nav\_msgs/Path}, que publica en
+\texttt{/debug/odom\_path} con política de calidad de servicio
+\emph{transient local} para que RViz2 reciba el historial completo al
+conectarse.
+
+Dado que la odometría trabaja en la convención óptica del D435i (eje Y hacia
+abajo), la posición $y$ de cada muestra es igual a la altura de la cámara
+sobre el piso, no a cero. Para que la trayectoria se proyecte visualmente
+sobre el plano del suelo en RViz2, la componente $y$ de cada pose se
+reemplaza por la estimación de altura del suelo publicada por el
+\texttt{GroundEstimator} en \texttt{/local\_mapper/camera\_height}
+(\texttt{std\_msgs/Float32}):
+%
+\begin{equation}
+  \label{eq:odom-path-y}
+  \hat{y}_{\text{path}} = h_{\text{piso}},
+  \qquad
+  h_{\text{piso}} \in (0{,}5\,\text{m},\; 2{,}5\,\text{m})
+\end{equation}
+%
+donde $h_{\text{piso}}$ es la última medición válida del suelo
+(ecuación~\ref{eq:odom-path-y}). Esta proyección no altera la estimación de
+odometría; únicamente modifica la coordenada vertical de la representación
+gráfica para que el camino se superponga al plano de obstáculos en RViz2.
+
+La trayectoria acumulada queda limitada a \texttt{max\_poses} (10\,000 por
+defecto), descartando las muestras más antiguas cuando se supera ese umbral.
 
 \subsection{Experimentos}
 \label{sec:lm-vio-experimentos}
