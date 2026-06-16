@@ -2,37 +2,69 @@
 \section*{Anexo A: Trazabilidad de nodos y código fuente}
 \label{anexo:trazabilidad}
 
-A continuación se expone una tabla de referencia que relaciona los nodos principales del sistema, sus paquetes, los tópicos ROS2 relevantes (entrada/salida) y los archivos fuente donde se implementan. Esta trazabilidad facilita localizar la implementación de cada bloque funcional descrito en los capítulos de Arquitectura, Método e Implementación.
+A continuación se exponen tres tablas de referencia que relacionan los nodos principales del sistema, sus paquetes y los tópicos ROS2 relevantes de entrada y salida. Esta trazabilidad facilita identificar, para cada bloque funcional descrito en los capítulos de Arquitectura, Método e Implementación, qué información consume y qué información publica. Las Tablas~\ref{tab:anexo-trazabilidad-adquisicion}, \ref{tab:anexo-trazabilidad-mapeo} y \ref{tab:anexo-trazabilidad-salida} corresponden a la configuración v2 completa del sistema, esto es, \emph{pipeline} \emph{filtered}, odometría \texttt{rtabmap\_odom} y activación de \texttt{spatial\_awareness}.
 
-% Rotated table for better fit: use sidewaystable (from rotating package already loaded)
-\begin{sidewaystable}[p]
+\begin{table}[p]
     \centering
-    \footnotesize
+    \scriptsize
     \setlength{\extrarowheight}{2pt}
-    % Use \linewidth so width matches rotated page; use ragged columns to avoid hyphenation/overlap
-    \begin{tabularx}{\linewidth}{L{4.5cm}L{3.2cm}L{4.5cm}>{\RaggedRight\arraybackslash}X}
+    \begin{tabularx}{\textwidth}{L{2.8cm}L{2.2cm}XX}
         \hline
-        	\textbf{Nodo} & \textbf{Paquete} & \textbf{Tópicos (in $\to$ out)} & \textbf{Archivo(s) fuente (ruta)} \\
+        \textbf{Nodo} & \textbf{Paquete} & \textbf{In} & \textbf{Out} \\
         \hline
-        	\texttt{sensor\_topic\_remapper\_node} & sensor\_topic\_remapper & /sensors/* (normaliza entradas del driver) & \texttt{sensor\_topic\_remapper/src/sensor\_topic\_remapper\_node.cpp} \\
+        \texttt{camera} (\texttt{realsense2\_camera\_node}) & \texttt{realsense2\_camera} & hardware & /camera/camera/imu, /camera/camera/color/image\_raw, /camera/camera/color/camera\_info, /camera/camera/aligned\_depth\_to\_color/image\_raw, /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info \\
         \addlinespace
-        	\texttt{depth\_to\_matrix\_node} & depth\_grid\_encoder & /sensors/depth/image $\to$ /perception/depth\_grid (DepthGrid) & \texttt{depth\_grid\_encoder/src/depth\_to\_matrix\_node.cpp}, \texttt{depth\_grid\_encoder/src/depth\_utils.cpp} \\
+        \texttt{imu\_filter\_madgwick} & \texttt{imu\_filter\_madgwick} & /camera/camera/imu & /imu/data\_filtered \\
         \addlinespace
-        	\texttt{local\_mapper\_node} & local\_mapper & /sensors/depth/image, /sensors/depth/camera\_info, /sensors/imu/*, [/odom] $\to$ /mapping/local\_grid (OccupancyGrid), /mapping/debug/* & \texttt{local\_mapper/src/local\_mapper\_node.cpp}; \texttt{local\_mapper/src/local\_mapper.cpp}; \texttt{local\_mapper/src/depth\_projector.cpp}; \texttt{local\_mapper/src/imu\_filter.cpp}; \texttt{local\_mapper/src/gravity\_aligner.cpp}; \texttt{local\_mapper/src/odom\_handler.cpp} (ver \texttt{local\_mapper/include} para interfaces) \\
+        \texttt{rgbd\_odometry} & \texttt{rtabmap\_odom} & /camera/camera/color/image\_raw, /camera/camera/color/camera\_info, /camera/camera/aligned\_depth\_to\_color/image\_raw, /imu/data\_filtered & nav\_odom \\
         \addlinespace
-        	\texttt{spatial\_awareness\_node} & spatial\_awareness & /mapping/local\_grid, /sensors/imu/* $\to$ /haptics/overlay\_grid (DepthGrid) & \texttt{spatial\_awareness/src/spatial\_awareness\_node.cpp}, \texttt{spatial\_awareness/src/spatial\_awareness.cpp} \\
-        \addlinespace
-        	\texttt{haptic\_grid\_generator\_node} & haptic\_grid\_generator & /perception/depth\_grid, /haptics/overlay\_grid $\to$ /haptics/intensity\_grid (DepthGrid) & \texttt{haptic\_grid\_generator/src/haptic\_grid\_generator\_node.cpp}, \texttt{haptic\_grid\_generator/src/grid\_fusion.cpp} \\
-        \addlinespace
-        	\texttt{grid\_to\_motor} & hardware\_manager & /haptics/intensity\_grid $\to$ UART (ESP32) & \texttt{hardware\_manager/src/grid\_to\_motor.cpp}, \texttt{hardware\_manager/src/motor\_sweep\_uart.cpp} \\
-        \addlinespace
-        	\texttt{depth\_grid\_heatmap / output\_viewer} & output\_viewer & /perception/depth\_grid, /haptics/intensity\_grid (visualizaci\'on) & \texttt{output\_viewer/output\_viewer/output\_viewer\_node.py} \\
-        \addlinespace
-        	\texttt{nav\_bringup (launch)} & nav\_bringup & (orquesta arranque de nodos; expone parámetros de ejecución) & \texttt{nav\_bringup/launch/nav.launch.py} \\
+        \texttt{depth\_obstacle\_filter} & \texttt{depth\_obstacle\_filter} & /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info, /camera/camera/accel/sample & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/free\_endpoints, /depth\_obstacle\_filter/camera\_height, /depth\_obstacle\_filter/debug/* \\
         \hline
     \end{tabularx}
-    \caption{Trazabilidad de nodos: tópicos y archivos fuente principales.}
-    \label{tab:anexo-trazabilidad}
-\end{sidewaystable}
+    \caption{Trazabilidad de adquisición, prefiltrado IMU y percepción geométrica.}
+    \label{tab:anexo-trazabilidad-adquisicion}
+\end{table}
 
-% Nota: nodos externos (p. ej. rgbd_odometry de rtabmap) se listan en el texto principal como dependencias.
+\begin{table}[p]
+    \centering
+    \scriptsize
+    \setlength{\extrarowheight}{2pt}
+    \begin{tabularx}{\textwidth}{L{2.8cm}L{2.2cm}XX}
+        \hline
+        \textbf{Nodo} & \textbf{Paquete} & \textbf{In} & \textbf{Out} \\
+        \hline
+        \texttt{local\_mapper} & \texttt{local\_mapper} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/free\_endpoints, nav\_odom, /depth\_obstacle\_filter/camera\_height & /local\_mapper/occupancy\_grid, TF odom $\to$ gravity\_aligned\_frame \\
+        \addlinespace
+        \texttt{obstacle\_grid\_encoder} & \texttt{depth\_grid\_encoder} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/camera\_height & /perception/depth\_grid, /perception/depth\_grid/aperture\_state\_deg \\
+        \addlinespace
+        \texttt{spatial\_awareness} & \texttt{spatial\_awareness} & /local\_mapper/occupancy\_grid, nav\_odom, /perception/depth\_grid/aperture\_state\_deg & /spatial\_awareness/collision\_risk, /spatial\_awareness/debug/markers \\
+        \hline
+    \end{tabularx}
+    \caption{Trazabilidad de mapeo local, codificación de grilla y conciencia espacial.}
+    \label{tab:anexo-trazabilidad-mapeo}
+\end{table}
+
+\begin{table}[p]
+    \centering
+    \scriptsize
+    \setlength{\extrarowheight}{2pt}
+    \begin{tabularx}{\textwidth}{L{2.8cm}L{2.2cm}XX}
+        \hline
+        \textbf{Nodo} & \textbf{Paquete} & \textbf{In} & \textbf{Out} \\
+        \hline
+        \texttt{haptic\_grid\_generator} & \texttt{haptic\_grid\_generator} & /perception/depth\_grid, /spatial\_awareness/collision\_risk & /perception/haptic\_grid \\
+        \addlinespace
+        \texttt{grid\_to\_motor} & \texttt{hardware\_manager} & /perception/haptic\_grid & UART (ESP32) \\
+        \addlinespace
+        \texttt{depth\_grid\_heatmap} & \texttt{output\_viewer} & /perception/haptic\_grid, /spatial\_awareness/collision\_risk & visualización \\
+        \addlinespace
+        \texttt{nav\_bringup} (\emph{launch}) & \texttt{nav\_bringup} & argumentos de ejecución y configuración general & orquestación del sistema completo \\
+        \hline
+    \end{tabularx}
+    \caption{Trazabilidad de fusión háptica, salida, visualización y orquestación.}
+    \label{tab:anexo-trazabilidad-salida}
+\end{table}
+
+% Nota: en la configuración v2 documentada, la odometría proviene exclusivamente de
+% rgbd_odometry del paquete rtabmap_odom con prefiltrado de IMU por imu_filter_madgwick.
+% Este anexo describe el sistema en su configuración final únicamente.
