@@ -217,7 +217,7 @@ El nodo \code{grid\_to\_motor} (paquete \texttt{hardware\_manager}) suscribe
 trabajo PWM mediante una función lineal invertida saturada (mayor proximidad
 corresponde a mayor ciclo de trabajo, ver Ecuación~\eqref{eq:duty-mapping}) y
 transmite la trama por UART al ESP32. El formato de trama es ASCII:
-\texttt{L $d_0$ $d_1$ \ldots $d_{N-1}$\textbackslash{}n} a
+\texttt{M $d_0$ $d_1$ \ldots $d_{N-1}$\textbackslash{}n} a
 $115200\text{bps}$ en modo 8N1 sin control de flujo. Un mecanismo de
 \emph{throttling} basado en marcas de tiempo descarta mensajes si el intervalo
 desde el último envío es inferior al período configurado
