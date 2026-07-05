@@ -35,7 +35,8 @@ los puntos correspondientes al piso y al techo, y mejora la distribución espaci
 motor.
 El tercero construye y mantiene un mapa local de ocupación 2D egocéntrico basado en log-odds, con
 trazado de rayos Bresenham, desplazamiento dinámico (\emph{scroll}) y odometría por RGB-D e IMU,
-conservando información reciente de obstáculos frente a oclusiones temporales.
+conservando información reciente de obstáculos que han dejado de estar dentro del campo de visión
+de la cámara.
 Los dos primeros ofrecen alternativas independientes de salida háptica; el tercero se integra al
 segundo mediante un nodo de fusión que combina la percepción instantánea con los obstáculos no
 visibles almacenados en el mapa local.
