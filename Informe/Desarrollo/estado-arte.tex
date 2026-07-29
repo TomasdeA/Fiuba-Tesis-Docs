@@ -4,7 +4,7 @@
 
 El principio de sustitución sensorial, cuya base experimental se describe en el Capítulo~\ref{chap:marco-teorico} (\Cref{sec:mt-sustitucion}), constituye el fundamento común de los dispositivos electrónicos de asistencia a la movilidad revisados en este capítulo. Desde los primeros arreglos de $20\times20$ taxeles (píxeles táctiles) de Bach-y-Rita \cite{BachyRita1969}, la evolución técnica puede leerse como una continuidad: se parte de soluciones con sensado puntual y se avanza hacia sistemas con percepción densa mediante cámaras de profundidad, en búsqueda de mejor resolución espacial sin perder portabilidad ni baja latencia.
 
-A partir del trabajo de Bach-y-Rita, se desarrolló una amplia variedad de dispositivos electrónicos de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourbakis \cite{Dakopoulos2010} presentan un survey exhaustivo de estos sistemas, clasificándolos según el tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación (auditivo, háptico, voz) y la zona del cuerpo que instruyen (mano, muñeca, torso, cabeza). Sobre esa base, la revisión se organiza como una progresión tecnológica dentro de un mismo problema de asistencia sensorial, estructurada en dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que incorporan percepción densa y, en algunos casos, mapeo local.
+A partir del trabajo de Bach-y-Rita, se desarrolló una amplia variedad de dispositivos electrónicos de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourbakis \cite{Dakopoulos2010} presentan una revisión exhaustiva de estos sistemas, clasificándolos según el tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación (auditivo, háptico, voz) y la zona del cuerpo en la que presentan la estimulación (mano, muñeca, torso, cabeza). Sobre esa base, la revisión se organiza como una progresión tecnológica dentro de un mismo problema de asistencia sensorial, estructurada en dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que incorporan percepción densa y, en algunos casos, mapeo local.
 
 \subsection{Criterios de adopción}
 \label{subsec:ea-criterios}
@@ -121,7 +121,7 @@ Los sistemas sin RGB-D revisados en la \Cref{subsec:ea-propuestas} comparten dos
 fundamentales: en primer lugar, utilizan sensores puntuales o de muy bajo número de haces, lo que
 impide representar la distribución tridimensional de obstáculos en el campo visual del usuario. En
 segundo lugar, la información espacial insuficiente de estos sensores impide estimar de forma
-confiable la odometría del usuario, lo que a su vez impide acumular temporal de observaciones. Como
+confiable la odometría del usuario, lo que a su vez impide la acumulación temporal de observaciones. Como
 resultado, todo conocimiento sobre el entorno se descarta entre frames y no puede utilizarse para
 inferir la presencia de obstáculos que hayan salido momentáneamente del campo sensado. Esta doble
 restricción dificulta la detección de obstáculos a altura de cabeza, la anticipación a geometrías
@@ -191,7 +191,7 @@ Cada alternativa presenta compromisos diferentes entre latencia, robustez ante t
 carga computacional sobre hardware embebido \cite{Labbe2019RTAB, Woodman2007, Forster2017}.
 
 Los trabajos de asistencia a ciegos revisados adoptan soluciones fijas sin comparar alternativas
-sobre hardware embebido portable: Lee y Medioni~\cite{Lee2016RGBD} emplean odometría
+sobre hardware embebido portátil: Lee y Medioni~\cite{Lee2016RGBD} emplean odometría
 visual-inercial basada en nubes de puntos densas sobre una laptop, y Zhang et al.
 \cite{Zhang2021DVIO} usan DVIO con optimización de grafos sobre una plataforma robótica. En esta
 tesis se estudian y comparan experimentalmente tres estrategias, cuyas características se resumen

@@ -25,8 +25,8 @@ mounted on the user's head and running on a Raspberry Pi~5, generates a compact 
 representation of the immediate surroundings. The system is organized into three parallel
 pipelines.
 The first, optimized for low latency, reduces the dense depth image to a $10 \times 5$ cell grid
-with per-region statistics, converts it to haptic intensity signals and transmits it over a serial
-link to a microcontroller (ESP32) that drives the vibrotactile actuators.
+with per-region statistics, converts it to haptic intensity signals, displays them through
+\texttt{output\_viewer}, and generates the UART frame intended for a future physical interface.
 The second pipeline filters and conditions the point cloud: it applies a gravity-aligned
 correction, removes points detected as floor and ceiling, and improves the spatial distribution
 assigned to each motor.

@@ -4,7 +4,8 @@
 
 La versión v0 establece la cadena mínima del sistema: adquirir profundidad con la Intel
 RealSense D435i, reducir esa información a una representación compacta, convertirla a
-intensidad háptica y transmitirla al hardware de actuación. Esta sección presenta los
+comandos de intensidad háptica y preparar su transmisión hacia el futuro hardware de actuación.
+Esta sección presenta los
 fundamentos teóricos que sostienen esa primera etapa, desde la sustitución sensorial hasta la
 comunicación serie embebida. El objetivo es mostrar cómo una medición densa del entorno
 puede convertirse en una señal discreta y de baja latencia sin perder la estructura espacial
@@ -138,7 +139,7 @@ interfaces normalizadas.
 La teoría relevante para v0 no es solamente la existencia de tópicos, sino la elección de
 mensajes. Una imagen de profundidad se transporta como \texttt{sensor\_msgs/Image}, los
 parámetros intrínsecos como \texttt{sensor\_msgs/CameraInfo}, la grilla compacta como
-\texttt{DepthGrid} y la salida al hardware como \texttt{HapticGrid}. Al definir mensajes
+\texttt{DepthGrid} y la salida lógica de intensidades como \texttt{HapticGrid}. Al definir mensajes
 explícitos se evita codificar semántica en arreglos sin contexto y se preserva trazabilidad
 entre nodos.
 
@@ -203,35 +204,54 @@ La ecuación~\ref{eq:radial-distance} evita subestimar obstáculos laterales: us
 puede hacer que dos obstáculos con distinta separación lateral parezcan equivalentes si
 comparten la misma componente frontal.
 
-\subsection{Mapeo de distancia a intensidad de actuador}
+\subsection{Mapeo de distancia a comando de intensidad}
 \label{sec:mt-dist-to-intensity}
 
 Para traducir la distancia por celda a una señal háptica se emplea una función lineal
 invertida y saturada. La proximidad del obstáculo debe producir mayor intensidad, con
 saturación en los extremos del rango útil:
 \begin{equation}
-  d_i =
+  I_i =
   \begin{cases}
     I_{\max} & \text{si } z^{\min}_i \leq z_{\min}, \\
     0        & \text{si } z^{\min}_i \geq z_{\max}, \\
-    \left\lfloor
     \dfrac{z_{\max} - z^{\min}_i}{z_{\max} - z_{\min}}
-    \cdot I_{\max} + 0.5
-    \right\rfloor & \text{en otro caso.}
+    \cdot I_{\max} & \text{en otro caso.}
   \end{cases}
-  \label{eq:duty-mapping}
+  \label{eq:intensity-mapping}
 \end{equation}
-En la ecuación~\ref{eq:duty-mapping}, $z_{\min}$ y $z_{\max}$ delimitan el rango de
-operación, $I_{\max}$ es la intensidad máxima y $d_i$ es la intensidad asociada a la celda
-$i$. Las celdas sin medición válida se asignan a intensidad nula.
+En la ecuación~\ref{eq:intensity-mapping}, $z_{\min}$ y $z_{\max}$ delimitan el rango de
+operación, $I_{\max}$ es la intensidad máxima e $I_i$ es la intensidad lógica asociada a la celda
+$i$. Esta conversión se realiza en \texttt{haptic\_grid\_generator}; las celdas sin medición válida
+permanecen inactivas.
+
+La intensidad lógica no es todavía el ciclo de trabajo aplicado a un motor. La interfaz UART
+posterior limita $I_i$ al intervalo $[0,100]$ y la escala mediante el máximo configurado
+$D_{\max}$:
+\begin{equation}
+  D_i =
+  \begin{cases}
+    \left\lfloor
+      \dfrac{
+        \operatorname{round}\!\left(\operatorname{sat}_{[0,100]}(I_i)\right)
+        D_{\max}
+      }{100}
+    \right\rfloor, & \text{si la celda está activa},\\
+    0, & \text{si la celda está inactiva}.
+  \end{cases}
+  \label{eq:duty-scaling}
+\end{equation}
+Esta segunda operación no vuelve a interpretar la distancia: solo adapta el comando ya calculado
+al límite de salida y lo prepara para su serialización.
 
 \subsection{Comunicación serie embebida}
 \label{sec:mt-uart}
 
-La transmisión de datos entre una computadora de placa simple y un microcontrolador requiere
-definir un protocolo de enlace. UART (\emph{Universal Asynchronous Receiver-Transmitter}) es
-una opción habitual en sistemas embebidos por su disponibilidad y simplicidad
-\cite{espressif2023esp32}. En modo 8N1, cada byte requiere 10 bits físicos: un bit de inicio,
+La transmisión prevista entre la computadora de placa simple y el futuro controlador de actuación
+requiere definir un protocolo de enlace. UART
+(\emph{Universal Asynchronous Receiver-Transmitter}) es
+una opción habitual en sistemas embebidos por su disponibilidad y simplicidad.
+En modo 8N1, cada byte requiere 10 bits físicos: un bit de inicio,
 ocho bits de datos y un bit de parada. Por lo tanto, para una trama de longitud
 $L_{\text{trama}}$ y baudrate $B$:
 \begin{equation}
@@ -245,10 +265,14 @@ Existen dos enfoques de codificación. En ASCII, los valores se representan como
 decimales separados por espacios y terminados con \texttt{\textbackslash n}; es legible y
 fácil de depurar, pero menos eficiente. En binario compacto, cada intensidad puede codificarse
 en un \texttt{uint8}; al agregar longitud y CRC-8 se obtiene una trama más robusta y eficiente
-\cite{smbus2000}. En la configuración actual, el formato ASCII de tipo \texttt{M $d_0$ $d_1$
-... $d_{N-1}$\textbackslash n} resulta suficiente para una matriz $5\times10$ a
+\cite{smbus2000}. En la configuración actual, el formato ASCII de tipo \texttt{M $D_0$ $D_1$
+... $D_{N-1}$\textbackslash n} resulta suficiente para una matriz $5\times10$ a
 $115200\,\text{bps}$, mientras que un formato binario queda como alternativa natural para
 matrices de mayor densidad.
+
+En esta tesis se implementan la construcción y la transmisión de la trama, pero no su recepción ni
+la conversión de los valores transmitidos en estímulos físicos. El microcontrolador receptor, la
+electrónica de potencia y los actuadores pertenecen a la segunda etapa del proyecto.
 
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v1: orientación, gravedad y suelo}

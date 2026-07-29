@@ -28,8 +28,8 @@ tiempo real una representación compacta del entorno inmediato. El sistema se or
 pipelines paralelos.
 El primero, orientado a baja latencia, reduce la imagen de profundidad densa a
 una grilla de $10 \times 5$ celdas con estadísticas por región, la convierte en señales de
-intensidad háptica y la transmite por enlace serial a un microcontrolador (ESP32) que controla los
-actuadores vibrotáctiles.
+intensidad háptica, las visualiza mediante \texttt{output\_viewer} y genera la trama UART prevista
+para una futura interfaz física.
 El segundo filtra y acondiciona la nube de puntos: aplica un ajuste respecto a la gravedad, elimina
 los puntos correspondientes al piso y al techo, y mejora la distribución espacial asociada a cada
 motor.

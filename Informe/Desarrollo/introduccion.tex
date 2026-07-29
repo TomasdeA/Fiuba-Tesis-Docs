@@ -5,7 +5,8 @@ entornos desconocidos o dinámicos.
 Las herramientas de asistencia tradicionales, como el bastón blanco o los perros guía, presentan
 limitaciones en alcance, resolución espacial y capacidad de anticipación frente a obstáculos no
 detectables a corta distancia. En particular, estos métodos no advierten eficazmente objetos a
-altura de cabeza (ramas, cables, señales colgantes u otros elementos sobresalientes) cuya detección equiere cobertura vertical que los sensores puntuales no pueden proveer.
+altura de cabeza (ramas, cables, señales colgantes u otros elementos sobresalientes), cuya detección
+requiere una cobertura vertical que los sensores puntuales no pueden proporcionar.
 
 En los últimos años han surgido dispositivos electrónicos de asistencia que incorporan sensores
 activos \cite{Novich2015, Santos2023, Petsiuk2019UltrasoundNavigation}.
@@ -38,7 +39,7 @@ de esta tesis respecto de ellas.
   \includegraphics[width=0.85\textwidth]{_Imagenes/arquitectura/Arquitectura-global.png}
   \caption{Visión general del sistema de asistencia sensorial desarrollado en esta tesis.
            El sistema que corre en la Raspberry Pi 5 genera una representación compacta del entorno
-           que es consumida por una interfaz háptica portada por el usuario.}
+           destinada a una futura interfaz háptica portada por el usuario.}
   \label{fig:intro-arquitectura-general}
 \end{figure}
 
@@ -55,7 +56,7 @@ y los sistemas con cámaras de profundidad de mayor resolución suelen requerir 
 que excede la de plataformas portables \cite{Lee2016RGBD, Zhang2021DVIO}.
 
 El problema de ingeniería que aborda esta tesis es, por lo tanto, el diseño de un sistema embebido que,
-operando sobre hardware portable y de recursos acotados, adquiera información tridimensional del entorno
+operando sobre hardware portátil y de recursos acotados, adquiera información tridimensional del entorno
 y genere en tiempo real una representación compacta, estable y de baja latencia adecuada para
 ser consumida por una interfaz háptica.
 
@@ -87,7 +88,9 @@ permita a personas con ceguera o baja visión percibir su entorno mediante estí
 mejorando su seguridad, autonomía y capacidad de desplazamiento independiente.
 El proyecto se estructura en dos etapas complementarias:
 (i)~captación del entorno y mapeo local (objeto de esta tesis) y
-(ii)~traducción de dicha representación a una interfaz háptica, que constituirá un trabajo separado.
+(ii)~implementación física y validación de la interfaz háptica, que constituirán un trabajo
+separado. Como interfaz entre ambas etapas, esta tesis genera los comandos de intensidad, permite
+visualizarlos y deja implementada su transmisión mediante UART.
 
 \subsection{Objetivo de la tesis}
 
@@ -101,16 +104,16 @@ temporal en una plataforma embebida.
 
 El objetivo técnico es desarrollar e implementar en ROS2 \cite{ROS} un módulo de percepción que,
 utilizando la cámara Intel RealSense D435i \cite{RS-D400}, genere en tiempo real una representación
-compacta del entorno a partir de información de profundidad, optimizada para su uso como entrada de
-una futura interfaz háptica de asistencia a la movilidad.
+compacta del entorno a partir de información de profundidad y la traduzca en una matriz de comandos
+de intensidad destinada a una futura interfaz háptica de asistencia a la movilidad.
 
 Específicamente, el módulo deberá desarrollarse en tres niveles incrementales:
 \begin{itemize}
   \item \textbf{v0 (percepción instantánea):} procesar imágenes de profundidad mediante reducción
         de dimensionalidad para producir una grilla estructurada de baja resolución con
         estadísticas por celda (distancia mínima, media y conteo de puntos válidos), y publicar
-        dicha salida en tópicos ROS2 estandarizados junto con una interfaz serie eficiente hacia
-        un microcontrolador externo. Esta versión aporta la base operativa de baja latencia,
+        dicha salida en tópicos ROS2 estandarizados, visualizarla sin depender del hardware físico
+        y serializarla para su transmisión mediante UART. Esta versión aporta la base operativa de baja latencia,
         necesaria para habilitar retroalimentación háptica utilizable durante la marcha;
   \item \textbf{v1 (percepción filtrada):} incorporar etapas de filtrado de la medición para
         mejorar la relevancia de la señal destinada a navegación asistida, suprimiendo
@@ -137,12 +140,13 @@ Las contribuciones originales de esta tesis son las siguientes:
   \item Diseño e implementación de un \textit{pipeline} de percepción RGB-D en tiempo real sobre
         hardware embebido, capaz de reducir la nube de profundidad a una representación de grilla
         compacta con estadísticas por celda, con latencias compatibles con asistencia a la marcha.
-  \item Definición de una interfaz serie de baja latencia para la transmisión eficiente de la grilla
-        compacta hacia un microcontrolador externo, facilitando la integración con futuros módulos
-        hápticos.
+  \item Definición e implementación de una interfaz lógica de salida que representa las intensidades
+        correspondientes a cada posición de la futura matriz háptica, junto con una herramienta de
+        visualización independiente del hardware y un nodo de transmisión UART para su posterior
+        integración física.
   \item Integración de la unidad de medición inercial (IMU) del sensor para compensar cambios de
-        orientación del portador alineando todos los puntes de la nube entregada por el nodo de
-        realsense a la gravedad.
+        orientación del portador mediante la alineación con la gravedad de todos los puntos de la
+        nube entregada por el controlador de la RealSense.
   \item Diseño e implementación de una capa de mapeo local de corto alcance basada en grillas de
         ocupación log-odds \cite{Elfes1989, Thrun2005}, con memoria temporal de obstáculos y
         mecanismo de desplazamiento egocéntrico (\textit{scroll}) mediante odometría
@@ -157,17 +161,21 @@ Las contribuciones originales de esta tesis son las siguientes:
 El alcance de esta tesis comprende:
 \begin{itemize}
   \item el diseño, implementación y validación experimental de la etapa de captación del entorno
-        del sistema de asistencia sensorial
-  \item la integración del módulo desarrollado con el ecosistema ROS2 y con una interfaz de salida
-        hacia hardware externo
+        del sistema de asistencia sensorial;
+  \item la integración del módulo desarrollado con el ecosistema ROS2, la generación y visualización
+        de la matriz de intensidades y su serialización para transmisión mediante UART;
   \item la generación de representaciones compactas de un mapa de ocupación para navegación
-        asistida en tiempo real sobre hardware embebido
+        asistida en tiempo real sobre hardware embebido;
   \item la caracterización cuantitativa del desempeño del sistema en términos de precisión, latencia
-        y consumo de recursos
+        y consumo de recursos.
 \end{itemize}
 
-Quedan \emph{fuera} del alcance de esta tesis el diseño, la implementación y la integración de la
-interfaz háptica y sus actuadores, así como la validación con usuarios finales.
+Esta tesis incluye la generación de la matriz de intensidades hápticas, su publicación mediante
+mensajes ROS2, su visualización mediante una interfaz virtual y la implementación del enlace UART
+previsto para integrarla con el hardware de actuación. Quedan \emph{fuera} de su alcance el diseño
+y la implementación de la interfaz háptica física ---microcontrolador receptor, electrónica de
+potencia, actuadores y soporte corporal---, así como su caracterización y la validación con usuarios
+finales.
 
 La plataforma embebida objetivo es una Raspberry Pi 5 \cite{RaspberryPi}; la selección definitiva se confirmará a partir de las mediciones de rendimiento (CPU, memoria y latencia) obtenidas durante las pruebas experimentales.
 

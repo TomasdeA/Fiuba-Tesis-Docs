@@ -1,13 +1,14 @@
-% Arquitectura (qué): topología del sistema, lista de nodos, dependencias, tipos de datos (mensajes), entradas y salidas de cada nodo, diagrama. NO explicar algoritmos, ni filtros, ni ecuaciones. Referir a la sección de método para detalles algorítmicos. Ejemplos de contenido correcto: “local_mapper — suscribe /sensors/depth/image, publica /mapping/local_grid (nav_msgs/OccupancyGrid); ejecuta en Raspberry Pi; interfaz UART con ESP32.”
+% Arquitectura (qué): topología del sistema, lista de nodos, dependencias, tipos de datos (mensajes), entradas y salidas de cada nodo, diagrama. NO explicar algoritmos, ni filtros, ni ecuaciones.
 \section{Arquitectura general}
 \label{sec:arquitectura-general}
 
 El sistema se compone de un conjunto de nodos ROS2 que se ejecutan sobre una Raspberry Pi~5,
 orquestados por el archivo de lanzamiento \code{nav.launch.py} del paquete \texttt{nav\_bringup}.
 Todos los nodos de procesamiento quedan contenidos en la misma unidad de cómputo y se comunican
-exclusivamente a través del middleware DDS (\code{rmw\_cyclonedds}). La única interfaz externa con
-hardware de actuación es el enlace UART hacia el microcontrolador ESP32, que controla la matriz
-háptica. Distintos nodos de visualización del paquete (\texttt{output\_viewer}) pueden ejecutarse
+exclusivamente a través del middleware DDS (\code{rmw\_cyclonedds}). La frontera de la
+implementación física se ubica en la transmisión UART: el sistema genera y serializa los comandos
+de intensidad, pero no incluye el receptor, la electrónica de potencia ni los actuadores.
+Distintos nodos de visualización del paquete (\texttt{output\_viewer}) pueden ejecutarse
 opcionalmente en una PC separada, suscribiéndose a los mismos tópicos a través de la red DDS. La
 topología completa del sistema en su versión final integra percepción instantánea, conciencia
 espacial y mapeo local, tal como se muestra en la \Cref{fig:arquitectura-v2}.
@@ -25,8 +26,9 @@ y agregar complejidad únicamente cuando la versión previa alcanzaba estabilida
 \paragraph{v0: modo \emph{raw}.}
 La versión inicial utiliza exclusivamente la percepción instantánea: imagen de profundidad de la
 cámara, conectada al pipeline mediante remapeos definidos en \texttt{nav\_bringup}, reducción a
-\texttt{DepthGrid} en \texttt{depth\_grid\_encoder}, fusión trivial (passthrough) y envío UART a
-actuadores. Esta versión prioriza tiempo de respuesta y simplicidad de integración. Figura
+\texttt{DepthGrid} en \texttt{depth\_grid\_encoder}, fusión trivial (passthrough), visualización de
+la salida y serialización para su transmisión UART. Esta versión prioriza tiempo de respuesta y
+simplicidad de integración. Figura
 \ref{fig:arquitectura-v0}.
 
 \begin{figure}[H]
@@ -39,8 +41,9 @@ actuadores. Esta versión prioriza tiempo de respuesta y simplicidad de integrac
 \paragraph{v1: modo \emph{filtered}.}
 Sobre v0 se incorpora \texttt{depth\_obstacle\_filter} para suprimir suelo y techo, alineando la
 nube a gravedad y conservando en la salida únicamente obstáculos relevantes para la marcha. Esta
-versión ya implicó varias iteraciones para lograr el tiempo real del sistema y tiene multiples
-mejoras para lograrlo desde su primera iteración. Figura \ref{fig:arquitectura-v1}.
+versión requirió varias iteraciones y optimizaciones respecto de su primera implementación para
+alcanzar una operación en tiempo real. La arquitectura resultante se muestra en la
+Figura~\ref{fig:arquitectura-v1}.
 
 \begin{figure}[H]
   \centering
@@ -202,29 +205,33 @@ vigencia temporal de mapa y odometría.
 El nodo \code{haptic\_grid\_generator\_node} (paquete
 \texttt{haptic\_grid\_generator}) recibe la percepción instantánea
 (\code{/perception/depth\_grid}) y el riesgo contextual
-(\code{/spatial\_awareness/collision\_risk}). La percepción frontal se
-transforma a intensidades y, cuando el mensaje de conciencia espacial está
+(\code{/spatial\_awareness/collision\_risk}). Para cada celda válida transforma
+la distancia mínima en una intensidad lógica entre 0 y 100 mediante la ley
+lineal invertida y saturada de la Ecuación~\eqref{eq:intensity-mapping}. Cuando
+el mensaje de conciencia espacial está
 vigente y marcado como válido, se superpone la intensidad de riesgo sobre
 columnas laterales y posteriores de la matriz háptica. La salida consolidada se
 publica en \code{/perception/haptic\_grid} con tipo
 \code{custom\_interfaces/msg/HapticGrid}.
 
-\section{Actuación háptica e interfaz serial}
+\section{Interfaz lógica de salida y transmisión UART}
 \label{sec:arq-hardware}
 
 El nodo \code{grid\_to\_motor} (paquete \texttt{hardware\_manager}) suscribe
-\code{/perception/haptic\_grid}, convierte cada celda activa a un ciclo de
-trabajo PWM mediante una función lineal invertida saturada (mayor proximidad
-corresponde a mayor ciclo de trabajo, ver Ecuación~\eqref{eq:duty-mapping}) y
-transmite la trama por UART al ESP32. El formato de trama es ASCII:
-\texttt{M $d_0$ $d_1$ \ldots $d_{N-1}$\textbackslash{}n} a
+\code{/perception/haptic\_grid}; por lo tanto, recibe comandos de intensidad ya
+calculados y no procesa distancias. Para cada celda activa redondea y satura la
+intensidad al intervalo $[0,100]$, la escala según \code{duty\_max} mediante la
+Ecuación~\eqref{eq:duty-scaling} y serializa los valores resultantes. Las celdas
+inactivas se transmiten con valor cero. El formato de trama UART es ASCII:
+\texttt{M $D_0$ $D_1$ \ldots $D_{N-1}$\textbackslash{}n} a
 $115200\text{bps}$ en modo 8N1 sin control de flujo. Un mecanismo de
 \emph{throttling} basado en marcas de tiempo descarta mensajes si el intervalo
 desde el último envío es inferior al período configurado
-(\code{send\_period\_ms}), evitando saturar el buffer UART. El ESP32 recibe la
-trama y controla los motores vibrotáctiles de la matriz háptica. La eficiencia
-de este protocolo y sus alternativas para matrices de mayor densidad se
-discuten en \Cref{sub:discusion-uart}.
+(\code{send\_period\_ms}), evitando saturar el buffer UART. La implementación
+y validación del receptor, de la electrónica de potencia y de los motores
+vibrotáctiles quedan fuera del alcance de esta tesis. La eficiencia del
+protocolo y sus alternativas para matrices de mayor densidad se discuten en
+\Cref{sub:discusion-uart}.
 
 \section{Visualización y depuración}
 \label{sec:arq-viz}
@@ -234,7 +241,10 @@ implementado en Python, puede ejecutarse opcionalmente en una PC conectada a
 la misma red DDS. Genera una visualización en mapa de calor de
 \code{/perception/haptic\_grid} y puede superponer el estado de
 \code{/spatial\_awareness/collision\_risk} para inspección integrada de
-percepción frontal y riesgo contextual. El nodo
+percepción frontal y riesgo contextual. De este modo permite verificar la
+estructura, orientación, actualización y coherencia de los comandos de intensidad
+sin depender de la interfaz háptica física; no sustituye su validación perceptual.
+El nodo
 \code{depth\_obstacle\_filter\_node} publica adicionalmente tópicos de
 depuración: nube de puntos cruda
 (\code{/depth\_obstacle\_filter/debug/depth\_cloud}), nube alineada a
