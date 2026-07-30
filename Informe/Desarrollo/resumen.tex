@@ -24,22 +24,19 @@ exclusivamente la primera.
 
 En concreto, se desarrolla en ROS2 un módulo de percepción que, a partir de la cámara Intel
 RealSense D435i montada sobre la cabeza del usuario y ejecutándose en una Raspberry Pi~5, genera en
-tiempo real una representación compacta del entorno inmediato. El sistema se organiza en tres
-pipelines paralelos.
-El primero, orientado a baja latencia, reduce la imagen de profundidad densa a
-una grilla de $10 \times 5$ celdas con estadísticas por región, la convierte en señales de
-intensidad háptica, las visualiza mediante \texttt{output\_viewer} y genera la trama UART prevista
-para una futura interfaz física.
-El segundo filtra y acondiciona la nube de puntos: aplica un ajuste respecto a la gravedad, elimina
-los puntos correspondientes al piso y al techo, y mejora la distribución espacial asociada a cada
-motor.
-El tercero construye y mantiene un mapa local de ocupación 2D egocéntrico basado en log-odds, con
+tiempo real una representación compacta del entorno inmediato. El desarrollo sigue tres versiones
+incrementales. La v0 resuelve el problema de forma directa y con baja latencia: reduce la imagen de
+profundidad a una grilla de $10 \times 5$ celdas, la convierte en intensidades hápticas, las
+visualiza mediante \texttt{output\_viewer} y genera la trama UART prevista para una futura interfaz
+física. Sobre esa base, la v1 mejora la interpretación de las mediciones y la señal destinada a la
+segunda etapa: alinea la nube con la gravedad, elimina piso y techo, y mejora la distribución
+espacial asociada a cada motor. Por último, la v2 amplía la protección fuera del campo de visión:
+usa la salida filtrada de v1 para construir un mapa local de ocupación 2D
+egocéntrico basado en log-odds, con
 trazado de rayos Bresenham, desplazamiento dinámico (\emph{scroll}) y odometría por RGB-D e IMU,
 conservando información reciente de obstáculos que han dejado de estar dentro del campo de visión
 de la cámara.
-Los dos primeros ofrecen alternativas independientes de salida háptica; el tercero se integra al
-segundo mediante un nodo de fusión que combina la percepción instantánea con los obstáculos no
-visibles almacenados en el mapa local.
+Un nodo de fusión combina esta memoria espacial con la percepción frontal instantánea de v1.
 
 El desempeño se evalúa mediante métricas cuantitativas de error de profundidad, latencia extremo a
 extremo, precisión y \textit{recall} en detección de obstáculos, estabilidad temporal del mapa

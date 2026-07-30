@@ -1,3 +1,7 @@
+Los fundamentos se agrupan según la versión en la que cada herramienta se incorpora al sistema; la
+motivación y el alcance de v0, v1 y v2 se establecen en la
+Sección~\ref{sec:intro-objetivo-tecnico}.
+
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v0: percepción directa, ROS~2 y salida háptica}
 \label{sec:mt-v0}
@@ -278,7 +282,8 @@ electrónica de potencia y los actuadores pertenecen a la segunda etapa del proy
 \section{Fundamentos de la versión v1: orientación, gravedad y suelo}
 \label{sec:mt-v1}
 
-La versión v1 conserva la salida compacta de v0, pero modifica la fuente de la grilla: en
+La versión v1 parte de la solución funcional establecida en v0 y conserva su salida compacta, pero
+mejora la interpretación previa de las mediciones al modificar la fuente de la grilla: en
 lugar de codificar profundidad cruda, primero proyecta la imagen a una nube 3D, la alinea con
 la gravedad y separa suelo, obstáculos y techo. La teoría de esta etapa combina
 representaciones de orientación, filtrado inercial y estimación robusta de planos. En esta
@@ -654,7 +659,8 @@ región, incorporando además una tolerancia compatible con el ruido de profundi
 \section{Fundamentos de la versión v2: odometría, mapa local y conciencia espacial}
 \label{sec:mt-v2}
 
-La versión v2 agrega memoria espacial. Para que un obstáculo siga influyendo cuando abandona
+La versión v2 parte de la percepción filtrada alcanzada en v1 y agrega memoria espacial para cubrir
+su principal limitación restante. Para que un obstáculo siga influyendo cuando abandona
 el campo frontal, las observaciones locales deben transformarse a un marco común, actualizar
 una grilla de ocupación y evaluarse junto con la velocidad del usuario. En la configuración
 final, esta etapa se apoya en \texttt{imu\_filter\_madgwick}, \texttt{rtabmap\_odom},

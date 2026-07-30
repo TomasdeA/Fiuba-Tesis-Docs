@@ -22,20 +22,18 @@ exclusively the first stage.
 
 Specifically, a perception module is developed in ROS2 that, using an Intel RealSense D435i camera
 mounted on the user's head and running on a Raspberry Pi~5, generates a compact real-time
-representation of the immediate surroundings. The system is organized into three parallel
-pipelines.
-The first, optimized for low latency, reduces the dense depth image to a $10 \times 5$ cell grid
-with per-region statistics, converts it to haptic intensity signals, displays them through
+representation of the immediate surroundings. The development follows three incremental versions.
+The v0 version addresses the problem directly and with low latency: it reduces the depth image to
+a $10 \times 5$ cell grid, converts it to haptic intensities, displays them through
 \texttt{output\_viewer}, and generates the UART frame intended for a future physical interface.
-The second pipeline filters and conditions the point cloud: it applies a gravity-aligned
-correction, removes points detected as floor and ceiling, and improves the spatial distribution
-assigned to each motor.
-The third builds and maintains a 2D egocentric local occupancy map based on log-odds, with
+Building on this basis, v1 improves measurement interpretation and the signal intended for the
+second stage: it aligns the point cloud with gravity, removes floor and ceiling points, and
+improves the spatial distribution assigned to each motor. Finally, v2 extends protection beyond
+the field of view by using the filtered output of v1 to build and maintain a 2D egocentric local
+occupancy map based on log-odds, with
 Bresenham ray casting, dynamic scrolling and RGB-D and IMU odometry, preserving recent obstacle
 information even after obstacles leave the camera's field of view.
-The first two offer independent haptic output alternatives; the third integrates into the second
-through a haptic fusion node that combines instantaneous perception with non-visible obstacles
-stored in the local map.
+A fusion node combines this spatial memory with the instantaneous frontal perception of v1.
 
 System performance is assessed through quantitative metrics including depth error, end-to-end
 latency, obstacle detection precision and recall, temporal stability of the local map, and

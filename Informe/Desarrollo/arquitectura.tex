@@ -20,8 +20,10 @@ nodo → tópicos → archivos fuente.
 \section{Evolución arquitectónica por versiones (v0, v1, v2)}
 \label{sec:arq-versiones}
 
-La arquitectura se diseñó y validó de forma incremental para preservar baja latencia en cada etapa
-y agregar complejidad únicamente cuando la versión previa alcanzaba estabilidad operativa.
+Esta sección se limita a mostrar cómo cambia la topología entre las tres versiones incrementales
+definidas en la Sección~\ref{sec:intro-objetivo-tecnico}. La implementación conserva los modos
+\code{raw} y \code{filtered}, seleccionados mediante \code{pipeline\_mode}, para ejecutar y comparar
+las configuraciones alcanzadas en v0 y v1.
 
 \paragraph{v0: modo \emph{raw}.}
 La versión inicial utiliza exclusivamente la percepción instantánea: imagen de profundidad de la
@@ -132,12 +134,12 @@ Además de estos remapeos, el código actual consume otros flujos del driver de 
 explícitos usados como interfaz de normalización, no la totalidad de tópicos de cámara presentes
 en ejecución.
 
-\section{Pipeline de percepción directa}
+\section{Versión v0: solución frontal directa}
 \label{sec:arq-percepcion}
 
-El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe \code{depth/image}, remapeado desde \code{RS/depth/image\_rect\_raw} en \code{nav.launch.py}, y reduce la imagen de profundidad densa a una grilla compacta de $R \times C$ celdas (por defecto $5 \times 10$) mediante partición en regiones de interés y cálculo de estadísticas por celda. El resultado se publica en \code{/perception/depth\_grid} como \code{custom\_interfaces/msg/DepthGrid}. Este pipeline opera de forma completamente independiente del mapeo local y constituye la fuente de percepción instantánea de baja latencia del sistema.
+El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe \code{depth/image}, remapeado desde \code{RS/depth/image\_rect\_raw} en \code{nav.launch.py}, y reduce la imagen de profundidad densa a una grilla compacta de $R \times C$ celdas (por defecto $5 \times 10$) mediante partición en regiones de interés y cálculo de estadísticas por celda. El resultado se publica en \code{/perception/depth\_grid} como \code{custom\_interfaces/msg/DepthGrid}. Esta versión establece la referencia funcional de menor latencia sobre la cual se evalúan las mejoras posteriores.
 
-\section{Filtro de obstáculos}
+\section{Versión v1: refinamiento de la percepción frontal}
 \label{sec:arq-filtro-obstaculos}
 
 El paquete \texttt{depth\_obstacle\_filter} encapsula la etapa de percepción
@@ -155,7 +157,12 @@ emite \texttt{/depth\_obstacle\_filter/camera\_height} (\texttt{std\_msgs/Float3
 para informar la altura estimada de cámara respecto del suelo. En TF publica la
 transformación dinámica
 \texttt{gravity\_aligned\_frame}~$\to$~\texttt{camera\_depth\_optical\_frame}.
-Esta decisión separa responsabilidades dentro del pipeline: la orientación
+La nube de obstáculos es consumida por \code{obstacle\_grid\_encoder}, del paquete
+\texttt{depth\_grid\_encoder}, que la codifica angularmente y publica
+\code{/perception/depth\_grid}. De este modo, v0 y v1 ofrecen el mismo contrato
+\texttt{DepthGrid} a las etapas posteriores, aunque lo construyen a partir de fuentes diferentes.
+
+Esta decisión separa responsabilidades dentro de la cadena: la orientación
 completa estimada por \texttt{imu\_filter\_madgwick} se reserva para la
 odometría visual-inercial, mientras que \texttt{depth\_obstacle\_filter}
 requiere únicamente la dirección de gravedad para estimar roll y pitch.
@@ -163,10 +170,10 @@ En este contexto, el yaw no modifica la segmentación suelo-obstáculo,
 por lo que consumir acelerómetro directo reduce dependencias entre nodos,
 evita latencia adicional en la etapa de percepción y mantiene operativo el
 filtro geométrico aun cuando el flujo de odometría no esté inicializado.
-Los detalles de cada etapa se describen en la Sección~\ref{sec:lm-depth-projector}
-y siguientes.
+Los detalles de cada etapa se describen en las
+Secciones~\ref{sec:metodo-v1-proyeccion} a~\ref{sec:metodo-v1-angular}.
 
-\section{Pipeline de mapeo local}
+\section{Versión v2: memoria espacial y protección contextual}
 \label{sec:arq-mapeo}
 
 El nodo \code{occupancy\_mapper\_node} (paquete \texttt{local\_mapper}) es
