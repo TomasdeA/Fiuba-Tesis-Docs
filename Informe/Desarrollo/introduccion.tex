@@ -2,19 +2,22 @@
 
 Las personas con ceguera o baja visión enfrentan dificultades significativas al desplazarse por
 entornos desconocidos o dinámicos.
-Las herramientas de asistencia tradicionales, como el bastón blanco o los perros guía, presentan
-limitaciones en alcance, resolución espacial y capacidad de anticipación frente a obstáculos no
-detectables a corta distancia. En particular, estos métodos no advierten eficazmente objetos a
-altura de cabeza (ramas, cables, señales colgantes u otros elementos sobresalientes), cuya detección
-requiere una cobertura vertical que los sensores puntuales no pueden proporcionar.
+Las herramientas de asistencia tradicionales resuelven funciones diferentes. El bastón blanco
+aporta información por contacto sobre el espacio inmediato y el estado del suelo, pero su alcance
+queda limitado por la longitud y el barrido realizado por el usuario. El perro guía puede anticipar
+y evitar obstáculos durante la marcha, aunque no comunica una representación espacial explícita
+del entorno. En ambos casos, una interfaz electrónica puede aportar información complementaria
+sobre objetos elevados, como ramas, cables o señales colgantes, antes de que entren en contacto con
+el usuario.
 
 En los últimos años han surgido dispositivos electrónicos de asistencia que incorporan sensores
 activos \cite{Novich2015, Santos2023, Petsiuk2019UltrasoundNavigation}.
 Sin embargo, gran parte de esas soluciones se basa en sensores puntuales de corto alcance, lo que
 restringe la cantidad y calidad de información espacial disponible para el usuario. En contraste,
-los sensores de profundidad por visión estéreo activa, como la familia Intel RealSense \cite
-{RS-D400}, permiten obtener un mapa denso del entorno con cobertura tridimensional del campo visual,
-manteniendo al mismo tiempo portabilidad y baja latencia.
+los sensores de profundidad por visión estéreo activa, como la familia Intel RealSense
+\cite{RS-D400}, permiten obtener una medición densa con información tridimensional dentro de su
+campo de visión. Su adecuación a una plataforma portátil y de baja latencia debe evaluarse junto
+con el procesamiento ejecutado sobre el hardware embebido.
 
 El presente trabajo se enmarca en el principio de neuroplasticidad sensorial, según el cual el
 cerebro puede reorganizarse para explotar de manera más eficiente los sentidos restantes cuando la
@@ -28,9 +31,9 @@ Si bien los trabajos académicos que combinan cámaras RGB-D con retroalimentaci
 comerciales como el \emph{SuperBrain~1} \cite{SeventhSense2024SuperBrain} constituyen un referente
 de lo que es posible alcanzar en términos de funcionalidad y validación real, el costo y la escala
 de desarrollo de esas soluciones las sitúan fuera del alcance de la mayoría de los usuarios.
-Esta tesis busca aproximarse a esa misma funcionalidad esencial, la conciencia local de obstáculos
-con retroalimentación háptica compacta, mediante hardware embebido de bajo costo, del orden de
-una Raspberry Pi~5.
+Esta tesis estudia cómo obtener una representación local compacta de obstáculos mediante una cámara
+RGB-D y una Raspberry Pi~5, sin pretender reproducir el alcance funcional ni el nivel de validación
+de un producto comercial.
 El Capítulo~\ref{chap:estado-arte} analiza estas soluciones en detalle y posiciona la contribución
 de esta tesis respecto de ellas.
 
@@ -45,33 +48,37 @@ de esta tesis respecto de ellas.
 
 \section{Planteo del problema}
 
-Una persona con ceguera o baja visión que se desplaza por un entorno desconocido necesita información
-continua, fiable y de baja latencia sobre los obstáculos que la rodean, con una cobertura espacial
-que abarque tanto el plano del suelo como la altura de cabeza y tronco.
-Las soluciones existentes no satisfacen simultáneamente ese conjunto de requisitos:
-los bastones y perros guía carecen de alcance anticipatorio suficiente;
-los dispositivos electrónicos basados en ultrasonido o sensores puntuales ofrecen resolución espacial
-limitada \cite{Petsiuk2019UltrasoundNavigation, Santos2023};
-y los sistemas con cámaras de profundidad de mayor resolución suelen requerir capacidad de cómputo
-que excede la de plataformas portables \cite{Lee2016RGBD, Zhang2021DVIO}.
+Una persona con ceguera o baja visión que se desplaza por un entorno desconocido puede beneficiarse
+de información actualizada sobre obstáculos ubicados desde el suelo hasta la altura de la cabeza.
+El bastón blanco, el perro guía y los dispositivos electrónicos ofrecen capacidades
+complementarias, pero no comunican el entorno con la misma cobertura, resolución ni modalidad. Los
+dispositivos basados en ultrasonido o sensores puntuales ofrecen información espacial acotada
+\cite{Petsiuk2019UltrasoundNavigation, Santos2023}; los sistemas con cámaras de profundidad aportan
+mediciones más densas, a costa de una mayor demanda de procesamiento
+\cite{Lee2016RGBD, Zhang2021DVIO}.
 
-El problema de ingeniería que aborda esta tesis es, por lo tanto, el diseño de un sistema embebido que,
-operando sobre hardware portátil y de recursos acotados, adquiera información tridimensional del entorno
-y genere en tiempo real una representación compacta, estable y de baja latencia adecuada para
-ser consumida por una interfaz háptica.
+El problema de ingeniería que aborda esta tesis es, por lo tanto, transformar información
+tridimensional del entorno en una representación compacta destinada a una interfaz háptica,
+utilizando una plataforma embebida y manteniendo acotados el retardo, la variación temporal y el
+consumo de recursos.
 
 Las restricciones determinantes del diseño son:
 \begin{itemize}
-  \item \textbf{Portabilidad:} el dispositivo se porta en la cabeza del usuario, por lo que el peso,
-        el tamaño y el consumo energético deben ser reducidos.
-  \item \textbf{Cómputo embebido limitado:} la plataforma objetivo es del orden de una Raspberry Pi 5
-        \cite{RaspberryPi}, sin capacidad de procesamiento GPU de propósito general.
-  \item \textbf{Baja latencia:} el retardo extremo a extremo debe ser suficientemente pequeño para
-        que la retroalimentación háptica sea útil durante la marcha.
-  \item \textbf{Estabilidad temporal:} la representación del entorno debe mantenerse coherente
-        frente a oclusiones transitorias y ante cambios bruscos de orientación del portador
-        durante la marcha, como giros de cabeza o variaciones de dirección, sin producir
-        artefactos ni \emph{ghosting} de obstáculos inexistentes.
+  \item \textbf{Portabilidad:} se registrarán la masa, las dimensiones y la potencia eléctrica del
+        conjunto implementado formado por cámara y unidad de cómputo.
+        \textcolor{red}{[FALTA DEFINIR los valores máximos admisibles y medir el conjunto final].}
+  \item \textbf{Cómputo embebido limitado:} el sistema se ejecutará en una Raspberry Pi~5
+        \cite{RaspberryPi}, sin depender de CUDA ni de una GPU discreta. Se medirán uso de CPU,
+        memoria, temperatura y eventos de limitación térmica.
+        \textcolor{red}{[FALTA DEFINIR los límites de aceptación y completar las mediciones].}
+  \item \textbf{Latencia:} se medirá el retardo extremo a extremo desde la adquisición hasta la
+        publicación de la salida lógica.
+        \textcolor{red}{[FALTA DEFINIR la latencia máxima admisible y medir mediana, percentil 95 y
+        peor caso].}
+  \item \textbf{Estabilidad temporal:} se cuantificarán la variación de la salida ante una escena
+        estática, la tasa de cuadros sin detección y el tiempo durante el cual persiste una
+        ocupación después de desaparecer la evidencia.
+        \textcolor{red}{[FALTA DEFINIR los umbrales de aceptación y realizar las mediciones].}
 \end{itemize}
 
 \section{Objetivos}
@@ -94,19 +101,18 @@ visualizarlos y deja implementada su transmisión mediante UART.
 
 \subsection{Objetivo de la tesis}
 
-Esta tesis aborda exclusivamente la primera etapa: la captación del entorno y la generación de un
-mapeo local compacto y estable en tiempo real a partir de percepción RGB-D. El foco se sitúa en
-transformar la medición cruda de profundidad en una representación espacial robusta y utilizable
-para navegación asistida, manteniendo simultáneamente portabilidad, baja latencia y estabilidad
-temporal en una plataforma embebida.
+Esta tesis aborda exclusivamente la primera etapa: captar el entorno y generar una representación
+local compacta a partir de percepción RGB-D. El foco se sitúa en transformar la medición cruda de
+profundidad en información espacial destinada a navegación asistida y caracterizar su retardo,
+estabilidad temporal y consumo de recursos sobre una plataforma embebida.
 
 \subsection{Objetivo técnico}
 \label{sec:intro-objetivo-tecnico}
 
-El objetivo técnico es desarrollar e implementar en ROS~2 \cite{ROS} un módulo de percepción que,
-utilizando la cámara Intel RealSense D435i \cite{RS-D400}, genere en tiempo real una representación
-compacta del entorno a partir de información de profundidad y la traduzca en una matriz de comandos
-de intensidad destinada a una futura interfaz háptica de asistencia a la movilidad.
+El objetivo técnico es desarrollar un módulo que transforme mediciones de profundidad en una
+representación espacial compacta y en una matriz lógica de intensidades destinada a la segunda
+etapa del proyecto. Para materializar y evaluar ese objetivo se adoptan ROS~2 \cite{ROS}, una cámara
+Intel RealSense D435i \cite{RS-D400} y una Raspberry Pi~5 como decisiones de implementación.
 
 Específicamente, el módulo deberá desarrollarse en tres niveles incrementales:
 \begin{itemize}
@@ -114,20 +120,19 @@ Específicamente, el módulo deberá desarrollarse en tres niveles incrementales
         de dimensionalidad para producir una grilla estructurada de baja resolución con
         estadísticas por celda (distancia mínima, media y conteo de puntos válidos), y publicar
         dicha salida en tópicos ROS~2 estandarizados, visualizarla sin depender del hardware físico
-        y serializarla para su transmisión mediante UART. Esta versión aporta la base operativa de baja latencia,
-        necesaria para habilitar retroalimentación háptica utilizable durante la marcha;
+        y serializarla para su transmisión mediante UART. Esta versión establece la referencia
+        funcional directa con la cual comparar el costo de las etapas posteriores;
   \item \textbf{v1 (percepción filtrada):} incorporar etapas de filtrado de la medición para
         mejorar la relevancia de la señal destinada a navegación asistida, suprimiendo
         contribuciones espurias del entorno y estabilizando la representación ante variaciones de
-        pose del portador. Esta versión aporta robustez perceptual, al reducir activaciones
-        falsas y aumentar la consistencia de la información entregada al usuario;
+        pose del portador. Su efecto sobre las activaciones falsas y la consistencia de la salida
+        se evaluará experimentalmente;
   \item \textbf{v2 (mapeo local):} implementar una capa de mapeo de corto alcance basada en
         grillas de ocupación log-odds \cite{Elfes1989, Thrun2005}, con memoria temporal de
-        obstáculos, mecanismo de desplazamiento egocéntrico (\textit{scroll}) e integración de
+        obstáculos, mecanismo de desplazamiento de ventana egocéntrica e integración de
         información inercial para compensar cambios de orientación durante la actualización del
-        mapa. Esta versión aporta continuidad espacial y contexto temporal, permitiendo sostener
-        la percepción de obstáculos más allá del instante de captura y mejorar la estabilidad
-        global de la navegación asistida.
+        mapa. Su capacidad para conservar información sobre obstáculos fuera del campo frontal se
+        evaluará en los escenarios definidos para v2.
 \end{itemize}
 
 Los parámetros numéricos y umbrales de decisión se refinarán mediante una fase de calibración y
@@ -135,26 +140,21 @@ pruebas experimentales, descritas en el Capítulo~\ref{chap:experimentos}.
 
 \section{Contribuciones del trabajo}
 
-Las contribuciones originales de esta tesis son las siguientes:
+Los aportes técnicos cuya validez se analiza mediante la evaluación experimental son los
+siguientes:
 
 \begin{itemize}
-  \item Diseño e implementación de un \textit{pipeline} de percepción RGB-D en tiempo real sobre
-        hardware embebido, capaz de reducir la nube de profundidad a una representación de grilla
-        compacta con estadísticas por celda, con latencias compatibles con asistencia a la marcha.
-  \item Definición e implementación de una interfaz lógica de salida que representa las intensidades
-        correspondientes a cada posición de la futura matriz háptica, junto con una herramienta de
-        visualización independiente del hardware y un nodo de transmisión UART para su posterior
-        integración física.
-  \item Integración de la unidad de medición inercial (IMU) del sensor para compensar cambios de
-        orientación del portador mediante la alineación con la gravedad de todos los puntos de la
-        nube entregada por el controlador de la RealSense.
-  \item Diseño e implementación de una capa de mapeo local de corto alcance basada en grillas de
-        ocupación log-odds \cite{Elfes1989, Thrun2005}, con memoria temporal de obstáculos y
-        mecanismo de desplazamiento egocéntrico (\textit{scroll}) mediante odometría
-        \texttt{rtabmap-odom}.
-  \item Evaluación experimental cuantitativa del sistema sobre escenarios reales, con métricas de
-        precisión de profundidad, latencia extremo a extremo, detección de obstáculos y consumo de
-        recursos computacionales.
+  \item una arquitectura incremental que permite comparar una transformación directa de
+        profundidad con una interpretación geométrica filtrada y con una extensión dotada de
+        memoria espacial, manteniendo una interfaz lógica común;
+  \item una estrategia de filtrado geométrico alineada con la gravedad para estudiar la reducción
+        de activaciones producidas por piso y techo sobre cómputo embebido;
+  \item una representación compacta que separa la percepción métrica frontal del riesgo contextual
+        y permite verificar ambas señales sin depender de la interfaz háptica física;
+  \item un esquema de memoria local y fusión destinado a estudiar la continuidad de advertencia
+        cuando un obstáculo previamente observado sale del campo de visión;
+  \item un protocolo experimental reproducible para caracterizar error, detección, latencia,
+        estabilidad temporal y consumo de recursos.
 \end{itemize}
 
 \section{Alcance}
@@ -166,7 +166,7 @@ El alcance de esta tesis comprende:
   \item la integración del módulo desarrollado con el ecosistema ROS~2, la generación y visualización
         de la matriz de intensidades y su serialización para transmisión mediante UART;
   \item la generación de representaciones compactas de un mapa de ocupación para navegación
-        asistida en tiempo real sobre hardware embebido;
+        asistida sobre hardware embebido;
   \item la caracterización cuantitativa del desempeño del sistema en términos de precisión, latencia
         y consumo de recursos.
 \end{itemize}
@@ -178,7 +178,9 @@ y la implementación de la interfaz háptica física ---microcontrolador recepto
 potencia, actuadores y soporte corporal---, así como su caracterización y la validación con usuarios
 finales.
 
-La plataforma embebida objetivo es una Raspberry Pi 5 \cite{RaspberryPi}; la selección definitiva se confirmará a partir de las mediciones de rendimiento (CPU, memoria y latencia) obtenidas durante las pruebas experimentales.
+La plataforma embebida adoptada es una Raspberry Pi~5 \cite{RaspberryPi}. Las pruebas
+experimentales caracterizarán el uso de CPU, memoria y latencia para determinar el margen operativo
+de la implementación sobre esa plataforma, no para decidir posteriormente su selección.
 
 \section{Organización del documento}
 
