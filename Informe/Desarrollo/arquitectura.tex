@@ -2,7 +2,7 @@
 \section{Arquitectura general}
 \label{sec:arquitectura-general}
 
-El sistema se compone de un conjunto de nodos ROS2 que se ejecutan sobre una Raspberry Pi~5,
+El sistema se compone de un conjunto de nodos ROS~2 que se ejecutan sobre una Raspberry Pi~5,
 orquestados por el archivo de lanzamiento \code{nav.launch.py} del paquete \texttt{nav\_bringup}.
 Todos los nodos de procesamiento quedan contenidos en la misma unidad de cómputo y se comunican
 exclusivamente a través del middleware DDS (\code{rmw\_cyclonedds}). La frontera de la
@@ -137,7 +137,7 @@ en ejecución.
 \section{Versión v0: solución frontal directa}
 \label{sec:arq-percepcion}
 
-El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe \code{depth/image}, remapeado desde \code{RS/depth/image\_rect\_raw} en \code{nav.launch.py}, y reduce la imagen de profundidad densa a una grilla compacta de $R \times C$ celdas (por defecto $5 \times 10$) mediante partición en regiones de interés y cálculo de estadísticas por celda. El resultado se publica en \code{/perception/depth\_grid} como \code{custom\_interfaces/msg/DepthGrid}. Esta versión establece la referencia funcional de menor latencia sobre la cual se evalúan las mejoras posteriores.
+El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe \code{depth/image}, remapeado desde \code{RS/depth/image\_rect\_raw} en \code{nav.launch.py}, y reduce la imagen de profundidad densa a una grilla compacta de $R \times C$ celdas (por defecto, 5 filas $\times$ 10 columnas) mediante partición en regiones de interés y cálculo de estadísticas por celda. El resultado se publica en \code{/perception/depth\_grid} como \code{custom\_interfaces/msg/DepthGrid}. Esta versión establece la referencia funcional de menor latencia sobre la cual se evalúan las mejoras posteriores.
 
 \section{Versión v1: refinamiento de la percepción frontal}
 \label{sec:arq-filtro-obstaculos}
@@ -261,6 +261,6 @@ encima de la cámara
 (\code{/depth\_obstacle\_filter/debug/ceiling\_cloud}) y altura estimada de la
 cámara sobre el suelo (\code{/depth\_obstacle\_filter/camera\_height}), todos
 visualizables con RViz2.
-El detalle exhaustivo de tópicos ROS2, incluyendo productores, consumidores,
+El detalle exhaustivo de tópicos ROS~2, incluyendo productores, consumidores,
 tipos de mensaje y correspondencia con el código fuente, se presenta en el
 Anexo~\ref{anexo:trazabilidad}.

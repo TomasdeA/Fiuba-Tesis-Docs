@@ -7,7 +7,7 @@ these technologies are seldom applied to the problem of personal assisted mobili
 
 The core focus of this work, as an engineering thesis, is to study, evaluate and adapt those
 technologies, including active stereo depth sensing, probabilistic occupancy grids, inertial data
-fusion and the ROS2 framework, in order to identify the most suitable alternatives for building a
+fusion and the ROS 2 ecosystem, in order to identify the most suitable alternatives for building a
 functional, portable and low-cost assistive device. The contribution does not lie in the creation
 of novel techniques but rather in the selection, integration and validation of solutions already
 proven in other domains, assessing their design trade-offs under the constraints inherent to a
@@ -20,11 +20,11 @@ complementary stages: (i)~environment capture and local mapping, and (ii)~transl
 interface. This thesis, submitted under the \textit{Electronic Engineering Thesis} track, addresses
 exclusively the first stage.
 
-Specifically, a perception module is developed in ROS2 that, using an Intel RealSense D435i camera
+Specifically, a perception module is developed in ROS 2 that, using an Intel RealSense D435i camera
 mounted on the user's head and running on a Raspberry Pi~5, generates a compact real-time
 representation of the immediate surroundings. The development follows three incremental versions.
 The v0 version addresses the problem directly and with low latency: it reduces the depth image to
-a $10 \times 5$ cell grid, converts it to haptic intensities, displays them through
+a grid of 5 rows by 10 columns, converts it to haptic intensities, displays them through
 \texttt{output\_viewer}, and generates the UART frame intended for a future physical interface.
 Building on this basis, v1 improves measurement interpretation and the signal intended for the
 second stage: it aligns the point cloud with gravity, removes floor and ceiling points, and

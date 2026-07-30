@@ -103,7 +103,7 @@ temporal en una plataforma embebida.
 \subsection{Objetivo técnico}
 \label{sec:intro-objetivo-tecnico}
 
-El objetivo técnico es desarrollar e implementar en ROS2 \cite{ROS} un módulo de percepción que,
+El objetivo técnico es desarrollar e implementar en ROS~2 \cite{ROS} un módulo de percepción que,
 utilizando la cámara Intel RealSense D435i \cite{RS-D400}, genere en tiempo real una representación
 compacta del entorno a partir de información de profundidad y la traduzca en una matriz de comandos
 de intensidad destinada a una futura interfaz háptica de asistencia a la movilidad.
@@ -113,7 +113,7 @@ Específicamente, el módulo deberá desarrollarse en tres niveles incrementales
   \item \textbf{v0 (percepción instantánea):} procesar imágenes de profundidad mediante reducción
         de dimensionalidad para producir una grilla estructurada de baja resolución con
         estadísticas por celda (distancia mínima, media y conteo de puntos válidos), y publicar
-        dicha salida en tópicos ROS2 estandarizados, visualizarla sin depender del hardware físico
+        dicha salida en tópicos ROS~2 estandarizados, visualizarla sin depender del hardware físico
         y serializarla para su transmisión mediante UART. Esta versión aporta la base operativa de baja latencia,
         necesaria para habilitar retroalimentación háptica utilizable durante la marcha;
   \item \textbf{v1 (percepción filtrada):} incorporar etapas de filtrado de la medición para
@@ -163,7 +163,7 @@ El alcance de esta tesis comprende:
 \begin{itemize}
   \item el diseño, implementación y validación experimental de la etapa de captación del entorno
         del sistema de asistencia sensorial;
-  \item la integración del módulo desarrollado con el ecosistema ROS2, la generación y visualización
+  \item la integración del módulo desarrollado con el ecosistema ROS~2, la generación y visualización
         de la matriz de intensidades y su serialización para transmisión mediante UART;
   \item la generación de representaciones compactas de un mapa de ocupación para navegación
         asistida en tiempo real sobre hardware embebido;
@@ -172,7 +172,7 @@ El alcance de esta tesis comprende:
 \end{itemize}
 
 Esta tesis incluye la generación de la matriz de intensidades hápticas, su publicación mediante
-mensajes ROS2, su visualización mediante una interfaz virtual y la implementación del enlace UART
+mensajes ROS~2, su visualización mediante una interfaz virtual y la implementación del enlace UART
 previsto para integrarla con el hardware de actuación. Quedan \emph{fuera} de su alcance el diseño
 y la implementación de la interfaz háptica física ---microcontrolador receptor, electrónica de
 potencia, actuadores y soporte corporal---, así como su caracterización y la validación con usuarios
@@ -195,10 +195,10 @@ percepción de profundidad por estereoscopía activa, modelo de cámara \emph{pi
 espacial mediante partición en regiones de interés, grillas de ocupación log-odds, algoritmo de
 Bresenham, estimación de orientación con IMU y protocolo de comunicación serie.
 El Capítulo~\ref{chap:arquitectura} describe la arquitectura modular del sistema implementada en
-ROS2 y los cambios de topología introducidos en cada versión.
+ROS~2 y los cambios de topología introducidos en cada versión.
 El Capítulo~\ref{chap:metodo} justifica las decisiones de procesamiento y los criterios mediante los
 cuales las mediciones afectan la salida.
-El Capítulo~\ref{chap:implementacion} expone la implementación concreta en C++ y Python sobre ROS2,
+El Capítulo~\ref{chap:implementacion} expone la implementación concreta en C++ y Python sobre ROS~2,
 describiendo los nodos principales (\texttt{depth\_to\_matrix\_node}, \texttt{local\_mapper\_node},
 \texttt{haptic\_grid\_generator}, \texttt{hardware\_manager}) y las interfaces definidas.
 El Capítulo~\ref{chap:experimentos} presenta la metodología experimental, los escenarios de prueba y

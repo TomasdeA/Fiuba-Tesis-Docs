@@ -8,7 +8,7 @@ al problema de la movilidad personal asistida.
 
 El eje central de este trabajo, en tanto tesis de ingeniería, es estudiar, evaluar y adaptar esas
 tecnologías, entre ellas la percepción de profundidad por visión estéreo activa, las grillas de
-ocupación probabilísticas, la fusión de datos inerciales y el framework ROS2, para determinar las
+ocupación probabilísticas, la fusión de datos inerciales y el ecosistema ROS~2, para determinar las
 alternativas más adecuadas con las que construir una herramienta de asistencia funcional, portátil
 y de bajo costo. El aporte no reside en la creación de técnicas nuevas, sino en la selección,
 integración y validación de soluciones ya probadas en otros rubros, evaluando sus compromisos de
@@ -22,11 +22,11 @@ complementarias, (i)~captación del entorno y mapeo local y (ii)~traducción a i
 presente tesis, enmarcada en la modalidad \textit{Tesis de Ingeniería Electrónica}, aborda
 exclusivamente la primera.
 
-En concreto, se desarrolla en ROS2 un módulo de percepción que, a partir de la cámara Intel
+En concreto, se desarrolla en ROS~2 un módulo de percepción que, a partir de la cámara Intel
 RealSense D435i montada sobre la cabeza del usuario y ejecutándose en una Raspberry Pi~5, genera en
 tiempo real una representación compacta del entorno inmediato. El desarrollo sigue tres versiones
 incrementales. La v0 resuelve el problema de forma directa y con baja latencia: reduce la imagen de
-profundidad a una grilla de $10 \times 5$ celdas, la convierte en intensidades hápticas, las
+profundidad a una grilla de 5 filas $\times$ 10 columnas, la convierte en intensidades hápticas, las
 visualiza mediante \texttt{output\_viewer} y genera la trama UART prevista para una futura interfaz
 física. Sobre esa base, la v1 mejora la interpretación de las mediciones y la señal destinada a la
 segunda etapa: alinea la nube con la gravedad, elimina piso y techo, y mejora la distribución
