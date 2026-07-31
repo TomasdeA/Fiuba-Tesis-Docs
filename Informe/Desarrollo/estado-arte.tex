@@ -2,19 +2,48 @@
 \section{Dispositivos de asistencia sensorial para personas ciegas}
 \label{sec:ea-dispositivos}
 
-El principio de sustitución sensorial, cuya base experimental se describe en el Capítulo~\ref{chap:marco-teorico} (\Cref{sec:mt-sustitucion}), constituye el fundamento común de los dispositivos electrónicos de asistencia a la movilidad revisados en este capítulo. Desde los primeros arreglos de $20\times20$ taxeles (píxeles táctiles) de Bach-y-Rita \cite{BachyRita1969}, la evolución técnica puede leerse como una continuidad: se parte de soluciones con sensado puntual y se avanza hacia sistemas con percepción densa mediante cámaras de profundidad, en búsqueda de mejor resolución espacial sin perder portabilidad ni baja latencia.
+Este capítulo presenta una revisión narrativa de antecedentes seleccionados por su relación con
+las decisiones centrales de la tesis: modalidad de sensado, forma de realimentación, resolución
+espacial, memoria temporal y plataforma de cómputo. La selección no pretende ser exhaustiva ni
+sostener afirmaciones sobre toda la bibliografía disponible; las conclusiones se limitan a los
+trabajos incluidos y citados en las secciones siguientes.
 
-A partir del trabajo de Bach-y-Rita, se desarrolló una amplia variedad de dispositivos electrónicos de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourbakis \cite{Dakopoulos2010} presentan una revisión exhaustiva de estos sistemas, clasificándolos según el tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación (auditivo, háptico, voz) y la zona del cuerpo en la que presentan la estimulación (mano, muñeca, torso, cabeza). Sobre esa base, la revisión se organiza como una progresión tecnológica dentro de un mismo problema de asistencia sensorial, estructurada en dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que incorporan percepción densa y, en algunos casos, mapeo local.
+El principio de sustitución sensorial, cuya base experimental se describe en el
+Capítulo~\ref{chap:marco-teorico} (\Cref{sec:mt-sustitucion}), constituye el fundamento común de
+los dispositivos electrónicos de asistencia a la movilidad revisados en este capítulo. Desde los
+primeros arreglos de $20\times20$ taxeles (píxeles táctiles) de Bach-y-Rita \cite{BachyRita1969},
+la evolución técnica puede leerse como una continuidad: se parte de soluciones con sensado puntual
+y se avanza hacia sistemas con percepción densa mediante cámaras de profundidad, en búsqueda de
+mejor resolución espacial sin perder portabilidad ni baja latencia.
+
+A partir del trabajo de Bach-y-Rita, se desarrolló una amplia variedad de dispositivos electrónicos
+de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourbakis
+\cite{Dakopoulos2010} presentan una revisión exhaustiva de estos sistemas, clasificándolos según el
+tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación
+(auditivo, háptico, voz) y la zona del cuerpo en la que presentan la estimulación (mano, muñeca,
+torso, cabeza). Sobre esa base, la revisión se organiza como una progresión tecnológica dentro de
+un mismo problema de asistencia sensorial, estructurada en dos grupos: sistemas sin RGB-D, basados
+en sensado puntual, y sistemas con RGB-D, que incorporan percepción densa y, en algunos casos,
+mapeo local.
 
 \subsection{Criterios de adopción}
 \label{subsec:ea-criterios}
 
-Para encuadrar la evaluación comparativa, Dakopoulos y Bourbakis enumeran cuatro criterios que un dispositivo portátil de asistencia debe cumplir para resultar adoptable en la práctica: (1)~\emph{manos libres}, sin requerir el uso de las manos para un dispositivo \emph{adicional} al bastón blanco, que se asume como herramienta base y cuyo uso no viola este criterio; (2)~\emph{oídos libres}, sin interferir con la capacidad de escucha del entorno, que es una fuente de información crítica; (3)~\emph{wearable}, para ofrecer flexibilidad y aprovechar las ventajas de las tecnologías portátiles; y (4)~\emph{simple}, de operación intuitiva y sin necesidad de entrenamiento extenso. A estos criterios se agregan dos dimensiones técnicas adicionales relevantes para el presente trabajo: \emph{resolución espacial} del sensor y \emph{memoria temporal} en la representación del entorno.
+Para encuadrar la evaluación comparativa, Dakopoulos y Bourbakis enumeran cuatro criterios que un
+dispositivo portátil de asistencia debe cumplir para resultar adoptable en la práctica:
+(1)~\emph{manos libres}, sin requerir el uso de las manos para un dispositivo \emph{adicional} al
+bastón blanco, que se asume como herramienta base y cuyo uso no viola este criterio;
+(2)~\emph{oídos libres}, sin interferir con la capacidad de escucha del entorno, que es una fuente
+de información crítica; (3)~\emph{vestible}, para ofrecer flexibilidad y aprovechar las ventajas de
+las tecnologías portátiles; y (4)~\emph{simple}, de operación intuitiva y sin necesidad de
+entrenamiento extenso. A estos criterios se agregan dos dimensiones técnicas adicionales relevantes
+para el presente trabajo: \emph{resolución espacial} del sensor y \emph{memoria temporal} en la
+representación del entorno.
 
 \subsection{Sistemas sin RGB-D (sensado puntual)}
 \label{subsec:ea-propuestas}
 
-Entre las propuestas más representativas de la literatura reciente sin uso de RGB-D se distinguen tres enfoques:
+Entre las propuestas sin uso de RGB-D incluidas en esta revisión se distinguen tres enfoques:
 
 \subsubsection{Arreglos vibrotáctiles corporales}
 \label{subsec:ea-vibrotactiles}
@@ -23,7 +52,7 @@ Novich y Eagleman~\cite{Novich2015} estudiaron los límites perceptuales de la p
 información y concluyeron que un arreglo de actuadores sobre el torso puede alcanzar tasas de
 transferencia del orden de bits por segundo, suficientes para codificar patrones espaciales
 rudimentarios. Desde el punto de vista de los criterios de adopción, el sistema satisface las
-condiciones de \emph{manos libres}, \emph{oídos libres} y \emph{wearable}. Sin embargo, requiere
+condiciones de \emph{manos libres}, \emph{oídos libres} y de dispositivo vestible. Sin embargo, requiere
 movimientos corporales activos para explorar el entorno, lo que compromete el criterio de
 \emph{simplicidad} durante la marcha. La resolución espacial es limitada y no se contempla memoria
 temporal de las observaciones.
@@ -44,9 +73,9 @@ resolución espacial efectiva. Tampoco incorpora memoria temporal de obstáculos
 
 Petsiuk y Pearce~\cite{Petsiuk2019UltrasoundNavigation} describen una pulsera ultrasónica de bajo
 costo que emite vibraciones al detectar objetos en un cono estrecho frente al brazo. El dispositivo
-es \emph{wearable} y no ocupa las manos, aunque la posición en la muñeca requiere orientación
+es vestible y no ocupa las manos, aunque la posición en la muñeca requiere orientación
 activa del brazo. No interfiere con la audición y su operación es simple. No obstante, la
-resolución espacial es esencialmente nula: solo se detecta la distancia al obstáculo más próximo en
+resolución espacial es muy limitada: solo se detecta la distancia al obstáculo más próximo en
 la dirección del brazo, sin capacidad de representar la distribución espacial del entorno, y sin
 ninguna forma de acumulación temporal de observaciones.
 
@@ -57,7 +86,7 @@ La incorporación de sensores de profundidad por estereoscopía activa en dispos
 representa una continuidad natural de los ETA, orientada a superar la baja resolución de los
 sensores puntuales sin abandonar los criterios de adopción discutidos en la \Cref{subsec:ea-criterios}.
 Los sistemas revisados a continuación muestran distintos niveles de madurez dentro de esa misma
-línea evolutiva, desde retroalimentación directa sobre el frame instantáneo, pasando por integración
+línea evolutiva, desde retroalimentación directa sobre el fotograma instantáneo, pasando por integración
 de mapeo local con fusión inercial, hasta productos comerciales que consolidan el enfoque, como se
 discute en la \Cref{subsec:ea-superbrain}.
 
@@ -68,7 +97,7 @@ Yang et al.\ \cite{Yang2016} proponen un sistema portátil basado en el sensor I
 
 No obstante, el trabajo de Yang et al.\ no incorpora información inercial para compensar la
 inclinación del sensor respecto al plano horizontal, ni implementa una etapa de mapeo local. La
-representación final se obtiene directamente del frame instantáneo, por lo que toda información
+representación final se obtiene directamente del fotograma instantáneo, por lo que toda información
 sobre obstáculos se pierde en cuanto estos abandonan el campo de visión de la cámara. Esto impide
 acumular un historial de observaciones que podría ser utilizado por una lógica de evitación de
 colisiones para anticipar obstáculos que, aunque ya no visibles en ese instante, siguen siendo
@@ -77,9 +106,28 @@ relevantes para la trayectoria del usuario.
 \subsubsection{Sistemas con mapeo local e integración inercial}
 \label{subsec:ea-mapeo-inercial}
 
-Un antecedente más completo es el sistema propuesto por Lee y Medioni~\cite{Lee2016RGBD}, que integra una cámara RGB-D montada en la cabeza con una IMU de nueve grados de libertad, una grilla de ocupación 2D probabilística y un chaleco de retroalimentación vibrotáctil. El sistema estima la pose 6-DOF en tiempo real mediante un algoritmo híbrido que combina características visuales dispersas, nubes de puntos densas y la extracción del plano de suelo para reducir la deriva. Con esa estimación de pose construye un mapa incremental del entorno y planifica trayectorias seguras hacia un destino, transmitiendo la dirección al usuario a través del chaleco. El sistema fue validado con sujetos ciegos reales en entornos interiores no conocidos previamente y corre a aproximadamente 30\,Hz sobre una laptop. La contribución central es demostrar que la combinación de RGB-D, IMU y grilla de ocupación resulta viable para asistencia portátil a ciegos en tiempo real; su limitación más evidente es la dependencia de hardware de cómputo no embebido (laptop).
+Un antecedente más completo es el sistema propuesto por Lee y Medioni~\cite{Lee2016RGBD}, que
+integra una cámara RGB-D montada en la cabeza con una IMU de nueve grados de libertad, una grilla
+de ocupación 2D probabilística y un chaleco de retroalimentación vibrotáctil. El sistema estima la
+pose 6-DOF en tiempo real mediante un algoritmo híbrido que combina características visuales
+dispersas, nubes de puntos densas y la extracción del plano de suelo para reducir la deriva. Con
+esa estimación de pose construye un mapa incremental del entorno y planifica trayectorias seguras
+hacia un destino, transmitiendo la dirección al usuario a través del chaleco. El sistema fue
+validado con sujetos ciegos reales en entornos interiores no conocidos previamente y corre a
+aproximadamente 30\,Hz sobre una laptop. La contribución central es demostrar que la combinación de
+RGB-D, IMU y grilla de ocupación resulta viable para asistencia portátil a ciegos en tiempo real;
+su limitación más evidente es la dependencia de hardware de cómputo no embebido (laptop).
 
-Zhang et al.\ \cite{Zhang2021DVIO} avanzan sobre esta línea incorporando una IMU externa de mayor precisión (VN-100) y un algoritmo de odometría visual-inercial potenciado por profundidad denominado DVIO (\emph{Depth-enhanced Visual-Inertial Odometry}). DVIO integra la extracción del plano de suelo con características visuales y mediciones inerciales en un marco de optimización de grafos para estimar la pose 6-DOF a 18\,Hz sobre hardware embebido compacto. El sistema opera sobre una plataforma robótica de acompañamiento (\emph{Robotic Navigation Aid}) y tiene como objetivo localizar la plataforma en un plano arquitectónico del edificio para guiar al usuario hacia un destino. Este trabajo muestra que la fusión profunda de datos de profundidad e inercia en un marco de optimización de grafos permite reducir la deriva de odometría en condiciones de iluminación variable y texturas pobres, comparado con los enfoques que tratan la IMU como entrada secundaria.
+Zhang et al.\ \cite{Zhang2021DVIO} avanzan sobre esta línea incorporando una IMU externa de mayor
+precisión (VN-100) y un algoritmo de odometría visual-inercial potenciado por profundidad
+denominado DVIO (\emph{Depth-enhanced Visual-Inertial Odometry}). DVIO integra la extracción del
+plano de suelo con características visuales y mediciones inerciales en un marco de optimización de
+grafos para estimar la pose 6-DOF a 18\,Hz sobre hardware embebido compacto. El sistema opera sobre
+una plataforma robótica de acompañamiento (\emph{Robotic Navigation Aid}) y tiene como objetivo
+localizar la plataforma en un plano arquitectónico del edificio para guiar al usuario hacia un
+destino. Este trabajo muestra que la fusión profunda de datos de profundidad e inercia en un marco
+de optimización de grafos permite reducir la deriva de odometría en condiciones de iluminación
+variable y texturas pobres, comparado con los enfoques que tratan la IMU como entrada secundaria.
 
 \subsection{Producto comercial consolidado: \emph{SuperBrain~1}}
 \label{subsec:ea-superbrain}
@@ -90,7 +138,7 @@ desarrollado por la empresa estonia Seventh Sense OÜ~\cite{SeventhSense2024Supe
 existencia como producto comercial certificado (marcado CE) y validado con personas con
 discapacidad visual en múltiples países de Europa constituye evidencia directa de que la
 combinación de percepción de profundidad, procesamiento embebido y retroalimentación háptica
-wearable puede dar lugar a un producto de uso real.
+vestible puede dar lugar a un producto de uso real.
 
 El dispositivo es un casco portado en la cabeza que integra cámaras estéreo de campo amplio
 ($185^\circ$ horizontal, $120^\circ$ vertical), sensores de tiempo de vuelo (\emph{Time-of-Flight}, ToF)
@@ -104,41 +152,62 @@ rica y precisa. Una función adicional, asistida por inteligencia artificial, im
 representarlos con mayor resolución háptica, capacidad que supera lo previsto en el prototipo
 desarrollado en esta tesis.
 
-El dispositivo satisface la totalidad de los criterios de adopción de Dakopoulos y
-Bourbakis~\cite{Dakopoulos2010}: no requiere el uso de las manos, no interfiere con la audición,
-es wearable y su operación parece intuitiva. Estos atributos lo ubican como el sistema de mayor
-completitud entre todos los revisados en este capítulo. Sin embargo, su precio de venta del orden
-de 9.000~euros, y el hecho de que su desarrollo se extendió por más de quince años desde las
-investigaciones fundacionales hasta la disponibilidad comercial, según información publicada en el
-sitio institucional de la empresa, lo sitúan fuera del alcance económico de la mayoría de los
-usuarios potenciales. La presente tesis se distingue de este antecedente al demostrar que las funciones básicas de conciencia local de obstáculos con retroalimentación háptica compacta pueden
-implementarse sobre hardware embebido de bajo costo, con una fracción del tiempo y los recursos de desarrollo requeridos por un producto comercial de alta gama. Las funciones avanzadas del \emph{SuperBrain~1}, como el \emph{zoom} con inteligencia artificial y la cámara térmica, se proponen como líneas de trabajo futuro en el Capítulo~\ref{chap:futuro}.
+Según la información pública del fabricante, el dispositivo no requiere el uso de las manos, no
+interfiere con la audición y se porta sobre el cuerpo. Estos atributos permiten analizarlo respecto
+de los criterios de adopción, aunque la simplicidad de uso requiere evidencia con usuarios y no se
+infiere únicamente de su descripción comercial. Su costo se encuentra en el orden de miles de
+euros y su desarrollo demandó más de diez años, magnitudes que muestran la diferencia de alcance
+entre un producto comercial certificado y un prototipo académico. En consecuencia, no se plantea
+una equivalencia funcional con esta tesis. El \emph{SuperBrain~1} se utiliza como referencia de las
+capacidades que puede alcanzar una solución madura, mientras que este trabajo estudia un
+subconjunto acotado: percepción local, salida lógica compacta y ejecución en hardware embebido.
+Las funciones avanzadas del producto, como el \emph{zoom} con inteligencia artificial y la cámara
+térmica, se proponen como líneas de trabajo futuro en el Capítulo~\ref{chap:futuro}.
 
 \subsection{Síntesis comparativa de los sistemas revisados}
 \label{subsec:ea-sintesis-comparativa}
 
 Los sistemas sin RGB-D revisados en la \Cref{subsec:ea-propuestas} comparten dos limitaciones
 fundamentales: en primer lugar, utilizan sensores puntuales o de muy bajo número de haces, lo que
-impide representar la distribución tridimensional de obstáculos en el campo visual del usuario. En
-segundo lugar, la información espacial insuficiente de estos sensores impide estimar de forma
-confiable la odometría del usuario, lo que a su vez impide la acumulación temporal de observaciones. Como
-resultado, todo conocimiento sobre el entorno se descarta entre frames y no puede utilizarse para
+limita la representación de la distribución tridimensional de obstáculos en el campo visual del
+usuario. En segundo lugar, esas mediciones aisladas aportan poca información geométrica para
+estimar el movimiento del usuario por sí solas. Esto no impide obtener odometría mediante una IMU,
+una cámara u otro sensor adicional, pero los sistemas puntuales aquí revisados no incorporan esas
+fuentes ni una memoria espacial. Como resultado, el conocimiento sobre el entorno se descarta entre
+fotogramas y no puede utilizarse para
 inferir la presencia de obstáculos que hayan salido momentáneamente del campo sensado. Esta doble
 restricción dificulta la detección de obstáculos a altura de cabeza, la anticipación a geometrías
 complejas y la posibilidad de implementar lógicas de evitación de colisiones que operen sobre
 información acumulada.
 
-En contraste, los sistemas con RGB-D incorporan cámaras de profundidad para aumentar la resolución espacial y, en algunos casos, añadir memoria temporal mediante mapeo local. Esta evolución tecnológica se expresa en la Tabla~\ref{tab:comparacion-eta}, que consolida la evaluación de todos los sistemas revisados en este capítulo, desde los basados en sensores puntuales hasta los de cámara de profundidad y el producto comercial \emph{SuperBrain~1}, respecto de los criterios de Dakopoulos y Bourbakis~\cite{Dakopoulos2010} y las dos dimensiones técnicas adicionales. La tabla evidencia la progresión desde soluciones de baja resolución y sin memoria temporal hacia sistemas con percepción densa y acumulación de historial, con el nivel de inversión que cada etapa conlleva.
+En contraste, los sistemas con RGB-D incorporan cámaras de profundidad para aumentar la resolución
+espacial y, en algunos casos, añadir memoria temporal mediante mapeo local. Esta evolución
+tecnológica se expresa en la Tabla~\ref{tab:comparacion-eta}, que consolida la evaluación de todos
+los sistemas revisados en este capítulo, desde los basados en sensores puntuales hasta los de
+cámara de profundidad y el producto comercial \emph{SuperBrain~1}, respecto de los criterios de
+Dakopoulos y Bourbakis~\cite{Dakopoulos2010} y las dos dimensiones técnicas adicionales. La tabla
+evidencia la progresión desde soluciones de baja resolución y sin memoria temporal hacia sistemas
+con percepción densa y acumulación de historial, con el nivel de inversión que cada etapa conlleva.
+
+La clasificación es cualitativa y se limita a las capacidades descritas por cada fuente. Se
+considera resolución muy baja cuando el sistema entrega una única distancia o dirección, y alta
+cuando conserva una medición densa del campo observado. La memoria temporal se marca únicamente
+cuando el trabajo describe una representación persistente del entorno. La última fila corresponde
+al proyecto global, que integra el módulo de percepción y mapeo desarrollado en esta tesis con la
+interfaz háptica física implementada en la segunda etapa. Por eso los criterios de adopción se
+evalúan sobre el dispositivo completo, mientras que la resolución espacial y la memoria temporal
+provienen del aporte específico de esta tesis.
 
 \begin{table}[htbp]
 \centering
 \caption{Comparación de sistemas de asistencia sensorial para personas ciegas según los criterios
 de Dakopoulos y Bourbakis~\cite{Dakopoulos2010} y dos criterios técnicos adicionales.
-\checkmark: satisfecho; $\sim$: parcialmente satisfecho; \texttimes: no satisfecho.}
+\checkmark: satisfecho; $\sim$: parcialmente satisfecho; \texttimes: no satisfecho. La fila
+«Proyecto global» considera la integración de las dos etapas del proyecto.}
 \label{tab:comparacion-eta}
 \begin{tabularx}{\linewidth}{Xcccccc}
 \toprule
-\textbf{Sistema} & \textbf{Manos} & \textbf{Oídos} & \textbf{Wear.} & \textbf{Simple} & \textbf{Resolución} & \textbf{Memoria} \\
+\textbf{Sistema} & \textbf{Manos} & \textbf{Oídos} & \textbf{Vestible} & \textbf{Simple} & \textbf{Resolución} & \textbf{Memoria} \\
  & \textbf{libres} & \textbf{libres} & & & \textbf{espacial} & \textbf{temporal}\\
 \midrule
 Novich y Eagleman~\cite{Novich2015}                     & \checkmark & \checkmark & \checkmark & $\sim$     & baja     & \texttimes \\
@@ -147,7 +216,7 @@ Petsiuk y Pearce~\cite{Petsiuk2019UltrasoundNavigation} & $\sim$     & \checkmar
 Yang et al.~\cite{Yang2016}                             & \checkmark & \checkmark & \checkmark & $\sim$     & alta     & \texttimes \\
 Lee y Medioni~\cite{Lee2016RGBD}                        & \checkmark & \checkmark & \checkmark & $\sim$     & alta     & \checkmark \\
 SuperBrain~1~\cite{SeventhSense2024SuperBrain}          & \checkmark & \checkmark & \checkmark & \checkmark & alta     & $\sim$     \\
-Esta tesis                                              & \checkmark & \checkmark & \checkmark & \checkmark & media    & \checkmark \\
+Proyecto global                                         & \checkmark & \checkmark & \checkmark & \checkmark & media & \checkmark \\
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -164,50 +233,81 @@ del módulo de mapeo desarrollado en esta tesis.
 \subsection{Mapas locales reactivos}
 \label{subsec:ea-mapas-reactivos}
 
-En robótica móvil existe amplia evidencia de que las estrategias de navegación reactiva basadas en mapas locales ofrecen ventajas de latencia y robustez frente a enfoques globales. Brock y Khatib \cite{brock1999high} argumentan que un mapa local centrado en el robot, actualizado a alta frecuencia, permite reaccionar ante obstáculos dinámicos sin depender de la coherencia global de un mapa completo del entorno.
+En robótica móvil, los mapas locales se emplean en estrategias de navegación reactiva para acotar
+el área actualizada y evitar la dependencia inmediata de un mapa global. Brock y Khatib
+\cite{brock1999high} argumentan que un mapa local centrado en el robot y actualizado a alta
+frecuencia permite reaccionar ante obstáculos dinámicos sin requerir la coherencia global de un
+mapa completo del entorno.
 
 \subsection{Representaciones de ocupación probabilística}
 \label{subsec:ea-ocupacion}
 
-La representación canónica para este tipo de mapas es la grilla de ocupación probabilística, introducida por Elfes \cite{Elfes1989} y formalizada en el marco bayesiano por Thrun, Burgard y Fox \cite{Thrun2005}. La formulación en escala de log-odds permite actualizar la probabilidad de ocupación de cada celda con costo computacional constante y acumular historial de observaciones, lo cual actúa como filtro de baja frecuencia sobre el ruido del sensor. El trazado de rayos mediante el algoritmo de Bresenham \cite{Bresenham1965} complementa la actualización al marcar explícitamente como libres las celdas atravesadas por el haz antes del punto de impacto.
+La representación canónica para este tipo de mapas es la grilla de ocupación probabilística,
+introducida por Elfes \cite{Elfes1989} y formalizada en el marco bayesiano por Thrun, Burgard y Fox
+\cite{Thrun2005}. La formulación en escala de log-odds permite actualizar la probabilidad de
+ocupación de cada celda con costo computacional constante y acumular historial de observaciones, lo
+cual actúa como filtro de baja frecuencia sobre el ruido del sensor. El trazado de rayos mediante
+el algoritmo de Bresenham \cite{Bresenham1965} complementa la actualización al marcar
+explícitamente como libres las celdas atravesadas por el haz antes del punto de impacto.
 
-Existen representaciones volumétricas más expresivas, como OctoMap \cite{hornung2013octomap}, que extienden la grilla de ocupación 2D al espacio tridimensional mediante octrees y permiten representar obstáculos a distintas alturas con resolución adaptativa. Sin embargo, su mayor fidelidad conlleva un costo computacional significativamente más alto que el de una grilla 2D plana. En el contexto de la navegación por plataformas de robótica móvil con cómputo embebido, el \emph{costmap} local bidimensional de Nav2 \cite{macenski2020nav2} representa la solución de compromiso dominante: una grilla 2D de ocupación actualizada en tiempo real a partir de sensores de profundidad, con capas configurables para inflación de obstáculos y filtrado temporal.
+Existen representaciones volumétricas más expresivas, como OctoMap \cite{hornung2013octomap}, que
+extienden la grilla de ocupación 2D al espacio tridimensional mediante octrees y permiten
+representar obstáculos a distintas alturas con resolución adaptativa. Sin embargo, su mayor
+fidelidad conlleva un costo computacional significativamente más alto que el de una grilla 2D
+plana. En plataformas de robótica móvil con cómputo embebido, el \emph{costmap} local bidimensional
+de Nav2 \cite{macenski2020nav2} constituye una alternativa habitual: una grilla 2D de ocupación
+actualizada a partir de sensores de profundidad, con capas configurables para inflación de
+obstáculos y filtrado temporal.
 
 \subsection{Representación 2D y compensación gravitacional}
 \label{subsec:ea-2d}
 
-El mapa local desarrollado en esta tesis adopta los principios de la grilla de ocupación probabilística en escala de log-odds y utiliza una proyección 2D de la nube de puntos sobre el plano horizontal. La discriminación de obstáculos relevantes se resuelve antes de la proyección, mediante alineación gravitacional y filtrado por bandas de altura, conservando en la grilla únicamente la ocupación plana necesaria para la navegación local. De este modo se mantiene una representación compatible con las restricciones de cómputo embebido y con la interfaz háptica de baja resolución utilizada por el sistema.
+El mapa local desarrollado en esta tesis adopta los principios de la grilla de ocupación
+probabilística en escala de log-odds y utiliza una proyección 2D de la nube de puntos sobre el
+plano horizontal. La discriminación de obstáculos relevantes se resuelve antes de la proyección,
+mediante alineación gravitacional y filtrado por bandas de altura, conservando en la grilla
+únicamente la ocupación plana necesaria para la navegación local. De este modo se mantiene una
+representación compatible con las restricciones de cómputo embebido y con la interfaz háptica de
+baja resolución utilizada por el sistema.
 
-La alineación gravitacional descrita se basa en la estimación instantánea del vector de gravedad a partir del acelerómetro \cite{Woodman2007}, y es conceptualmente distinta de la odometría visual-inercial \cite{Forster2017, Mourikis2007, Qin2018}: no integra velocidades ni construye una trayectoria, sino que estima roll y pitch instantáneos a partir de la componente estática de la aceleración.
+La alineación gravitacional descrita se basa en la estimación instantánea del vector de gravedad a
+partir del acelerómetro \cite{Woodman2007}, y es conceptualmente distinta de la odometría
+visual-inercial \cite{Forster2017, Mourikis2007, Qin2018}: no integra velocidades ni construye una
+trayectoria, sino que estima roll y pitch instantáneos a partir de la componente estática de la
+aceleración.
 
 \subsection{Estimación del movimiento egocéntrico}
 \label{subsec:ea-odometria}
 
 El desplazamiento egocéntrico del mapa local ante traslaciones del usuario requiere una estimación
-del movimiento relativo de la cámara. Distintas estrategias están disponibles para este fin:
-integración de giróscopo (odometría inercial pura), odometría visual basada en seguimiento de
-características entre frames consecutivos, y la combinación de ambas en un esquema visual-inercial.
-Cada alternativa presenta compromisos diferentes entre latencia, robustez ante texturas pobres y
-carga computacional sobre hardware embebido \cite{Labbe2019RTAB, Woodman2007, Forster2017}.
+del movimiento relativo de la cámara. El giróscopo permite estimar cambios de orientación, pero su
+integración aislada no observa la traslación y, por lo tanto, no constituye una odometría posicional
+completa. Para estimar trayectoria pueden emplearse el registro geométrico de nubes o la odometría
+RGB-D basada en características visuales y profundidad. Cada alternativa presenta compromisos
+diferentes entre costo computacional, sensibilidad a la geometría o textura de la escena y deriva
+\cite{Labbe2019RTAB, Woodman2007}.
 
-Los trabajos de asistencia a ciegos revisados adoptan soluciones fijas sin comparar alternativas
-sobre hardware embebido portátil: Lee y Medioni~\cite{Lee2016RGBD} emplean odometría
-visual-inercial basada en nubes de puntos densas sobre una laptop, y Zhang et al.
-\cite{Zhang2021DVIO} usan DVIO con optimización de grafos sobre una plataforma robótica. En esta
-tesis se estudian y comparan experimentalmente tres estrategias, cuyas características se resumen
-en la Tabla~\ref{tab:comparacion-odom}.
+Los trabajos de asistencia revisados adoptan soluciones específicas: Lee y Medioni~\cite{Lee2016RGBD}
+emplean una estimación visual-inercial sobre una computadora portátil, mientras que Zhang et
+al.~\cite{Zhang2021DVIO} usan DVIO con optimización de grafos sobre una plataforma robótica. En esta
+tesis se evaluó inicialmente el registro ICP de nubes y se adoptó finalmente
+\texttt{rgbd\_odometry}, del paquete \texttt{rtabmap\_odom} de RTAB-Map. El filtro Madgwick entrega
+una orientación obtenida de acelerómetro y giróscopo como entrada auxiliar; no se presenta esta
+configuración como una VIO estrechamente acoplada, porque RTAB-Map no optimiza conjuntamente los
+estados visuales e inerciales en el esquema utilizado. La Tabla~\ref{tab:comparacion-odom} resume
+las alternativas relevantes y el papel de cada fuente.
 
 \begin{table}[htbp]
 \centering
-\caption{Comparación de estrategias de estimación del movimiento para el desplazamiento egocéntrico del mapa local. Se indica la fuente de información, la implementación empleada y los compromisos esperados en términos de robustez, deriva y carga computacional.}
+\caption{Alternativas consideradas para estimar el movimiento del mapa local y configuración adoptada con \texttt{rtabmap\_odom}.}
 \label{tab:comparacion-odom}
 \begin{tabularx}{\linewidth}{lXXX}
 \toprule
 \textbf{Modo} & \textbf{Fuente} & \textbf{Implementación} & \textbf{Compromisos} \\
 \midrule
-Inercial pura         & Giróscopo (IMU)         & Integración de velocidad angular \cite{Woodman2007}                            & Baja latencia; deriva acumulada en traslaciones \\[4pt]
-Visual pura           & Cámara RGB              & \texttt{rgbd\_odometry} (RTAB-Map \cite{Labbe2019RTAB}); profundidad solo para escalar & Sin deriva inercial; falla ante texturas pobres o movimiento rápido \\[4pt]
-Visual-inercial       & Cámara RGB + IMU        & \texttt{rgbd\_odometry} con prior Madgwick \cite{Madgwick2010, Forster2017}    & Mayor robustez ante pérdida de features; mayor costo computacional \\[4pt]
+Orientación inercial  & Acelerómetro y giróscopo & Madgwick \cite{Madgwick2010} & Aporta orientación; no estima por sí sola la traslación \\[4pt]
+Registro geométrico   & Nube de profundidad      & \texttt{icp\_odometry} de RTAB-Map \cite{Labbe2019RTAB} & Depende de geometría suficiente y de una inicialización válida; alternativa descartada \\[4pt]
+Odometría RGB-D adoptada & Imagen RGB, profundidad y orientación IMU & \texttt{rgbd\_odometry} de \texttt{rtabmap\_odom} \cite{Labbe2019RTAB} & Usa características y profundidad métrica; puede degradarse ante texturas pobres o movimientos rápidos \\[4pt]
 \bottomrule
 \end{tabularx}
 \end{table}
@@ -218,11 +318,16 @@ Visual-inercial       & Cámara RGB + IMU        & \texttt{rgbd\_odometry} con p
 Del análisis anterior se desprenden cuatro brechas concretas en el estado del arte:
 
 \begin{enumerate}
-    \item \textbf{Resolución espacial insuficiente:} los ETA dominantes emplean sensores puntuales que no permiten representar la distribución tridimensional de obstáculos en el campo visual del usuario \cite{Dakopoulos2010, Santos2023, Petsiuk2019UltrasoundNavigation}. En particular, la ausencia de cobertura vertical impide detectar obstáculos a la altura de la cabeza, como ramas, cables o señales colgantes, que escapan al alcance del bastón blanco y requieren información espacial en el eje vertical.
+    \item \textbf{Resolución espacial insuficiente:} los ETA dominantes emplean sensores puntuales
+    que no permiten representar la distribución tridimensional de obstáculos en el campo visual del
+    usuario \cite{Dakopoulos2010, Santos2023, Petsiuk2019UltrasoundNavigation}. En particular, la
+    ausencia de cobertura vertical impide detectar obstáculos a la altura de la cabeza, como ramas,
+    cables o señales colgantes, que escapan al alcance del bastón blanco y requieren información
+    espacial en el eje vertical.
 
     \item \textbf{Ausencia de acumulación temporal de observaciones:} los sistemas basados en
     cámara de profundidad como el de Yang et al.\ \cite{Yang2016} generan retroalimentación
-    directamente desde el frame instantáneo, sin conservar historial de observaciones. La
+    directamente desde el fotograma instantáneo, sin conservar historial de observaciones. La
     consecuencia más relevante no es la incapacidad de resolver oclusiones en profundidad, ya que
     una representación 2D con memoria temporal como la de esta tesis tampoco reconstruye zonas no
     visibles, sino la pérdida de información sobre obstáculos que han salido del campo de visión de
@@ -232,26 +337,26 @@ Del análisis anterior se desprenden cuatro brechas concretas en el estado del a
     la utilidad del sistema para anticipar colisiones con objetos que ya no están siendo
     observados en ese instante.
 
-    \item \textbf{Costo y accesibilidad del hardware:} si bien el producto \emph{SuperBrain~1}
-    \cite{SeventhSense2024SuperBrain} demuestra que un sistema con percepción densa y
-    retroalimentación háptica wearable puede ser portátil y certificado para uso real, su precio de
-    venta del orden de 9.000~euros, resultado de más de quince años de desarrollo, lo hacen
-    inaccesible para la gran mayoría de los usuarios potenciales. Los sistemas académicos de
-    referencia, como el de Lee y Medioni~\cite{Lee2016RGBD}, requieren hardware de propósito general (laptop) que limita aún más la portabilidad. Ninguna solución disponible en la bibliografía académica demuestra la viabilidad del enfoque sobre plataformas de cómputo embebido de bajo costo, del orden de una Raspberry Pi~5~\cite{RaspberryPi}.
+    \item \textbf{Costo y accesibilidad del hardware:} el producto \emph{SuperBrain~1}
+    \cite{SeventhSense2024SuperBrain} muestra que la percepción densa y la realimentación háptica
+    vestible pueden integrarse en una solución comercial, pero su costo se encuentra en el orden de
+    miles de euros y su maduración demandó más de diez años. Entre los trabajos académicos
+    revisados, Lee y Medioni~\cite{Lee2016RGBD} emplean una computadora portátil y Zhang et
+    al.~\cite{Zhang2021DVIO} una plataforma robótica embebida. Estos antecedentes no permiten
+    trasladar directamente sus resultados a un dispositivo corporal basado en Raspberry Pi~5; por
+    ello, esta tesis debe caracterizar experimentalmente el costo computacional de su propia
+    configuración.
 
-    \item \textbf{Latencia extremo a extremo no caracterizada:} ninguno de los sistemas revisados
-    caracteriza explícitamente el retardo extremo a extremo desde sensor hasta actuador, ni lo
-    establece como requisito de diseño explícito conectado con umbrales de percepción del usuario.
-    Yang et al.\ \cite{Yang2016} reportan el tiempo de procesamiento por cuadro (610\,ms) como
-    métrica de rendimiento computacional, pero no lo relacionan con un umbral de utilidad para el
-    usuario durante la marcha. Los demás trabajos reportan frecuencias de actualización (Lee y
-    Medioni: $\approx 30$\,Hz; Zhang et al.: 18\,Hz) o tiempos de medición del sensor (Petsiuk y
-    Pearce: $\approx 24$\,ms de vuelo acústico), sin caracterizar el retardo extremo a extremo
-    hasta el actuador. Para que la retroalimentación háptica sea útil durante la marcha, la
-    latencia debe mantenerse por debajo del umbral de percepción humana del retardo sensoriomotor,
-    de modo que el estímulo resulte imperceptiblemente asociado al obstáculo presente y no a uno ya
-    superado. Este criterio guía la optimización del pipeline desarrollado en esta tesis y
-    constituye una de las métricas de evaluación del Capítulo~\ref{chap:experimentos}.
+    \item \textbf{Necesidad de baja latencia:} las métricas temporales publicadas por los trabajos
+    revisados no son directamente comparables, porque pueden referirse a frecuencia del sensor,
+    tiempo de procesamiento o tasa de actualización, y no necesariamente al recorrido completo
+    desde la adquisición hasta la advertencia. En un sistema de asistencia utilizado durante la
+    marcha, la información debe actualizarse con suficiente rapidez para representar el obstáculo
+    antes de que el usuario alcance su posición. Por ello, el retardo debe analizarse en relación
+    con la velocidad de desplazamiento, la distancia de detección y el tiempo disponible para
+    reaccionar, no solo con la frecuencia nominal de un nodo. Esta tesis incluye la latencia extremo
+    a extremo entre las métricas del Capítulo~\ref{chap:experimentos}; el umbral de aceptación se
+    definirá antes de interpretar los resultados.
 \end{enumerate}
 
 La presente tesis aborda estas cuatro brechas mediante la adaptación y validación de técnicas de
@@ -263,8 +368,8 @@ ejecución sobre hardware embebido de bajo consumo. Se adopta una representació
 de 5 filas $\times$ 10 columnas, compatible con arreglos de actuadores hápticos de baja complejidad y con las
 restricciones de ancho de banda y cómputo de plataformas embebidas, con un compromiso explícito
 entre resolución espacial y frecuencia de actualización en línea con la discusión de la
-\Cref{subsec:ea-mapas-reactivos}. La representación 2D descripta en la \Cref{subsec:ea-2d} aborda la
-brecha de resolución vertical, la grilla log-odds con historial la de memoria temporal, y la
-plataforma Raspberry Pi~5 la brecha de costo y accesibilidad de hardware. La estrategia de
-estimación del movimiento más adecuada se determinará a partir de la comparación experimental de
-los modos descritos en la \Cref{subsec:ea-odometria}.
+\Cref{subsec:ea-mapas-reactivos}. La cobertura vertical se obtiene durante el procesamiento 3D,
+antes de proyectar los obstáculos; la grilla 2D conserva ocupación sobre el plano horizontal y
+aporta memoria temporal, pero no mantiene información de altura. La plataforma Raspberry Pi~5
+permite evaluar el costo computacional sobre hardware embebido, y la configuración de movimiento
+adoptada se describe en la \Cref{subsec:ea-odometria}.
