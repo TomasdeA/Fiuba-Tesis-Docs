@@ -139,6 +139,24 @@ en ejecución.
 
 El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe \code{depth/image}, remapeado desde \code{RS/depth/image\_rect\_raw} en \code{nav.launch.py}, y reduce la imagen de profundidad densa a una grilla compacta de $R \times C$ celdas (por defecto, 5 filas $\times$ 10 columnas) mediante partición en regiones de interés y cálculo de estadísticas por celda. El resultado se publica en \code{/perception/depth\_grid} como \code{custom\_interfaces/msg/DepthGrid}. Esta versión establece la referencia funcional de menor latencia sobre la cual se evalúan las mejoras posteriores.
 
+La Figura~\ref{fig:mensajes-v0} explicita el contrato de datos de esta ruta. Cada flecha se lee
+en tres niveles: nombre de tópico, tipo de mensaje y contenido relevante. La entrada conserva la
+profundidad del sensor como una imagen \texttt{16UC1} expresada en milímetros; el codificador la
+convierte a una \texttt{DepthGrid} de $5\times10$ celdas cuyas estadísticas se expresan en
+metros. A partir del mínimo de cada celda, \texttt{haptic\_grid\_generator} produce la
+\texttt{HapticGrid} de intensidades lógicas que recibe \texttt{hardware\_manager}. De esta
+forma, el diagrama distingue la representación geométrica de la orden háptica y evita atribuir
+al gestor de hardware el cálculo de intensidad.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{mensajes/mensajes-v0}
+  \caption{Mensajes funcionales de v0. La imagen de profundidad se reduce a
+  \texttt{DepthGrid}, se transforma en una matriz lógica \texttt{HapticGrid} y se entrega a la
+  interfaz de transmisión.}
+  \label{fig:mensajes-v0}
+\end{figure}
+
 \section{Versión v1: refinamiento de la percepción frontal}
 \label{sec:arq-filtro-obstaculos}
 
@@ -162,6 +180,24 @@ La nube de obstáculos es consumida por \code{obstacle\_grid\_encoder}, del paqu
 \code{/perception/depth\_grid}. De este modo, v0 y v1 ofrecen el mismo contrato
 \texttt{DepthGrid} a las etapas posteriores, aunque lo construyen a partir de fuentes diferentes.
 
+La Figura~\ref{fig:mensajes-v1} muestra ese reemplazo sin presentar v1 como una cadena
+independiente. \texttt{depth\_obstacle\_filter} necesita tres entradas del sensor: profundidad
+rectificada, parámetros intrínsecos y aceleración lineal. Sus salidas funcionales hacia el
+codificador son la nube de obstáculos, expresada en metros en el marco alineado con gravedad, y
+la altura filtrada de cámara. La primera determina qué puntos se agregan; la segunda actualiza
+el límite vertical usado para distribuirlos entre las cinco filas. El resultado vuelve a ser el
+mismo tipo \texttt{DepthGrid} de v0, por lo que la codificación háptica y la interfaz de salida
+no necesitan cambiar.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth,trim=0 125 0 0,clip]{mensajes/mensajes-v1}
+  \caption{Mensajes funcionales de v1. La imagen, los intrínsecos y el acelerómetro permiten
+  obtener una nube de obstáculos alineada y codificarla conservando el contrato
+  \texttt{DepthGrid}--\texttt{HapticGrid} de v0.}
+  \label{fig:mensajes-v1}
+\end{figure}
+
 Esta decisión separa responsabilidades dentro de la cadena: la orientación
 completa estimada por \texttt{imu\_filter\_madgwick} se reserva para la
 odometría visual-inercial, mientras que \texttt{depth\_obstacle\_filter}
@@ -175,6 +211,25 @@ Secciones~\ref{sec:metodo-v1-proyeccion} a~\ref{sec:metodo-v1-angular}.
 
 \section{Versión v2: memoria espacial y protección contextual}
 \label{sec:arq-mapeo}
+
+La versión v2 mantiene en la rama inferior de la Figura~\ref{fig:mensajes-v2} la percepción
+frontal de v1 y agrega dos recorridos auxiliares. El primero obtiene \texttt{nav\_odom} mediante
+odometría RGB-D: RTAB-Map consume color, sus intrínsecos, imagen de profundidad registrada en el
+marco óptico de la cámara RGB y la orientación publicada por \texttt{imu\_filter\_madgwick}. El
+segundo combina esa odometría con las nubes de evidencia ocupada y libre para construir
+\texttt{OccupancyGrid}. A partir del mapa y del estado de movimiento, \texttt{spatial\_awareness}
+publica el riesgo contextual que vuelve a \texttt{haptic\_grid\_generator}. Por lo tanto, la rama
+superior no reemplaza la percepción instantánea: aporta una segunda entrada que se fusiona antes de
+producir la única \texttt{HapticGrid} de salida.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{mensajes/mensajes-v2}
+  \caption{Mensajes funcionales de v2. La ruta frontal se complementa con odometría, memoria
+  local y riesgo contextual, que se fusiona antes de publicar la matriz háptica final. Se
+  muestran únicamente los mensajes que intervienen en el procesamiento funcional principal.}
+  \label{fig:mensajes-v2}
+\end{figure}
 
 El nodo \code{occupancy\_mapper\_node} (paquete \texttt{local\_mapper}) es
 exclusivamente responsable de la acumulación del mapa de ocupación. Suscribe
