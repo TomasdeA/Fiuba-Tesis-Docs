@@ -2,6 +2,19 @@ Los fundamentos se agrupan según la versión en la que cada herramienta se inco
 motivación y el alcance de v0, v1 y v2 se establecen en la
 Sección~\ref{sec:intro-objetivo-tecnico}.
 
+\providecommand{\graficopendiente}[1]{%
+  \begin{center}
+    \fcolorbox{red}{white}{\parbox{0.90\textwidth}{%
+      \centering\color{red}\textbf{GRÁFICO PENDIENTE.} #1}}
+  \end{center}}
+
+Este capítulo explica el significado de las representaciones y transformaciones utilizadas.
+La correspondencia concreta entre nodos, mensajes de entrada y mensajes de salida se muestra,
+para v0, v1 y v2, en las Figuras~\ref{fig:mensajes-v0}, \ref{fig:mensajes-v1} y
+\ref{fig:mensajes-v2} del capítulo de arquitectura. Esta separación permite desarrollar aquí
+los fundamentos sin repetir la topología de software y, a la vez, ofrece una guía para seguir
+cada concepto hasta el dato que efectivamente circula por ROS~2.
+
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v0: percepción directa, ROS~2 y salida háptica}
 \label{sec:mt-v0}
@@ -50,25 +63,46 @@ semejanza de triángulos en el sistema estereoscópico se obtiene:
   Z = \frac{f\,B}{d},
   \label{eq:stereo-depth}
 \end{equation}
-donde $Z$ es la profundidad, $f$ la distancia focal en píxeles y $B$ la separación entre
-cámaras
+Aquí, $Z$ es la profundidad del punto respecto del sistema estéreo, $B$ es la separación
+entre los centros ópticos de las cámaras y $f$ es la distancia focal expresada en píxeles
 \cite{Hartley2004,Scharstein2002}. La ecuación~\ref{eq:stereo-depth} muestra que el error de
 profundidad crece al disminuir la disparidad, por lo que las mediciones lejanas son más
 sensibles al ruido y a errores de correspondencia.
 
+La Figura~\ref{fig:mt-estereo-disparidad} representa cada imagen rectificada únicamente sobre
+su eje horizontal. Las variables $u_L$ y $u_R$ son las coordenadas, en píxeles, donde se
+observa el mismo punto en las imágenes izquierda y derecha; su diferencia es la disparidad
+$d$. Los planos de imagen se dibujan delante de las cámaras porque se utiliza el modelo
+\emph{pinhole} con un plano virtual. En la cámara física, el sensor se encuentra detrás del
+centro óptico y forma una imagen invertida; trasladar conceptualmente ese plano hacia delante
+permite representar una imagen derecha sin modificar la geometría de proyección. Por ello, el
+plano mostrado no representa un segundo sensor ni su posición física. La longitud rotulada
+$f$ representa la distancia focal del modelo y, para combinarla con una disparidad medida en
+píxeles en la Ecuación~\ref{eq:stereo-depth}, se utiliza su valor calibrado también en píxeles.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.72\textwidth]{__Graficos/marco_teorico/estereo_disparidad/salida/estereo_disparidad.png}
+  \caption{Geometría estéreo rectificada. Un mismo punto se proyecta en las coordenadas
+  horizontales $u_L$ y $u_R$ de los planos virtuales de imagen; su diferencia define la
+  disparidad $d$.}
+  \label{fig:mt-estereo-disparidad}
+\end{figure}
+
 La D435i publica, además de la imagen de profundidad, flujos de color, profundidad alineada a
-color, parámetros intrínsecos de cámara y señales inerciales. En v0 se utiliza
-principalmente la imagen de profundidad rectificada y su \texttt{CameraInfo}. En v1 se
-incorpora la IMU a través del acelerómetro, no para estimar desplazamiento, sino para obtener
-la dirección de la gravedad y estabilizar la nube antes de detectar el suelo. En v2 se agregan
-la imagen RGB, la profundidad alineada a color y la orientación IMU filtrada; en esta etapa
-también se utiliza el giróscopo, integrado por el filtro de Madgwick, como apoyo de
-\texttt{rgbd\_odometry}.
+color, parámetros intrínsecos de cámara y señales inerciales. La distancia focal ya interviene
+en el cálculo estéreo que la cámara realiza internamente para producir $D(u,v)$. Sin embargo,
+obtener la profundidad $Z$ de un píxel no equivale a conocer la posición tridimensional
+completa del punto: para recuperar también sus coordenadas $X$ e $Y$ es necesario relacionar
+la posición $(u,v)$ dentro de la imagen con la geometría calibrada de la cámara. Esta relación,
+y la razón por la que v0 y v1 utilizan entradas diferentes, se formalizan mediante el modelo
+\emph{pinhole} de la subsección siguiente.
 
 \subsection{Modelo de cámara \emph{pinhole} y proyección inversa}
 \label{subsec:mt-pinhole}
 
-El procesamiento geométrico se apoya en el modelo \emph{pinhole}. Un punto
+El modelo \emph{pinhole} relaciona las coordenadas de imagen con las coordenadas espaciales.
+Un punto
 $\mathbf{P}=(X,Y,Z)^T$ expresado en el marco de la cámara se proyecta al píxel $(u,v)$
 mediante:
 \begin{equation}
@@ -95,6 +129,15 @@ Los parámetros de $K$ se obtienen del mensaje \texttt{sensor\_msgs/CameraInfo},
 fijar intrínsecos a mano y mantiene coherencia con el perfil activo de resolución y
 calibración
 \cite{Hartley2004}.
+
+La diferencia entre ambas versiones no consiste, entonces, en que v0 prescinda de la
+calibración de la cámara, sino en dónde se utiliza. La RealSense la aplica internamente para
+entregar $D(u,v)$ a ambas versiones; solo v1 vuelve a consultar los intrínsecos porque necesita
+obtener $X$ e $Y$. En v0, cada píxel permanece en coordenadas de imagen y se agrega
+directamente dentro de su ROI. En v1 puede procesarse un píxel cada $s$ posiciones en ambas
+direcciones. Este \emph{pixel stride} reduce
+aproximadamente la cantidad de proyecciones por un factor $s^2$; no debe confundirse con el
+\emph{voxel grid}, que agrupa puntos después de proyectarlos al espacio tridimensional.
 
 \subsection{Limitaciones por superficies especulares e iluminación intensa}
 \label{subsec:mt-depth-reflections}
@@ -147,10 +190,10 @@ parámetros intrínsecos como \texttt{sensor\_msgs/CameraInfo}, la grilla compac
 explícitos se evita codificar semántica en arreglos sin contexto y se preserva trazabilidad
 entre nodos.
 
-\subsection{Reducción espacial del mapa de profundidad}
+\subsection{Reducción espacial de la imagen de profundidad}
 \label{sec:mt-depth-grid-encoder}
 
-Un mapa de profundidad a resolución nativa contiene cientos de miles de píxeles por frame,
+Una imagen de profundidad a resolución nativa contiene cientos de miles de píxeles por fotograma,
 pero esa densidad no puede trasladarse de forma directa a una interfaz háptica corporal. La
 limitación principal no es solamente computacional o de transmisión, sino perceptual: el
 usuario no puede distinguir de manera confiable estímulos hápticos arbitrariamente cercanos
@@ -181,11 +224,33 @@ se acumulan:
   N_{r,c} = \#\{\text{píxeles válidos}\}.
   \label{eq:cell-stats}
 \end{equation}
-Junto con el máximo $z^{\max}_{r,c}$, estas estadísticas permiten distinguir ausencia de
-medición, obstáculo cercano y distribución de profundidad dentro de una región. El mínimo
-es conservador porque preserva el obstáculo más cercano, mientras que la media atenúa
-píxeles aislados
+Junto con el máximo $z^{\max}_{r,c}$, estas estadísticas describen distintos aspectos de una
+región: el mínimo conserva la superficie medida más cercana, la media resume el conjunto de
+lecturas válidas y el máximo conserva la más lejana
 \cite{hornung2013octomap}.
+
+Por ejemplo, para las profundidades $[1{,}20;0;1{,}35;1{,}10]$ m de una celda, el cero se
+descarta como medición inválida y se obtiene $N=3$, $z^{\min}=1{,}10$ m,
+$z^{\max}=1{,}35$ m y $\bar z\simeq1{,}22$ m. Este ejemplo muestra cómo varios píxeles de la
+imagen quedan resumidos en las estadísticas de una única celda de \texttt{DepthGrid}; la
+selección del estadístico empleado para generar la intensidad se presenta como decisión de
+diseño en la Sección~\ref{sec:metodo-v0-intensidad}.
+
+La Figura~\ref{fig:mt-reduccion-depth-grid} muestra esta reducción sobre un fotograma real. La
+misma ROI se destaca en la imagen original, en su ampliación y en la posición correspondiente
+de la grilla. Los píxeles negros representan mediciones inválidas o fuera del rango operativo.
+Para visualizar la grilla completa se representa el campo mínimo de cada celda, mientras que
+el recuadro de la ROI informa también cantidad, media y máximo. La coincidencia indicada en la
+figura verifica que esos valores fueron recalculados desde la imagen emparejada y coinciden con
+el mensaje \texttt{DepthGrid} publicado.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/marco_teorico/reduccion_depth_grid/salida/reduccion_depth_grid.png}
+  \caption{Reducción espacial de una imagen de profundidad de $1280\times720$ píxeles a una
+  \texttt{DepthGrid} de 5 filas por 10 columnas. La captura proviene de la ejecución de v0.}
+  \label{fig:mt-reduccion-depth-grid}
+\end{figure}
 
 \subsection{Codificación angular de la nube filtrada}
 \label{sec:mt-angular-grid}
@@ -208,6 +273,41 @@ La ecuación~\ref{eq:radial-distance} evita subestimar obstáculos laterales: us
 puede hacer que dos obstáculos con distinta separación lateral parezcan equivalentes si
 comparten la misma componente frontal.
 
+La codificación implementada conserva cinco bandas métricas sobre el eje vertical. En el eje
+horizontal acumula primero sobre una grilla angular intermedia de mayor resolución que cubre
+la apertura configurada del sensor y luego reduce únicamente la apertura activa a las diez
+columnas publicadas. Así, modificar la apertura redistribuye los sectores visibles sin alterar
+el tamaño de la interfaz. En modo angular, la fila cero corresponde al límite vertical
+$y_{\min}$ y la última fila al límite $y_{\max}$. El modo métrico histórico invierte ese orden
+y no se utiliza como referencia para la configuración angular.
+
+La Figura~\ref{fig:mt-codificacion-angular} vincula la imagen de profundidad de entrada con
+una nube real publicada por \texttt{depth\_obstacle\_filter}. La imagen permite reconocer la
+escena antes de la proyección y del filtrado geométrico; no se divide en ROIs porque, a
+diferencia de v0, en v1 la asignación se realiza sobre la nube 3D. En la vista superior, las
+líneas discontinuas delimitan la apertura angular intermedia de $\pm70^{\circ}$, discretizada
+internamente en sectores de $1^{\circ}$. Las líneas continuas delimitan las diez columnas de salida
+dentro de la apertura nominal de $\pm45^{\circ}$; el color de cada punto indica la columna a la que
+fue asignado. La línea punteada roja marca el límite inferior efectivo de $-54^{\circ}$. Esta
+asimetría surge porque la conversión a índice entero implementada trunca hacia cero los
+valores inmediatamente inferiores al límite nominal y los asigna a la columna 0. En la vista
+lateral, el intervalo $[y_{\min},y_{\max})=[-0{,}20,1{,}50)$~m se
+divide en cinco bandas métricas: la fila 0 comienza en $y_{\min}$ y la fila 4 termina en
+$y_{\max}$. Finalmente, la matriz muestra la distancia radial mínima conservada en cada
+celda. Por ello puede aparecer una distancia ligeramente mayor que el límite aplicado a
+$z$: el filtrado limita la componente frontal, mientras que la matriz almacena
+$d=\sqrt{x^2+z^2}$.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/marco_teorico/codificacion_angular/salida/codificacion_angular.png}
+  \caption{Imagen de profundidad de entrada y codificación angular y vertical de su nube de
+  obstáculos filtrada en una
+  \texttt{DepthGrid} de 5 filas por 10 columnas. La reconstrucción fuera de línea coincide
+  celda por celda con las estadísticas publicadas por \texttt{obstacle\_grid\_encoder}.}
+  \label{fig:mt-codificacion-angular}
+\end{figure}
+
 \subsection{Mapeo de distancia a comando de intensidad}
 \label{sec:mt-dist-to-intensity}
 
@@ -224,10 +324,18 @@ saturación en los extremos del rango útil:
   \end{cases}
   \label{eq:intensity-mapping}
 \end{equation}
-En la ecuación~\ref{eq:intensity-mapping}, $z_{\min}$ y $z_{\max}$ delimitan el rango de
-operación, $I_{\max}$ es la intensidad máxima e $I_i$ es la intensidad lógica asociada a la celda
-$i$. Esta conversión se realiza en \texttt{haptic\_grid\_generator}; las celdas sin medición válida
-permanecen inactivas.
+En la ecuación~\ref{eq:intensity-mapping}, $z_{\min}$ y $z_{\max}$ delimitan exclusivamente
+el rango de conversión háptica, configurado entre $0{,}25$ y $3{,}0$~m; $I_{\max}$ es la
+intensidad máxima e $I_i$ es la intensidad lógica asociada a la celda $i$. Estos límites no
+coinciden con el intervalo perceptivo completo. Los codificadores de v0 y v1 aceptan
+mediciones entre $0{,}25$ y $5{,}0$~m: las que quedan fuera de ese intervalo se descartan y,
+si una celda no conserva ninguna muestra, publica contador nulo y estadísticas
+\texttt{NaN}. \texttt{haptic\_grid\_generator} trata esa celda como inactiva y le asigna
+intensidad cero. En cambio, una distancia válida comprendida entre $3{,}0$ y $5{,}0$~m se
+conserva en \texttt{DepthGrid}, pero la saturación de la
+Ecuación~\ref{eq:intensity-mapping} produce intensidad cero. En la implementación actual esa
+celda conserva el indicador \texttt{active} porque contiene una medición válida, aunque el
+comando de salida sea nulo.
 
 La intensidad lógica no es todavía el ciclo de trabajo aplicado a un motor. La interfaz UART
 posterior limita $I_i$ al intervalo $[0,100]$ y la escala mediante el máximo configurado
@@ -247,6 +355,20 @@ $D_{\max}$:
 \end{equation}
 Esta segunda operación no vuelve a interpretar la distancia: solo adapta el comando ya calculado
 al límite de salida y lo prepara para su serialización.
+
+La Figura~\ref{fig:mt-distancia-intensidad} representa esta diferencia entre el rango
+perceptivo y el rango de conversión háptica. El tramo constante a intensidad máxima por
+debajo de $0{,}25$~m describe la saturación matemática de la función, aunque esas mediciones
+son descartadas normalmente por los nodos perceptivos antes de alcanzar esta etapa.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.92\textwidth]{__Graficos/marco_teorico/distancia_intensidad/salida/distancia_intensidad.png}
+  \caption{Conversión de la distancia mínima válida en intensidad lógica. Las mediciones
+  válidas entre 3 y 5~m permanecen en \texttt{DepthGrid}, pero producen intensidad nula; una
+  celda sin mediciones válidas contiene estadísticas \texttt{NaN} y queda inactiva.}
+  \label{fig:mt-distancia-intensidad}
+\end{figure}
 
 \subsection{Comunicación serie embebida}
 \label{sec:mt-uart}
@@ -278,6 +400,18 @@ En esta tesis se implementan la construcción y la transmisión de la trama, per
 la conversión de los valores transmitidos en estímulos físicos. El microcontrolador receptor, la
 electrónica de potencia y los actuadores pertenecen a la segunda etapa del proyecto.
 
+La separación funcional es, por lo tanto, la siguiente: \texttt{haptic\_grid\_generator}
+calcula la intensidad lógica, \texttt{hardware\_manager} la limita, escala y serializa, y
+\texttt{output\_viewer} permite verificar la matriz sin depender del hardware físico.
+
+El flujo entre estos componentes se muestra en la Figura~\ref{fig:mensajes-v0}: la
+\texttt{DepthGrid} es transformada por \texttt{haptic\_grid\_generator} en una
+\texttt{HapticGrid}, que constituye el contrato común de salida. A partir de ese mensaje,
+\texttt{hardware\_manager} construye la trama UART descripta en esta sección, mientras que
+\texttt{output\_viewer} permite inspeccionar directamente la misma matriz lógica sin
+intervenir en su cálculo ni en su transmisión. Las responsabilidades y las interfaces de
+ambas ramas se detallan en las Secciones~\ref{sec:arq-hardware} y~\ref{sec:arq-viz}.
+
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v1: orientación, gravedad y suelo}
 \label{sec:mt-v1}
@@ -285,7 +419,7 @@ electrónica de potencia y los actuadores pertenecen a la segunda etapa del proy
 La versión v1 parte de la solución funcional establecida en v0 y conserva su salida compacta, pero
 mejora la interpretación previa de las mediciones al modificar la fuente de la grilla: en
 lugar de codificar profundidad cruda, primero proyecta la imagen a una nube 3D, la alinea con
-la gravedad y separa suelo, obstáculos y techo. La teoría de esta etapa combina
+la gravedad y separa suelo, obstáculos y una región superior excluida. La teoría de esta etapa combina
 representaciones de orientación, filtrado inercial y estimación robusta de planos. En esta
 versión no se utiliza Madgwick de forma deliberada: la decisión de diseño es estimar
 solamente la vertical necesaria para remover el suelo, evitando incorporar una estimación
@@ -417,7 +551,9 @@ temporal:
   \label{eq:accel-roll-pitch}
 \end{equation}
 La ecuación~\ref{eq:accel-roll-pitch} no estima yaw, ya que la gravedad no contiene
-información sobre rotación alrededor de la vertical. Para construir el marco alineado a
+información sobre rotación alrededor de la vertical. Estas expresiones permiten interpretar
+la medición, pero la implementación no calcula ambos ángulos para encadenar sus rotaciones.
+Para construir el marco alineado a
 gravedad se calcula la rotación mínima que lleva el vector de aceleración normalizado
 $\hat{\mathbf{a}}$ al vector canónico $\hat{\mathbf{b}}=(0,-1,0)$. En forma proporcional:
 \begin{align}
@@ -460,8 +596,11 @@ antes de usarlo como referencia vertical se aplica un filtro IIR pasa bajos de p
 \end{equation}
 La constante usada en el código, $\alpha\approx0{,}136$, corresponde a una frecuencia de corte
 aproximada de $5\,\text{Hz}$ con una tasa de muestreo cercana a $200\,\text{Hz}$
-\cite{oppenheim1999dsp}. Además, se descartan muestras cuya norma supera $2{,}5g$ y se activa un
-indicador de dinámica cuando la norma filtrada se aleja más de $0{,}5\,\text{m/s}^2$ de $g$.
+\cite{oppenheim1999dsp}. Además, se descartan muestras cuya norma supera $2{,}5g$ y se calcula un
+indicador diagnóstico de dinámica cuando la norma filtrada se aleja más de
+$0{,}5\,\text{m/s}^2$ de $g$. El indicador informa que la medición puede contener una
+componente dinámica significativa, pero en la versión implementada no bloquea ni reemplaza
+por sí solo la rotación estimada.
 Este esquema permite estabilizar la vertical sin depender de la odometría ni de un filtro de
 orientación completo, manteniendo el procesamiento de v1 acotado para tiempo real.
 
@@ -476,8 +615,8 @@ yaw evoluciona como:
 \end{equation}
 La ecuación~\ref{eq:heading-integration} permite entender la deriva: un sesgo constante del
 giróscopo produce error angular acumulativo \cite{Woodman2007}. En v1, este yaw no es
-necesario para segmentar suelo; en v2, la orientación horizontal se corrige mediante
-odometría visual-inercial.
+necesario para segmentar suelo; en v2, la orientación horizontal se obtiene de la odometría
+RGB-D, que recibe la orientación filtrada de la IMU como entrada auxiliar.
 
 \subsection{Detección del plano del suelo}
 \label{sec:mt-ground-detection}
@@ -509,14 +648,20 @@ de la nube
   \frac{1}{m}\sum_{i=1}^{m}\min_{j\neq i}\lVert\mathbf{p}_i-\mathbf{p}_j\rVert.
   \label{eq:nn-dist}
 \end{equation}
-La desviación estándar de esa distribución, $\sigma_{NN}$, aproxima el ruido puntual. Bajo
-una hipótesis gaussiana, una tolerancia $\varepsilon=3\sigma_{NN}$ cubre el $99{,}7\,$\% de
-las mediciones esperadas para puntos del plano, con cotas inferiores y superiores para evitar
-inestabilidad numérica:
+La desviación estándar de esa distribución, $\sigma_{NN}$, se usa como indicador empírico de
+la variabilidad espacial de la nube. No equivale estrictamente a la desviación de residuos
+gaussianos respecto de un plano: también depende de la densidad, las discontinuidades y el
+submuestreo. Por eso, el factor tres constituye una heurística de adaptación y no un intervalo
+de confianza probabilístico:
 \begin{equation}
   \varepsilon = 3\,\sigma_{NN}.
   \label{eq:adaptive-tol}
 \end{equation}
+
+En la configuración automática, el resultado se restringe al intervalo de $0{,}01$ a
+$0{,}10$ m; si no puede estimarse se emplea $0{,}03$ m. Durante la evaluación de cada punto,
+esta tolerancia se combina además con un término proporcional al alcance, como se desarrolla
+en la Ecuación~\ref{eq:variable-tol}.
 
 \subsection{Submuestreo por voxel grid}
 \label{subsec:mt-voxel}
@@ -545,6 +690,11 @@ aportan al representante de esa celda. No se conserva el mínimo, el máximo ni 
 cercana: el filtro suaviza localmente la nube y reduce la cantidad de puntos. Esta propiedad es
 apropiada para estimar geometría dominante, como el plano del suelo, pero puede atenuar detalles
 pequeños si se usara como representación final de obstáculos.
+
+El filtro está implementado como alternativa, pero se encuentra desactivado en la
+configuración operacional analizada. En esa configuración se conserva la nube proyectada y
+se limita la cantidad de candidatos de RANSAC dentro de la banda de alturas. Por lo tanto, el
+\emph{voxel grid} no debe interpretarse como una etapa obligatoria del recorrido activo.
 
 \begin{figure}[ht]
   \centering
@@ -655,6 +805,52 @@ Con este criterio, el plano no se estima a partir de toda la nube por igual. La 
 concentra en la región donde es esperable observar el piso y evalúa la calidad dentro de esa
 región, incorporando además una tolerancia compatible con el ruido de profundidad.
 
+Estos recursos proporcionan los fundamentos para construir un estimador robusto, pero su orden
+y sus condiciones de aceptación dependen del método adoptado. El procedimiento utilizado en
+este trabajo, incluidos la reutilización temporal, los caminos de fallo y la clasificación
+final, se presenta en la Sección~\ref{sec:metodo-v1-suelo}.
+
+\subsection{Clasificación geométrica y región superior excluida}
+\label{subsec:mt-point-classification}
+
+Una vez obtenido el plano, la distancia con signo permite separar los puntos compatibles con
+el suelo de los obstáculos. Se etiqueta como suelo un punto dentro de la tolerancia o situado
+por debajo del plano estimado. Entre los restantes, los puntos cuya coordenada satisface
+$Y<-\Delta_c$ se asignan a una región superior excluida, con $\Delta_c=0{,}10$ m en la
+configuración analizada; los demás se conservan como obstáculos.
+
+Esta región no constituye una detección semántica de techos. Reúne cualquier medición situada
+más de $\Delta_c$ por encima de la cámara y puede contener ramas, carteles u otros elementos
+elevados. Se mantiene el término \texttt{CEILING} únicamente al referirse a la etiqueta del
+mensaje o del código. Su descarte y el empleo submuestreado de esos puntos como extremos de
+espacio libre son decisiones que deben validarse experimentalmente, porque una proyección 2D
+puede perder información sobre obstáculos elevados.
+
+La aplicación de esta clasificación sobre una escena real se muestra en las
+Figuras~\ref{fig:metodo-gravity-alignment}
+y~\ref{fig:metodo-ground-ceiling-classification}. La primera permite observar el cambio de
+marco previo a la estimación; la segunda muestra la separación resultante entre suelo, región
+superior excluida y los puntos conservados como obstáculos.
+
+\subsection{Realimentación de la altura de cámara}
+\label{subsec:mt-camera-height}
+
+La distancia del origen al plano estimado proporciona una medición de la altura de la cámara.
+Para impedir que errores aislados modifiquen bruscamente la grilla, esta estimación solo se
+acepta cuando el plano supera requisitos de calidad, cantidad de inliers e inclinación. La
+altura aceptada se filtra, se limita el cambio por actualización y los saltos grandes deben
+repetirse de forma coherente antes de iniciar una transición más rápida.
+
+El valor resultante actualiza el límite vertical superior usado por la codificación espacial.
+De este modo, las cinco filas mantienen una relación con el espacio comprendido entre la zona
+inferior y la altura observada de la cámara, aun cuando cambie el usuario o la posición de
+montaje. Esta realimentación modifica la asignación vertical, pero no altera la matriz final de
+5 filas por 10 columnas.
+
+El procedimiento adoptado para validar y realimentar esta altura se presenta en la
+Sección~\ref{sec:metodo-v1-altura}; su evaluación experimental se define en el bloque v1 del
+capítulo de experimentos.
+
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v2: odometría, mapa local y conciencia espacial}
 \label{sec:mt-v2}
@@ -685,35 +881,84 @@ dinámica no domina la medición \cite{Woodman2007}. Esta complementariedad moti
 un filtro que propague la orientación con el giróscopo y la corrija con la dirección de
 gravedad medida por el acelerómetro.
 
-Para este propósito se usa el filtro de Madgwick \cite{Madgwick2010}. La propagación por
-giróscopo puede
-escribirse como:
+Para este propósito se usa el filtro de Madgwick \cite{Madgwick2010}. Para mantener la
+correspondencia con el diagrama original, se adopta en esta sección su notación: $S$ es el
+marco del sensor, $E$ es el marco de referencia, el sombrero indica un cuaternión unitario y
+$t$ identifica la muestra actual. La rama inferior de la
+Figura~\ref{fig:mt-madgwick-bloques} comienza con la derivada de orientación calculada a
+partir del giróscopo:
 \begin{equation}
-  \dot{q}_{\omega} =
-  \frac{1}{2}\,q\otimes(0,\boldsymbol{\omega}),
+  {}^S_E\dot{q}_{\omega,t} =
+  \frac{1}{2}\,{}^S_E\hat{q}_{\mathrm{est},t-1}
+  \otimes {}^S\!\boldsymbol{\omega}_t,
   \label{eq:quat-gyro-prop}
 \end{equation}
-donde $\boldsymbol{\omega}$ es la velocidad angular medida. La corrección ajusta el
-cuaternión para reducir el error entre la gravedad medida y la gravedad esperada. En este
-sistema se deshabilita el magnetómetro, por lo que el filtro aporta principalmente una
-estimación estable de roll y pitch para inicializar y regular \texttt{rgbd\_odometry}. La
-corrección de la deriva horizontal proviene de la odometría visual.
+donde ${}^S\!\boldsymbol{\omega}_t$ es la velocidad angular expresada en el marco del sensor y
+${}^S_E\hat{q}_{\mathrm{est},t-1}$ es la orientación estimada en la muestra anterior. En la
+rama superior, el acelerómetro normalizado ${}^S\hat{a}_t$ define la dirección de gravedad
+observada. La diferencia respecto de la gravedad predicha por el cuaternión anterior se
+expresa mediante la función objetivo $f_g$; su jacobiano $J_g$ permite obtener la dirección
+de corrección:
+\begin{equation}
+  \nabla f_g =
+  J_g^{T}\!\left({}^S_E\hat{q}_{\mathrm{est},t-1}\right)
+  f_g\!\left({}^S_E\hat{q}_{\mathrm{est},t-1},{}^S\hat{a}_t\right).
+  \label{eq:madgwick-gradient}
+\end{equation}
+El sumador central combina ambas ramas restando el gradiente normalizado, ponderado por la
+ganancia $\beta$:
+\begin{equation}
+  {}^S_E\dot{q}_{\mathrm{est},t} =
+  {}^S_E\dot{q}_{\omega,t}
+  -\beta\frac{\nabla f_g}{\lVert\nabla f_g\rVert}.
+  \label{eq:madgwick-corrected-rate}
+\end{equation}
+Finalmente, el bloque de integración actualiza la orientación, el bloque siguiente la
+normaliza y los dos retardos $z^{-1}$ del diagrama realimentan el valor correspondiente a la
+muestra anterior:
+\begin{equation}
+  {}^S_E\hat{q}_{\mathrm{est},t} =
+  \operatorname{norm}\!\left(
+  {}^S_E\hat{q}_{\mathrm{est},t-1}
+  +{}^S_E\dot{q}_{\mathrm{est},t}\,\Delta t
+  \right).
+  \label{eq:madgwick-integration}
+\end{equation}
+En esta sección se presentan únicamente las relaciones necesarias para interpretar el
+diagrama y comprender el uso del filtro dentro del sistema. La derivación completa de la
+función objetivo, su jacobiano, el descenso de gradiente y las expresiones optimizadas para
+las implementaciones IMU y MARG puede consultarse en el informe interno original de
+Madgwick~\cite{MadgwickInternalReport2010}.
 
-La elección de Madgwick responde a que ofrece una estimación de orientación de bajo costo por
-muestra, adecuada para ejecución embebida. Además, la implementación utilizada produce un
-cuaternión válido en
-\texttt{/imu/data\_filtered}, requerido por \texttt{rgbd\_odometry} cuando se configura con
-inicialización por IMU.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.94\textwidth]{_Imagenes/madgwick/diagrama_control.png}
+  \caption{Diagrama de bloques del filtro de Madgwick para una implementación IMU sin
+  magnetómetro. La estimación propagada mediante el giróscopo se corrige por descenso de
+  gradiente a partir de la dirección de gravedad observada por el acelerómetro, y luego se
+  integra y normaliza. Fuente: Madgwick~\cite[Fig.~2]{MadgwickInternalReport2010}.}
+  \label{fig:mt-madgwick-bloques}
+\end{figure}
+
+Sin magnetómetro, la gravedad no hace observable el yaw absoluto. Por eso, en este sistema
+la corrección de la rama superior limita principalmente la deriva de roll y pitch, mientras
+que la evolución horizontal debe provenir de las correspondencias visuales. La implementación
+produce el cuaternión de \texttt{/imu/data\_filtered}, utilizado para inicializar y regular
+\texttt{rgbd\_odometry}; este acoplamiento no constituye una optimización visual-inercial
+conjunta. La elección de Madgwick responde, además, a su bajo costo de cálculo por muestra,
+adecuado para ejecución embebida.
 
 \subsection{Odometría RGB-D con RTAB-Map}
 \label{sec:mt-vio}
 
 La odometría visual estima el movimiento de la cámara a partir de cambios entre fotogramas
-consecutivos \cite{Hartley2004}. En v2 se utiliza \texttt{rgbd\_odometry} del paquete RTAB-Map
+consecutivos \cite{Hartley2004}. En v2 se utiliza \texttt{rgbd\_odometry} de RTAB-Map
 \cite{Labbe2019RTAB}. El nodo consume imagen RGB, parámetros intrínsecos, profundidad alineada a
-color y la IMU filtrada. La profundidad convierte el problema visual en una estimación
-métrica, mientras que la IMU aporta una orientación inicial y una predicción útil ante
-movimiento rápido.
+color y la IMU filtrada. Conceptualmente, detecta rasgos visuales, los asocia entre cuadros y
+usa la profundidad para convertir sus píxeles en correspondencias métricas 3D. La
+transformación rígida que mejor explica esas correspondencias produce un incremento de pose.
+Las asociaciones incorrectas deben rechazarse como valores atípicos; la falta de textura, las
+oclusiones y el desenfoque por movimiento pueden reducir o interrumpir el seguimiento.
 
 RTAB-Map puede operar como biblioteca de SLAM y mapeo, pero en este sistema se usa su
 odometría RGB-D como fuente local de pose. La salida se publica como
@@ -722,6 +967,10 @@ representa un sistema global absoluto; es un marco local continuo, con origen de
 inicio de la ejecución y con deriva acumulada a largo plazo. Esta propiedad es suficiente para
 un mapa local de corto alcance, porque la coherencia requerida abarca segundos y metros
 recientes, no un mapa permanente de todo lo recorrido previamente.
+
+La secuencia concreta utilizada para documentar esta operación debe obtenerse de datos reales;
+su incorporación se plantea en la Sección~\ref{sec:metodo-v2} como evidencia del método
+adoptado, no como fundamento general de la odometría visual.
 
 \subsection{Marcos de referencia y convención REP-103}
 \label{sec:mt-frames}
@@ -738,19 +987,50 @@ horizontal del sensor y el yaw extraído de la orientación. Roll y pitch no se 
 etapa porque la nube ya fue alineada con gravedad en v1. Esta separación evita mezclar la
 estabilización vertical de la percepción con la acumulación horizontal del mapa.
 
+Para la fuente RTAB-Map, la conversión de la traslación publicada a las coordenadas
+horizontales internas es:
+\begin{equation}
+  x_{\mathrm{int}}=-y_{\mathrm{ROS}},\qquad
+  z_{\mathrm{int}}=x_{\mathrm{ROS}}.
+  \label{eq:rtab-position-convention}
+\end{equation}
+La orientación se precompone con el cuaternión
+$q_{\mathrm{ROS}\rightarrow\mathrm{int}}=(0{,}5,0{,}5,-0{,}5,0{,}5)$, escrito como
+$(w,x,y,z)$, y después se proyecta la dirección frontal sobre el plano $XZ$ para conservar
+únicamente yaw. Cada punto local $\mathbf p_l=(x,0,z)$ se inserta mediante
+\begin{equation}
+  \mathbf p_{\mathrm{odom}}=q_{\mathrm{yaw}}\,\mathbf p_l\,q_{\mathrm{yaw}}^*
+  +(x_{\mathrm{int}},0,z_{\mathrm{int}}).
+  \label{eq:local-to-odom}
+\end{equation}
+Estas expresiones fijan tanto el orden del cuaternión como el sentido de la transformación y
+evitan interpretar un cambio de base como movimiento físico adicional.
+
+La verificación de estas convenciones contra los marcos TF publicados forma parte del método de
+integración de v2 y se ubica en la Sección~\ref{sec:metodo-v2}, donde puede contrastarse con
+RViz sin convertir una convención específica del sistema en una propiedad general de ROS.
+
 \subsection{Sincronización temporal de observaciones y odometría}
 \label{sec:mt-sync}
 
 El mapa local combina tres fuentes temporales: nube de obstáculos, extremos de rayos libres y
 odometría. Las dos nubes derivan del mismo frame de profundidad, por lo que comparten
 \texttt{header.stamp} y pueden sincronizarse con política exacta. La odometría, en cambio, llega a
-otra frecuencia; por eso se mantiene un buffer y se toma la muestra más reciente no posterior
-al instante de la observación.
+otra frecuencia; por eso se mantiene un buffer y se busca la muestra más reciente no posterior
+al instante de la observación. Si todavía no existe una muestra anterior, la implementación
+actual usa la primera muestra disponible del buffer, aunque sea posterior. Solo descarta el
+frame cuando el buffer está vacío.
 
-Esta política evita usar una pose futura respecto del frame de profundidad y reduce
-inconsistencias geométricas. Si no hay odometría disponible, el frame se descarta para no
-insertar puntos en una posición arbitraria. El criterio prioriza coherencia espacial sobre
-completitud de frames, decisión adecuada para un mapa local reactivo.
+Esta aproximación evita detener el mapa durante el arranque, pero no garantiza causalidad ni
+establece una diferencia temporal máxima. Tampoco interpola entre poses. Por ello, el error
+espacial asociado a la desincronización debe medirse y esta conducta no se presenta como una
+sincronización exacta. Una política más estricta podría descartar muestras futuras o interpolar
+entre poses anterior y posterior, pero no corresponde atribuirle esa conducta al sistema
+evaluado.
+
+La política temporal concreta y sus casos de arranque se muestran en el diagrama del método de
+v2, en la Sección~\ref{sec:metodo-v2}; aquí interesa conservar la distinción conceptual entre
+sincronización exacta, selección de muestra e interpolación.
 
 \subsection{Representaciones espaciales locales}
 \label{sec:mt-local-maps}
@@ -788,30 +1068,118 @@ $l_{\text{occ}}$, mientras que las celdas atravesadas por rayos libres reciben u
 negativo $l_{\text{free}}$. Para estabilidad numérica, $l_t$ se satura en
 $[l_{\min},l_{\max}]$.
 
+Los incrementos dependen de las probabilidades asignadas por el modelo inverso del sensor:
+\begin{equation}
+  l_{\mathrm{occ}}=\log\frac{p_{\mathrm{occ}}}{1-p_{\mathrm{occ}}},
+  \qquad
+  l_{\mathrm{free}}=\log\frac{p_{\mathrm{free}}}{1-p_{\mathrm{free}}}.
+  \label{eq:inverse-sensor-log-odds}
+\end{equation}
+Estas probabilidades expresan cuánto se confía en que una celda esté ocupada después de un
+impacto o después de ser atravesada por un rayo libre. No son características nominales de la
+cámara ni valores fijados por la formulación de Elfes: deben seleccionarse para el sensor, el
+procesamiento previo y el comportamiento temporal buscado.
+
 La probabilidad puede recuperarse como:
 \begin{equation}
   P(m_i=1\mid z_{1:t}) =
   1-\frac{1}{1+\exp(l_t(m_i))}.
   \label{eq:log-odds-prob}
 \end{equation}
-Esta forma permite publicar la grilla en \texttt{nav\_msgs/OccupancyGrid}, cuyo rango habitual
-representa ocupación entre 0 y 100.
+Esta forma permite publicar la grilla en \texttt{nav\_msgs/OccupancyGrid}. La configuración
+adoptada usa celdas de $0{,}10$ m en una matriz de $100\times100$, es decir, una ventana
+deslizante de $10\times10$ m centrada en la posición de la cámara. Por lo tanto, sobre una
+trayectoria recta la ventana abarca aproximadamente 5 m por detrás y 5 m por delante, y la
+misma extensión hacia ambos laterales. Además, la memoria se restringe a un radio de 5 m:
+las celdas del cuadrado cuya distancia a la cámara supera ese radio se reinicializan como
+desconocidas. La matriz cuadrada define el soporte del mensaje, mientras que el radio define
+la región circular en la que se conserva información histórica. Como punto de partida previo
+a la calibración se adoptan $p_{\mathrm{occ}}=0{,}9$ y
+$p_{\mathrm{free}}=0{,}3$, que mediante la
+Ecuación~\ref{eq:inverse-sensor-log-odds} producen
+$l_{\mathrm{occ}}=2{,}197$ y $l_{\mathrm{free}}=-0{,}847$. Estos valores iniciales hacen que
+una detección ocupada tenga mayor peso que una observación libre aislada, pero no representan
+una caracterización experimental de la D435i. Su calibración se define en la
+Sección~\ref{sec:exp-log-odds-calibration}. Se emplea además saturación en $[-5,5]$.
+
+El valor de log-odds es la representación interna del mapeador; antes de publicar, cada celda
+debe convertirse al campo entero \texttt{data[i]} de
+\texttt{nav\_msgs/OccupancyGrid}. Este mensaje reserva $-1$ para una celda desconocida y usa
+el intervalo 0--100 para expresar la probabilidad porcentual de ocupación. En esta
+implementación, una celda nunca observada conserva exactamente $l=0$ y se publica como $-1$.
+Para una celda que ya recibió evidencia se recupera $P$ mediante la
+Ecuación~\ref{eq:log-odds-prob} y se publica
+\begin{equation}
+  \texttt{data[i]} = \operatorname{round}(100P).
+  \label{eq:occupancy-grid-encoding}
+\end{equation}
+Así, por ejemplo, $P=0{,}90$ se publica como 90. Estos enteros no son distancias ni
+intensidades hápticas: representan el contenido de una celda del mapa. Los valores menores
+que 50 favorecen la hipótesis de espacio libre y los mayores que 50 favorecen la de
+ocupación; el umbral operativo usado posteriormente para clasificar una celda se define por
+separado.
+
+La extensión de la ventana no implica que exista una medición en toda esa superficie. La
+cámara aporta observaciones dentro de su campo de visión y alcance; la zona posterior y las
+zonas laterales conservan únicamente información observada previamente mientras permanezcan
+dentro del radio local. Las regiones todavía no observadas continúan en estado desconocido.
+
+Por ejemplo, una observación ocupada lleva una celda desconocida a $l=2{,}197$, equivalente a
+$P\simeq0{,}90$ y a \texttt{data[i]}${}=90$. Una observación libre posterior la reduce a
+$l=1{,}350$, equivalente a $P\simeq0{,}79$ y \texttt{data[i]}${}=79$. Las observaciones
+libres siguientes producen sucesivamente 62 y 41. Se necesitan, por lo tanto, observaciones
+contradictorias repetidas para invertir la evidencia. Este ejemplo muestra tanto la memoria
+temporal interna como su codificación en el mensaje publicado.
+
+La Figura~\ref{fig:mt-ejemplo-log-odds} representa la secuencia numérica anterior. En cada
+punto se muestran por separado el log-odds del eje vertical, la probabilidad recuperada y el
+valor de \texttt{OccupancyGrid.data[i]}. El cruce por $l=0$ permite identificar cuándo la
+evidencia acumulada deja de favorecer ocupación y pasa a favorecer espacio libre.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.78\textwidth]{__Graficos/marco_teorico/ejemplo_log_odds/salida/ejemplo_log_odds.png}
+  \caption{Evolución del log-odds de una celda inicialmente desconocida y conversión de cada
+  estado al valor publicado en \texttt{OccupancyGrid.data[i]}, utilizando la configuración
+  inicial previa a la calibración.}
+  \label{fig:mt-ejemplo-log-odds}
+\end{figure}
 
 \subsection{Ray casting con Bresenham}
 \label{sub:bresenham}
 
 Además de marcar ocupada la celda del obstáculo, el mapa debe marcar como libre el espacio
-atravesado por el rayo de medición. Para ello se usa el algoritmo de Bresenham
+atravesado por el rayo de medición. El segmento continuo medido por la cámara debe convertirse,
+por lo tanto, en una sucesión de celdas de la grilla. Para ello se usa el algoritmo de Bresenham
 \cite{Bresenham1965}. Dado un origen $(x_0,z_0)$ y un destino $(x_1,z_1)$ en coordenadas
 enteras de celda, el algoritmo avanza sobre el eje dominante y decide cuándo incrementar el
-eje subordinado mediante una variable de error acumulado. Así recorre las celdas intersectadas
-por el segmento sin calcular intersecciones en punto flotante.
+eje subordinado mediante una variable de error acumulado. El resultado es una aproximación
+discreta del segmento formada por celdas contiguas; no es el conjunto geométrico de todas las
+celdas que la recta llega a tocar. Esta construcción evita calcular intersecciones en punto
+flotante.
 
 En este sistema se aplican dos tipos de rayos. Los rayos con obstáculo marcan libres las
-celdas intermedias y ocupada la celda final. Los rayos asociados a suelo, techo o mediciones
-sin obstáculo dentro del rango marcan libre también el extremo final. Para no borrar
+celdas intermedias y ocupada la celda final. Los rayos asociados a suelo, región superior
+excluida o mediciones sin obstáculo dentro del rango marcan libre también el extremo final. Para no borrar
 evidencia acumulada de forma excesiva, una celda recibe evidencia libre como máximo una vez
 por frame.
+
+La Figura~\ref{fig:mt-bresenham-rayos} muestra la discretización espacial de ambos casos. La
+línea azul une, en orden, los centros de las celdas seleccionadas por Bresenham desde la cámara
+hasta el destino; por eso no debe interpretarse como la intersección geométrica exacta entre una
+recta y la grilla. Las celdas verdes reciben evidencia libre. Si el extremo corresponde a un obstáculo,
+la última celda se reserva para evidencia ocupada (rojo). Si la medición no contiene un obstáculo
+dentro del rango, el recorrido se extiende hasta el límite medible representado y su extremo
+también recibe evidencia libre.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.95\textwidth]{__Graficos/marco_teorico/bresenham_rayos/salida/bresenham_rayos.png}
+  \caption{Recorrido discreto de Bresenham sobre la grilla: las celdas intermedias reciben
+  evidencia libre; ante un obstáculo el extremo es ocupado y, en caso contrario, la evidencia
+  libre se extiende hasta el límite del rango representado.}
+  \label{fig:mt-bresenham-rayos}
+\end{figure}
 
 \subsection{Ventana local deslizante y olvido espacial}
 \label{sec:mt-sliding-window}
@@ -824,6 +1192,16 @@ velocidades, los desplazamientos sub-celda se acumulan hasta superar el tamaño 
 Además del corrimiento de ventana, se emplea un radio de olvido local: las celdas demasiado
 alejadas del sensor vuelven al prior. Este mecanismo impide que observaciones viejas dominen
 indefinidamente y mantiene el mapa enfocado en la región útil para navegación inmediata.
+
+La ventana está centrada alrededor de la posición estimada del usuario, pero sus ejes
+permanecen alineados con \texttt{odom}: no gira con cada cambio de yaw. La traslación desplaza
+los contenidos por una cantidad entera de celdas y un acumulador conserva las fracciones
+menores que $0{,}10$ m hasta completar una celda. Las posiciones de los obstáculos se rotan y
+trasladan al marco común antes de actualizar la grilla.
+
+El corrimiento entero, la acumulación subcelda y la conservación de los ejes de
+\texttt{odom} son decisiones del método de actualización adoptado; su diagrama se presenta en
+la Sección~\ref{sec:metodo-v2-ocupacion}.
 
 \subsection{Filtrado espacial y temporal}
 \label{sec:mt-spatiotemporal-filtering}
@@ -841,19 +1219,46 @@ rayos libres, cuando queda fuera del radio local o cuando sale de la ventana des
 \label{sec:mt-spatial-awareness}
 
 La capa de conciencia espacial evalúa riesgos fuera del campo frontal ya comunicado por la
-grilla háptica. Primero decodifica celdas ocupadas por encima de un umbral y agrupa
-componentes conectadas por vecindad. El agrupamiento elimina ruido aislado: una celda ocupada
-solitaria no necesariamente representa un obstáculo físico relevante.
+grilla háptica. Primero selecciona celdas cuyo valor de ocupación alcanza 65 y agrupa
+componentes con vecindad de ocho conexiones. Solo conserva componentes de al menos tres
+celdas. Esta regla reduce activaciones aisladas, pero es una heurística: también puede omitir
+obstáculos delgados o representados por pocas celdas y, por ello, requiere validación.
 
 Para cada celda candidata se calcula su posición relativa respecto de la pose del usuario y se
-descarta si cae dentro del campo frontal ya cubierto. Luego se evalúa si intersecta el
-corredor corporal y si existe velocidad de cierre suficiente. El tiempo hasta colisión se
-define como:
+descarta si cae dentro de la semiamplitud frontal observable de $45^\circ$, región ya atendida
+por la percepción frontal. Luego se evalúa si intersecta una zona compatible con colisión,
+orientada según el vector de velocidad y no necesariamente según el frente observable. Su
+semiancho considera el radio corporal y la mitad de la diagonal de una celda de $0{,}10$ m:
+\begin{equation}
+  r_c=0{,}20+\frac{0{,}10}{\sqrt{2}}\simeq0{,}27\ \text{m}.
+  \label{eq:collision-corridor-radius}
+\end{equation}
+Esta tolerancia incluye celdas cuyo centro queda ligeramente fuera del radio corporal, pero
+cuya extensión todavía puede intersectar la trayectoria. Finalmente se exige velocidad de cierre
+suficiente. Solo se analizan distancias de $0{,}20$ a $1{,}00$ m y velocidades de movimiento
+de al menos $0{,}10$ m/s. La velocidad de cierre se calcula como
+\begin{equation}
+  v_c=\max\left(0,\mathbf v\cdot
+  \frac{\mathbf p_o-\mathbf p_u}{\lVert\mathbf p_o-\mathbf p_u\rVert}\right),
+  \label{eq:closing-speed}
+\end{equation}
+donde $\mathbf p_o$ y $\mathbf p_u$ son las posiciones del obstáculo y del usuario. Para que el
+horizonte represente la llegada del obstáculo al contorno corporal y no al centro de la pose, la
+separación empleada es
+\begin{equation}
+  d=\max\left(0,\lVert\mathbf p_o-\mathbf p_u\rVert-r_{\text{cuerpo}}\right),
+  \qquad r_{\text{cuerpo}}=0{,}20\ \text{m}.
+  \label{eq:body-clearance}
+\end{equation}
+El tiempo hasta colisión se define entonces como:
 \begin{equation}
   t_{\text{tc}} = \frac{d}{v_c},
   \label{eq:ttc}
 \end{equation}
-donde $d$ es la distancia al obstáculo y $v_c$ la componente de velocidad dirigida hacia él.
+donde $d$ es la separación entre el contorno corporal y el obstáculo, mientras que $v_c$ es la
+componente de velocidad dirigida hacia él.
+El modelo supone obstáculo estacionario y velocidad del usuario constante durante el horizonte
+analizado; no predice el movimiento de terceros.
 La ecuación~\ref{eq:ttc} prioriza urgencia dinámica, no solo proximidad geométrica. La
 intensidad asociada puede escalarse linealmente entre un tiempo mínimo y un horizonte máximo:
 \begin{equation}
@@ -865,9 +1270,32 @@ intensidad asociada puede escalarse linealmente entre un tiempo mínimo y un hor
   \right).
   \label{eq:risk-intensity}
 \end{equation}
-Los riesgos se clasifican en izquierda, derecha y posterior. En cada región se conserva el
-candidato más urgente, con histéresis sobre velocidad de cierre para evitar conmutaciones
-rápidas alrededor del umbral.
+La configuración usa $t_{\min}=0{,}25$ s y $t_{\max}=2{,}00$ s. Los riesgos se clasifican en
+izquierda, derecha y posterior; la región posterior abarca $45^\circ$ a cada lado de la
+dirección opuesta al frente. En cada región se conserva el candidato con mayor intensidad y,
+ante empate, menor TTC. Una histéresis de $0{,}03$ m/s reduce conmutaciones alrededor del
+umbral de velocidad de cierre. La evaluación también exige que mapa y odometría tengan una
+antigüedad no mayor que $0{,}40$ s.
+
+La velocidad se filtra con $\alpha=0{,}25$ y se limita a $3$ m/s. El sistema compara la
+velocidad informada por la odometría con la derivada de poses consecutivas y usa una tolerancia
+de consistencia de $0{,}35$ m/s para seleccionar una fuente plausible. Esta selección debe
+explicitarse porque el TTC depende linealmente de la velocidad elegida.
+
+La Figura~\ref{fig:mt-riesgo-ttc} reúne estas relaciones en una vista superior. El vector
+$\mathbf v$ determina el eje de la zona compatible con colisión; $v_c$ es su proyección sobre
+la dirección del obstáculo. La distancia $d$ se mide desde el contorno corporal y no desde el
+centro de la pose. Los valores numéricos constituyen un ejemplo geométrico reproducible, no un
+resultado experimental.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.96\textwidth]{__Graficos/marco_teorico/riesgo_ttc/salida/riesgo_ttc.png}
+  \caption{Geometría empleada para seleccionar un riesgo contextual y calcular el tiempo hasta
+  colisión. La zona frontal observable queda a cargo de la percepción frontal; la evaluación
+  contextual considera las regiones laterales y posterior.}
+  \label{fig:mt-riesgo-ttc}
+\end{figure}
 
 \subsection{Fusión háptica con riesgo contextual}
 \label{sec:mt-haptic-fusion}
@@ -878,9 +1306,21 @@ conciencia espacial aporta señales semánticas de riesgo lateral y posterior. L
 realiza por máximo de intensidad: si una celda ya está activa por percepción frontal, una
 señal contextual solo la aumenta si su intensidad es mayor.
 
-Esta regla conserva la interpretación de seguridad de la interfaz. El usuario recibe siempre
-la señal más urgente entre percepción inmediata y memoria contextual, sin promediar señales
-que representan fenómenos distintos.
+La implementación aplica el riesgo izquierdo a las columnas del borde izquierdo, el derecho
+al borde derecho y el posterior a las columnas centrales; en la configuración por defecto se
+usan una, una y dos columnas, respectivamente. La intensidad contextual se conserva durante
+un máximo de $0{,}75$ s sin una actualización válida.
+
+Esta regla conserva el mayor valor numérico sin promediar señales, pero no demuestra por sí
+sola que se conserve el riesgo físicamente más urgente: la intensidad frontal deriva de
+distancia y la contextual de TTC. Su comparación presupone que ambas escalas 0--100 fueron
+calibradas de manera compatible. Asimismo, la codificación posterior en columnas centrales es
+una convención que debe verificarse con usuarios y con el dispositivo físico del proyecto.
+
+La obtención de las tres matrices reproducibles corresponde a la validación funcional de v2 y
+se especifica en el bloque experimental de memoria espacial y riesgo contextual. Aquí se
+mantiene únicamente la definición de la operación de fusión y la advertencia sobre la
+compatibilidad de escalas.
 
 \subsection{Métricas de evaluación para percepción y mapeo}
 \label{sec:mt-metrics}
@@ -893,3 +1333,18 @@ filtrado geométrico. En v2 se evalúan precisión y recall de la grilla local, 
 temporal por celda, vigencia de odometría, cobertura de riesgo lateral y posterior, y consumo
 de CPU y memoria. Esta organización conecta la teoría con los bloques experimentales y evita
 mezclar métricas de capacidades que aparecen en versiones distintas.
+
+Para evitar interpretaciones ambiguas, la latencia \emph{end-to-end} debe definirse entre el
+sello temporal de adquisición y la publicación de la grilla háptica, y la tasa como mensajes
+válidos por segundo durante una ventana estable. Para una clasificación binaria de ocupación:
+\begin{equation}
+  \mathrm{precision}=\frac{TP}{TP+FP},\qquad
+  \mathrm{recall}=\frac{TP}{TP+FN},\qquad
+  F_1=2\frac{\mathrm{precision}\,\mathrm{recall}}
+  {\mathrm{precision}+\mathrm{recall}}.
+  \label{eq:classification-metrics}
+\end{equation}
+La estabilidad temporal debe medirse sobre celdas correspondientes al mismo lugar en
+\texttt{odom}, no sobre el mismo índice antes y después de desplazar la ventana. Las
+condiciones, referencias y procedimientos concretos de medición se establecen en el capítulo
+experimental; este apartado solo fija el significado de cada magnitud.
