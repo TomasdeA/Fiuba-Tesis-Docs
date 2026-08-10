@@ -5,20 +5,18 @@ as mobile robotics have consolidated a set of perception, mapping and inter-proc
 technologies that enable autonomous vehicles to interpret their surroundings in real time, yet
 these technologies are seldom applied to the problem of personal assisted mobility.
 
-The main focus of this thesis is to study, evaluate and adapt those
-technologies, including active stereo depth sensing, probabilistic occupancy grids, inertial data
-fusion and the ROS 2 ecosystem, in order to identify the most suitable alternatives for building a
-functional, portable and low-cost assistive device. The contribution does not lie in the creation
-of novel techniques but rather in the selection, integration and validation of solutions already
-proven in other applications, assessing their design trade-offs under the constraints inherent to a
-personal assistive device: limited embedded computing, portability and low latency. The choice of
-the haptic channel as the output interface is grounded in the principle of sensory substitution:
-the brain can reorganize to interpret tactile stimuli as spatial information
-when vision is reduced or absent. On that basis, the broader project seeks to translate visual
-spatial information into haptic stimuli interpretable for navigation; it is structured in two
-complementary stages: (i)~environment capture and local mapping, and (ii)~translation into a haptic
-interface. This thesis, submitted under the \textit{Electronic Engineering Thesis} track, addresses
-exclusively the first stage.
+The main focus of this thesis is to study, evaluate, and adapt existing technologies, including
+active stereo depth sensing, probabilistic occupancy grids, inertial data fusion, and the ROS 2
+ecosystem. The contribution does not lie in the creation of novel techniques, but rather in
+determining which of these technologies are most suitable and how to integrate them to build a
+functional, low-cost assistive device, while considering the constraints of a portable system:
+limited embedded computing resources and low latency. The choice of the haptic channel as the
+output interface is grounded in the principle of sensory substitution: the brain can reorganize to
+interpret tactile stimuli as spatial information when vision is reduced or absent. On that basis,
+the broader project seeks to translate visual spatial information into haptic stimuli interpretable
+for navigation; it is structured in two complementary stages: (i)~environment capture and local
+mapping, and (ii)~translation into a haptic interface. This thesis, submitted under the
+\textit{Electronic Engineering Thesis} track, addresses exclusively the first stage.
 
 Specifically, a perception module is developed in ROS 2 that, using an Intel RealSense D435i camera
 mounted on the user's head and running on a Raspberry Pi~5, generates a compact real-time
