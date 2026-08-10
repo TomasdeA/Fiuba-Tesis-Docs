@@ -13,9 +13,8 @@ opcionalmente en una PC separada, suscribiéndose a los mismos tópicos a travé
 topología completa del sistema en su versión final integra percepción instantánea, conciencia
 espacial y mapeo local, tal como se muestra en la \Cref{fig:arquitectura-v2}.
 
-Para facilitar la trazabilidad entre la descripción de la arquitectura, las decisiones
-metodológicas y el código fuente, véase el Anexo~\ref{anexo:trazabilidad}, que incluye un mapeo
-nodo → tópicos → archivos fuente.
+El Anexo~\ref{anexo:trazabilidad} muestra la correspondencia entre la arquitectura, las decisiones
+metodológicas y el código fuente mediante un mapeo nodo → tópicos → archivos fuente.
 
 \section{Evolución arquitectónica por versiones (v0, v1, v2)}
 \label{sec:arq-versiones}
@@ -78,8 +77,7 @@ intensidades hápticas con dos arreglos explícitos: \texttt{intensities} y \tex
 la conciencia espacial, \texttt{DirectionalRisk} describe el riesgo por dirección
 (activación, intensidad, distancia, velocidad de cierre y tiempo hasta colisión) y
 \texttt{SpatialAwareness} agrupa los tres canales \texttt{left}, \texttt{right} y \texttt{rear}
-junto con una bandera de validez global. Esta separación reduce acoplamiento entre nodos y evita
-codificar semántica de riesgo como sobrecapa de un mensaje de percepción.
+junto con una bandera de validez global. Esta separación reduce el acoplamiento entre nodos y evita incorporar información de riesgo dentro de un mensaje destinado a percepción.
 
 El paquete \texttt{nav\_bringup} centraliza la configuración de lanzamiento del sistema en
 \code{nav.launch.py}. Este archivo expone parámetros para habilitar o deshabilitar componentes y
@@ -103,7 +101,10 @@ tipo \code{sensor\_msgs/Image}, mientras que \code{RS/depth/camera\_info} y
 \code{sensor\_msgs/CameraInfo}. De forma análoga, las mediciones inerciales llegan por tópicos
 específicos del driver y utilizan \code{sensor\_msgs/Imu} como tipo de mensaje.
 
-El launcher \code{nav.launch.py} define remapeos explícitos para cada consumidor, desacoplando la lógica de procesamiento de los nombres publicados por el driver y preservando trazabilidad sobre qué flujo alimenta a cada nodo. Las correspondencias de referencia se indican en la \Cref{tab:remapper}.
+El launcher \code{nav.launch.py} define remapeos explícitos para cada consumidor, de forma que la
+lógica de procesamiento no dependa de los nombres publicados por el driver y se pueda identificar
+qué flujo alimenta a cada nodo. Las correspondencias de referencia se indican en la
+\Cref{tab:remapper}.
 
 \begin{table}[htbp]
 \centering
