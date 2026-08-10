@@ -23,6 +23,12 @@
 % Comandos útiles
 %:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
 
+% Marcador visible para figuras que todavía deben generarse.
+\providecommand{\graficopendiente}[1]{%
+  \begin{center}
+    \fcolorbox{red}{white}{\parbox{0.90\textwidth}{%
+      \centering\color{red}\textbf{GRÁFICO PENDIENTE.} #1}}
+  \end{center}}
 
 % Paréntesis: \pa{algo}, tamaño variable: \pa*{}
 \DeclarePairedDelimiter{\pa}{\lparen}{\rparen}
