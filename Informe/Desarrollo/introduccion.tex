@@ -19,23 +19,21 @@ los sensores de profundidad por visión estéreo activa, como la familia Intel R
 campo de visión. Su adecuación a una plataforma portátil y de baja latencia debe evaluarse junto
 con el procesamiento ejecutado sobre el hardware embebido.
 
-El presente trabajo se enmarca en el principio de neuroplasticidad sensorial, según el cual el
-cerebro puede reorganizarse para explotar de manera más eficiente los sentidos restantes cuando la
-visión está reducida o ausente \cite{BachyRita1969}.
-Sobre esa base, el proyecto global del que forma parte esta tesis busca diseñar un sistema portátil
-capaz de traducir información espacial visual en estímulos hápticos interpretables para la
-navegación asistida.
+Este trabajo parte del principio de neuroplasticidad sensorial, según el cual el cerebro puede
+reorganizarse para aprovechar de manera más eficiente los sentidos restantes cuando la visión está
+reducida o ausente \cite{BachyRita1969}.
+A partir de este principio, el proyecto global busca desarrollar un sistema portátil capaz de
+traducir información espacial visual en estímulos hápticos para asistir la navegación.
 
-Si bien los trabajos académicos que combinan cámaras RGB-D con retroalimentación háptica
-\cite{Lee2016RGBD, Zhang2021DVIO} demuestran la viabilidad técnica del enfoque, y desarrollos
-comerciales como el \emph{SuperBrain~1} \cite{SeventhSense2024SuperBrain} constituyen un referente
-de lo que es posible alcanzar en términos de funcionalidad y validación real, el costo y la escala
-de desarrollo de esas soluciones las sitúan fuera del alcance de la mayoría de los usuarios.
-Esta tesis estudia cómo obtener una representación local compacta de obstáculos mediante una cámara
+Los trabajos académicos que combinan cámaras RGB-D con retroalimentación háptica
+\cite{Lee2016RGBD, Zhang2021DVIO} muestran que el enfoque es técnicamente viable. Por otro lado,
+productos como el \emph{SuperBrain~1} \cite{SeventhSense2024SuperBrain} muestran el nivel de
+funcionalidad que puede alcanzar un sistema comercial.
+
+Esta tesis estudia cómo obtener una representación loca~ compacta de obstáculos mediante una cámara
 RGB-D y una Raspberry Pi~5, sin pretender reproducir el alcance funcional ni el nivel de validación
-de un producto comercial.
-El Capítulo~\ref{chap:estado-arte} analiza estas soluciones en detalle y posiciona la contribución
-de esta tesis respecto de ellas.
+de un producto comercial. El Capítulo~\ref{chap:estado-arte} analiza estas soluciones en detalle y
+compara el enfoque adoptado en esta tesis con ellas.
 
 \begin{figure}[htbp]
   \centering
@@ -83,10 +81,8 @@ Las restricciones determinantes del diseño son:
 
 \section{Objetivos}
 
-Los objetivos del trabajo se articulan en tres niveles complementarios: el objetivo global del
-proyecto en el que se inscribe esta tesis, el objetivo específico de la tesis dentro de ese
-proyecto, y el objetivo técnico que define con precisión los requerimientos del sistema a
-implementar.
+Los objetivos del trabajo se dividen en tres niveles: el objetivo global del proyecto, el objetivo
+específico de la tesis, y el objetivo técnico del sistema desarrollado.
 
 \subsection{Objetivo del proyecto}
 
@@ -140,8 +136,7 @@ pruebas experimentales, descritas en el Capítulo~\ref{chap:experimentos}.
 
 \section{Contribuciones del trabajo}
 
-Los aportes técnicos cuya validez se analiza mediante la evaluación experimental son los
-siguientes:
+Los principales aportes técnicos de esta tesis son::
 
 \begin{itemize}
   \item una arquitectura incremental que permite comparar una transformación directa de
@@ -151,8 +146,8 @@ siguientes:
         de activaciones producidas por piso y techo sobre cómputo embebido;
   \item una representación compacta que separa la percepción métrica frontal del riesgo contextual
         y permite verificar ambas señales sin depender de la interfaz háptica física;
-  \item un esquema de memoria local y fusión destinado a estudiar la continuidad de advertencia
-        cuando un obstáculo previamente observado sale del campo de visión;
+  \item un esquema de memoria local y fusión que permite mantener la advertencia cuando un
+        obstáculo previamente observado sale del campo de visión;
   \item un protocolo experimental reproducible para caracterizar error, detección, latencia,
         estabilidad temporal y consumo de recursos.
 \end{itemize}
@@ -184,14 +179,14 @@ de la implementación sobre esa plataforma, no para decidir posteriormente su se
 
 \section{Organización del documento}
 
-El presente documento se organiza de la siguiente manera.
-La evolución v0--v1--v2 definida en la Sección~\ref{sec:intro-objetivo-tecnico} funciona como hilo
-conductor; cada capítulo la aborda desde una perspectiva diferente para evitar repetir su
-descripción.
+
+La organización del documento sigue la evolución v0--v1--v2 definida en la
+Sección~\ref{sec:intro-objetivo-tecnico}. Cada capítulo analiza estas versiones desde una
+perspectiva diferente para evitar repetir su descripción.
 
 El Capítulo~\ref{chap:estado-arte} revisa el estado del arte en dispositivos de asistencia sensorial
 con retroalimentación háptica y en técnicas de mapeo local y evitación de obstáculos en robótica
-móvil, posicionando la contribución de esta tesis respecto de las soluciones existentes.
+móvil, y compara el enfoque adoptado con las soluciones existentes.
 El Capítulo~\ref{chap:marco-teorico} desarrolla los fundamentos teóricos del sistema:
 percepción de profundidad por estereoscopía activa, modelo de cámara \emph{pinhole}, reducción
 espacial mediante partición en regiones de interés, grillas de ocupación log-odds, algoritmo de
