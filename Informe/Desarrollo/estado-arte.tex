@@ -21,10 +21,7 @@ de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourb
 \cite{Dakopoulos2010} presentan una revisión exhaustiva de estos sistemas, clasificándolos según el
 tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación
 (auditivo, háptico, voz) y la zona del cuerpo en la que presentan la estimulación (mano, muñeca,
-torso, cabeza). Sobre esa base, la revisión se organiza como una progresión tecnológica dentro de
-un mismo problema de asistencia sensorial, estructurada en dos grupos: sistemas sin RGB-D, basados
-en sensado puntual, y sistemas con RGB-D, que incorporan percepción densa y, en algunos casos,
-mapeo local.
+torso, cabeza). A partir de estos antecedentes, los sistemas revisados se dividen en dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que incorporan percepción densa y, en algunos casos, mapeo local.
 
 \subsection{Criterios de adopción}
 \label{subsec:ea-criterios}
@@ -132,13 +129,11 @@ variable y texturas pobres, comparado con los enfoques que tratan la IMU como en
 \subsection{Producto comercial consolidado: \emph{SuperBrain~1}}
 \label{subsec:ea-superbrain}
 
-Los trabajos de investigación descritos en las secciones anteriores trazan una progresión técnica
-que encuentra su expresión comercial más completa en el dispositivo \emph{SuperBrain~1},
-desarrollado por la empresa estonia Seventh Sense OÜ~\cite{SeventhSense2024SuperBrain}. Su
-existencia como producto comercial certificado (marcado CE) y validado con personas con
-discapacidad visual en múltiples países de Europa constituye evidencia directa de que la
-combinación de percepción de profundidad, procesamiento embebido y retroalimentación háptica
-vestible puede dar lugar a un producto de uso real.
+Un ejemplo comercial de este tipo de sistemas es el SuperBrain 1, desarrollado por la empresa
+estonia Seventh Sense OÜ~\cite{SeventhSense2024SuperBrain}. El dispositivo cuenta con marcado CE
+(producto comercial certificado) y fue probado con personas con discapacidad visual en distintos
+países de Europa. Esto muestra que es posible integrar percepción de profundidad, procesamiento
+embebido y retroalimentación háptica vestible en un dispositivo de uso real.
 
 El dispositivo es un casco portado en la cabeza que integra cámaras estéreo de campo amplio
 ($185^\circ$ horizontal, $120^\circ$ vertical), sensores de tiempo de vuelo (\emph{Time-of-Flight}, ToF)
@@ -156,8 +151,7 @@ Según la información pública del fabricante, el dispositivo no requiere el us
 interfiere con la audición y se porta sobre el cuerpo. Estos atributos permiten analizarlo respecto
 de los criterios de adopción, aunque la simplicidad de uso requiere evidencia con usuarios y no se
 infiere únicamente de su descripción comercial. Su costo se encuentra en el orden de miles de
-euros y su desarrollo demandó más de diez años, magnitudes que muestran la diferencia de alcance
-entre un producto comercial certificado y un prototipo académico. En consecuencia, no se plantea
+euros y su desarrollo demandó más de diez años, esto marca una diferencia importante de alcance respecto del prototipo académico desarrollado en esta tesis. En consecuencia, no se plantea
 una equivalencia funcional con esta tesis. El \emph{SuperBrain~1} se utiliza como referencia de las
 capacidades que puede alcanzar una solución madura, mientras que este trabajo estudia un
 subconjunto acotado: percepción local, salida lógica compacta y ejecución en hardware embebido.
@@ -312,10 +306,10 @@ Odometría RGB-D adoptada & Imagen RGB, profundidad y orientación IMU & \texttt
 \end{tabularx}
 \end{table}
 
-\section{Brecha identificada y posicionamiento de la tesis}
+\section{Limitaciones identificadas y aporte de la tesis}
 \label{sec:ea-posicionamiento}
 
-Del análisis anterior se desprenden cuatro brechas concretas en el estado del arte:
+A partir de los trabajos revisados se identifican cuatro limitaciones relevantes:
 
 \begin{enumerate}
     \item \textbf{Resolución espacial insuficiente:} los ETA dominantes emplean sensores puntuales
