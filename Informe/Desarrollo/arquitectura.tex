@@ -16,21 +16,23 @@ espacial y mapeo local, tal como se muestra en la \Cref{fig:arquitectura-v2}.
 El Anexo~\ref{anexo:trazabilidad} muestra la correspondencia entre la arquitectura, las decisiones
 metodológicas y el código fuente mediante un mapeo nodo → tópicos → archivos fuente.
 
-\section{Evolución arquitectónica por versiones (v0, v1, v2)}
+\section{Comparación de la topología entre versiones}
 \label{sec:arq-versiones}
 
-Esta sección se limita a mostrar cómo cambia la topología entre las tres versiones incrementales
-definidas en la Sección~\ref{sec:intro-objetivo-tecnico}. La implementación conserva los modos
-\code{raw} y \code{filtered}, seleccionados mediante \code{pipeline\_mode}, para ejecutar y comparar
-las configuraciones alcanzadas en v0 y v1.
+Los diagramas de esta sección ofrecen una vista de conjunto de las tres configuraciones
+incrementales definidas en la Sección~\ref{sec:intro-objetivo-tecnico}. Su propósito es mostrar
+qué bloques se mantienen, se reemplazan o se agregan en cada versión; los tópicos, tipos de
+mensaje e interfaces de cada nodo se detallan posteriormente en la
+Sección~\ref{sec:arq-flujos-versiones}. La implementación conserva los modos \code{raw} y
+\code{filtered}, seleccionados mediante \code{pipeline\_mode}, para ejecutar y comparar las
+configuraciones alcanzadas en v0 y v1.
 
-\paragraph{v0: modo \emph{raw}.}
+\subsection{Topología de v0: percepción directa}
 La versión inicial utiliza exclusivamente la percepción instantánea: imagen de profundidad de la
 cámara, conectada al pipeline mediante remapeos definidos en \texttt{nav\_bringup}, reducción a
 \texttt{DepthGrid} en \texttt{depth\_grid\_encoder}, fusión trivial (passthrough), visualización de
-la salida y serialización para su transmisión UART. Esta versión prioriza tiempo de respuesta y
-simplicidad de integración. Figura
-\ref{fig:arquitectura-v0}.
+la salida y serialización para su transmisión UART. La topología resultante se muestra en la
+Figura~\ref{fig:arquitectura-v0}.
 
 \begin{figure}[H]
   \centering
@@ -39,11 +41,11 @@ simplicidad de integración. Figura
   \label{fig:arquitectura-v0}
 \end{figure}
 
-\paragraph{v1: modo \emph{filtered}.}
+\subsection{Topología de v1: filtrado geométrico}
 Sobre v0 se incorpora \texttt{depth\_obstacle\_filter} para suprimir suelo y techo, alineando la
 nube a gravedad y conservando en la salida únicamente obstáculos relevantes para la marcha. Esta
-versión requirió varias iteraciones y optimizaciones respecto de su primera implementación para
-alcanzar una operación en tiempo real. La arquitectura resultante se muestra en la
+etapa reemplaza la fuente directa de \texttt{DepthGrid}, pero conserva sin cambios los nodos de
+generación háptica y transmisión. La topología resultante se muestra en la
 Figura~\ref{fig:arquitectura-v1}.
 
 \begin{figure}[H]
@@ -53,11 +55,12 @@ Figura~\ref{fig:arquitectura-v1}.
   \label{fig:arquitectura-v1}
 \end{figure}
 
-\paragraph{v2: mapeo local + conciencia espacial.}
+\subsection{Topología de v2: memoria y riesgo contextual}
 La tercera versión agrega memoria espacial mediante \texttt{local\_mapper} y una capa de riesgo
 contextual con \texttt{spatial\_awareness}. Esta capa complementa la percepción frontal instantánea
 con alertas de ocupación lateral o trasera, aprovechando información acumulada en el mapa local y
-estado de movimiento del usuario. Figura \ref{fig:arquitectura-v2}.
+el estado de movimiento del usuario. La topología resultante se muestra en la
+Figura~\ref{fig:arquitectura-v2}.
 
 \begin{figure}[!htbp]
   \centering
@@ -66,7 +69,14 @@ estado de movimiento del usuario. Figura \ref{fig:arquitectura-v2}.
   \label{fig:arquitectura-v2}
 \end{figure}
 
-\section{Paquetes de soporte e infraestructura}
+\section{Infraestructura y adquisición de datos}
+
+El sistema utiliza paquetes de soporte para definir los mensajes, los parámetros y los modos de
+ejecución compartidos. Por separado, los tópicos publicados por el driver RealSense se remapean a
+nombres internos estables. Así, los nodos de procesamiento no dependen de los nombres concretos
+del driver y la configuración de la cámara puede cambiar sin modificar el resto del sistema.
+
+\subsection{Paquetes de soporte e infraestructura}
 \label{sec:arq-soporte}
 
 El paquete \texttt{custom\_interfaces} concentra los tipos de mensajes específicos del sistema.
@@ -87,7 +97,7 @@ modos de ejecución, entre ellos: selección de pipeline de percepción
 herramientas de visualización y depuración. Estas opciones determinan qué nodos se inician y con
 qué parámetros, mientras que la lógica de procesamiento permanece en los paquetes funcionales.
 
-\section{Adquisición y normalización de tópicos}
+\subsection{Adquisición y normalización de tópicos}
 \label{sec:arq-sensor}
 
 El driver de la cámara, lanzado mediante \code{rs\_launch.py} del paquete \code
@@ -135,19 +145,33 @@ Además de estos remapeos, el código actual consume otros flujos del driver de 
 explícitos usados como interfaz de normalización, no la totalidad de tópicos de cámara presentes
 en ejecución.
 
-\section{Versión v0: solución frontal directa}
+\section{Nodos y flujo de mensajes por versión}
+\label{sec:arq-flujos-versiones}
+
+Esta sección describe las interfaces que materializan las configuraciones comparadas en la
+Sección~\ref{sec:arq-versiones}: qué nodo produce cada representación, qué mensajes intercambia y
+qué componentes consumen la salida. Las tres versiones conservan un contrato de salida común,
+pero modifican progresivamente la fuente de la información espacial. V0 obtiene la grilla
+directamente de la profundidad; v1 la construye a partir de obstáculos filtrados y alineados con
+gravedad; v2 mantiene la ruta frontal de v1 y agrega memoria local y riesgo contextual.
+
+\subsection{Flujo de v0: profundidad y salida háptica}
 \label{sec:arq-percepcion}
 
-El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe \code{depth/image}, remapeado desde \code{RS/depth/image\_rect\_raw} en \code{nav.launch.py}, y reduce la imagen de profundidad densa a una grilla compacta de $R \times C$ celdas (por defecto, 5 filas $\times$ 10 columnas) mediante partición en regiones de interés y cálculo de estadísticas por celda. El resultado se publica en \code{/perception/depth\_grid} como \code{custom\_interfaces/msg/DepthGrid}. Esta versión establece la referencia funcional de menor latencia sobre la cual se evalúan las mejoras posteriores.
+El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscribe
+\code{depth/image}, remapeado desde \code{RS/depth/image\_rect\_raw} en
+\code{nav.launch.py}, y publica una representación compacta en
+\code{/perception/depth\_grid} con tipo \code{custom\_interfaces/msg/DepthGrid}. El nodo
+\code{haptic\_grid\_generator} consume esa interfaz y publica
+\code{/perception/haptic\_grid} como \code{custom\_interfaces/msg/HapticGrid}; finalmente,
+\code{grid\_to\_motor} recibe la matriz de intensidades para transmitirla por UART. Esta versión
+establece la cadena funcional de referencia que conservan las versiones posteriores.
 
-La Figura~\ref{fig:mensajes-v0} explicita el contrato de datos de esta ruta. Cada flecha se lee
-en tres niveles: nombre de tópico, tipo de mensaje y contenido relevante. La entrada conserva la
-profundidad del sensor como una imagen \texttt{16UC1} expresada en milímetros; el codificador la
-convierte a una \texttt{DepthGrid} de $5\times10$ celdas cuyas estadísticas se expresan en
-metros. A partir del mínimo de cada celda, \texttt{haptic\_grid\_generator} produce la
-\texttt{HapticGrid} de intensidades lógicas que recibe \texttt{hardware\_manager}. De esta
-forma, el diagrama distingue la representación geométrica de la orden háptica y evita atribuir
-al gestor de hardware el cálculo de intensidad.
+La Figura~\ref{fig:mensajes-v0} explicita el contrato de datos de esta ruta. Cada flecha indica el
+nombre del tópico, el tipo de mensaje y su contenido relevante. El diagrama distingue así la
+representación geométrica \texttt{DepthGrid}, la orden lógica \texttt{HapticGrid} y la interfaz
+de transmisión. La construcción de la grilla y la conversión a intensidad se desarrollan en las
+Secciones~\ref{sec:metodo-v0-depthgrid} y~\ref{sec:metodo-v0-intensidad}.
 
 \begin{figure}[H]
   \centering
@@ -158,18 +182,13 @@ al gestor de hardware el cálculo de intensidad.
   \label{fig:mensajes-v0}
 \end{figure}
 
-\section{Versión v1: refinamiento de la percepción frontal}
+\subsection{Flujo de v1: filtrado y codificación de obstáculos}
 \label{sec:arq-filtro-obstaculos}
 
-El paquete \texttt{depth\_obstacle\_filter} encapsula la etapa de percepción
-profunda. Su nodo \code{depth\_obstacle\_filter\_node} suscribe la imagen de
-profundidad, \code{depth/camera\_info} y el acelerómetro IMU del driver
-(\code{RS/accel/sample}, remapeado a \code{imu}), y aplica la siguiente secuencia:
-retroproyección pinhole a nube de puntos 3D (\texttt{DepthProjector}),
-alineación gravitacional a partir del vector de aceleración filtrado internamente,
-y detección del plano del suelo por RANSAC jerárquico
-(\texttt{GroundEstimator}) con clasificación de puntos en suelo,
-obstáculo y techo. El nodo publica \texttt{/depth\_obstacle\_filter/obstacle\_cloud}
+El nodo \code{depth\_obstacle\_filter\_node}, del paquete
+\texttt{depth\_obstacle\_filter}, suscribe la imagen de profundidad, sus parámetros
+intrínsecos y el acelerómetro del driver. El nodo publica
+\texttt{/depth\_obstacle\_filter/obstacle\_cloud}
 como salida principal, y cuando se habilita la interfaz hacia mapeo local también
 publica \texttt{/depth\_obstacle\_filter/free\_endpoints}. De forma adicional
 emite \texttt{/depth\_obstacle\_filter/camera\_height} (\texttt{std\_msgs/Float32})
@@ -182,13 +201,9 @@ La nube de obstáculos es consumida por \code{obstacle\_grid\_encoder}, del paqu
 \texttt{DepthGrid} a las etapas posteriores, aunque lo construyen a partir de fuentes diferentes.
 
 La Figura~\ref{fig:mensajes-v1} muestra ese reemplazo sin presentar v1 como una cadena
-independiente. \texttt{depth\_obstacle\_filter} necesita tres entradas del sensor: profundidad
-rectificada, parámetros intrínsecos y aceleración lineal. Sus salidas funcionales hacia el
-codificador son la nube de obstáculos, expresada en metros en el marco alineado con gravedad, y
-la altura filtrada de cámara. La primera determina qué puntos se agregan; la segunda actualiza
-el límite vertical usado para distribuirlos entre las cinco filas. El resultado vuelve a ser el
-mismo tipo \texttt{DepthGrid} de v0, por lo que la codificación háptica y la interfaz de salida
-no necesitan cambiar.
+independiente. Las salidas funcionales hacia el codificador son la nube de obstáculos, expresada
+en el marco alineado con gravedad, y la altura de cámara. El resultado vuelve a ser el mismo tipo
+\texttt{DepthGrid} de v0, por lo que la generación háptica y la interfaz de salida no cambian.
 
 \begin{figure}[H]
   \centering
@@ -199,18 +214,12 @@ no necesitan cambiar.
   \label{fig:mensajes-v1}
 \end{figure}
 
-Esta decisión separa responsabilidades dentro de la cadena: la orientación
-completa estimada por \texttt{imu\_filter\_madgwick} se reserva para la
-odometría visual-inercial, mientras que \texttt{depth\_obstacle\_filter}
-requiere únicamente la dirección de gravedad para estimar roll y pitch.
-En este contexto, el yaw no modifica la segmentación suelo-obstáculo,
-por lo que consumir acelerómetro directo reduce dependencias entre nodos,
-evita latencia adicional en la etapa de percepción y mantiene operativo el
-filtro geométrico aun cuando el flujo de odometría no esté inicializado.
-Los detalles de cada etapa se describen en las
+La separación entre el filtrado geométrico de v1 y la rama de odometría de v2 evita que la
+percepción frontal dependa de la disponibilidad del mapa local. Los criterios de proyección,
+alineación, clasificación y codificación se describen en las
 Secciones~\ref{sec:metodo-v1-proyeccion} a~\ref{sec:metodo-v1-angular}.
 
-\section{Versión v2: memoria espacial y protección contextual}
+\subsection{Flujo de v2: odometría, mapeo y fusión contextual}
 \label{sec:arq-mapeo}
 
 La versión v2 mantiene en la rama inferior de la Figura~\ref{fig:mensajes-v2} la percepción
@@ -232,91 +241,52 @@ producir la única \texttt{HapticGrid} de salida.
   \label{fig:mensajes-v2}
 \end{figure}
 
-El nodo \code{occupancy\_mapper\_node} (paquete \texttt{local\_mapper}) es
-exclusivamente responsable de la acumulación del mapa de ocupación. Suscribe
-\texttt{/depth\_obstacle\_filter/obstacle\_cloud} y
-\texttt{/depth\_obstacle\_filter/free\_endpoints} mediante
-\texttt{ExactTimeSynchronizer}, mientras que la odometría se recibe por
-\texttt{nav\_odom} y se mantiene en un buffer temporal para asociar la muestra
-más reciente no posterior al \texttt{stamp} de cada frame de profundidad.
-Además consume \texttt{/depth\_obstacle\_filter/camera\_height} para fijar la
-componente vertical del origen publicado del mapa. Con estas entradas ejecuta
-actualización en log-odds con ray casting de Bresenham sobre una rejilla local
-deslizante (\texttt{OccupancyMapper}) y publica
+El nodo \code{occupancy\_mapper\_node} (paquete \texttt{local\_mapper}) recibe las evidencias
+ocupada y libre publicadas por \texttt{depth\_obstacle\_filter}, junto con
+\texttt{nav\_odom} y la altura de cámara. Es responsable de mantener la memoria espacial y publica
 \texttt{nav\_msgs/OccupancyGrid} en \texttt{/local\_mapper/occupancy\_grid}
 con frame \texttt{odom}. También publica la TF dinámica
 \texttt{odom}~$\to$~\texttt{gravity\_aligned\_frame} para mantener coherencia
-de marcos entre mapeo y depuración.
+de marcos entre los nodos de v2. El método de asociación temporal y actualización del mapa se
+desarrolla en las Secciones~\ref{sec:metodo-v2-evidencia} y
+\ref{sec:metodo-v2-ocupacion}.
 
-\section{Conciencia espacial}
-\label{sec:arq-spatial}
-
-El nodo \code{spatial\_awareness\_node} (paquete \texttt{spatial\_awareness})
-suscribe la grilla local \code{/local\_mapper/occupancy\_grid}, la odometría
-\code{nav\_odom} y el estado de apertura angular
-(\code{/perception/depth\_grid/aperture\_state\_deg}). A partir de estas
-entradas evalúa riesgo fuera del FOV frontal en tres sectores:
-izquierdo, derecho y posterior. El resultado se publica en
+El nodo \code{spatial\_awareness\_node} (paquete \texttt{spatial\_awareness}) suscribe la grilla
+local, la odometría y el estado de apertura angular. Su responsabilidad es producir advertencias
+contextuales para los sectores izquierdo, derecho y posterior. El resultado se publica en
 \code{/spatial\_awareness/collision\_risk} con tipo
 \code{custom\_interfaces/msg/SpatialAwareness}, que contiene un canal
 \code{DirectionalRisk} por sector y un indicador \code{valid} para señalar
-vigencia temporal de mapa y odometría.
-
-\section{Fusión háptica}
-\label{sec:arq-fusion}
-
-El nodo \code{haptic\_grid\_generator\_node} (paquete
-\texttt{haptic\_grid\_generator}) recibe la percepción instantánea
-(\code{/perception/depth\_grid}) y el riesgo contextual
-(\code{/spatial\_awareness/collision\_risk}). Para cada celda válida transforma
-la distancia mínima en una intensidad lógica entre 0 y 100 mediante la ley
-lineal invertida y saturada de la Ecuación~\eqref{eq:intensity-mapping}. Cuando
-el mensaje de conciencia espacial está
-vigente y marcado como válido, se superpone la intensidad de riesgo sobre
-columnas laterales y posteriores de la matriz háptica. La salida consolidada se
-publica en \code{/perception/haptic\_grid} con tipo
-\code{custom\_interfaces/msg/HapticGrid}.
+vigencia de sus entradas. El nodo
+\code{haptic\_grid\_generator\_node} recibe este mensaje junto con
+\code{/perception/depth\_grid} y publica una única salida consolidada en
+\code{/perception/haptic\_grid} con tipo \code{custom\_interfaces/msg/HapticGrid}.
+Los criterios de evaluación del riesgo y de fusión se desarrollan en las
+Secciones~\ref{sec:metodo-v2-riesgo} y~\ref{sec:metodo-v2-fusion}.
 
 \section{Interfaz lógica de salida y transmisión UART}
 \label{sec:arq-hardware}
 
 El nodo \code{grid\_to\_motor} (paquete \texttt{hardware\_manager}) suscribe
 \code{/perception/haptic\_grid}; por lo tanto, recibe comandos de intensidad ya
-calculados y no procesa distancias. Para cada celda activa redondea y satura la
-intensidad al intervalo $[0,100]$, la escala según \code{duty\_max} mediante la
-Ecuación~\eqref{eq:duty-scaling} y serializa los valores resultantes. Las celdas
-inactivas se transmiten con valor cero. El formato de trama UART es ASCII:
-\texttt{M $D_0$ $D_1$ \ldots $D_{N-1}$\textbackslash{}n} a
-$115200\text{bps}$ en modo 8N1 sin control de flujo. Un mecanismo de
-\emph{throttling} basado en marcas de tiempo descarta mensajes si el intervalo
-desde el último envío es inferior al período configurado
-(\code{send\_period\_ms}), evitando saturar el buffer UART. La implementación
-y validación del receptor, de la electrónica de potencia y de los motores
-vibrotáctiles quedan fuera del alcance de esta tesis. La eficiencia del
-protocolo y sus alternativas para matrices de mayor densidad se discuten en
-\Cref{sub:discusion-uart}.
+calculados y no procesa distancias. Su responsabilidad es adaptar la matriz lógica al rango de
+salida configurado y serializarla para su transmisión UART al microcontrolador. La implementación
+del escalado, el formato de trama y el control de frecuencia se describe en el capítulo de
+Implementación. La validación del receptor, de la electrónica de potencia y de los motores
+vibrotáctiles queda fuera del alcance de esta tesis.
 
 \section{Visualización y depuración}
 \label{sec:arq-viz}
 
-El nodo \code{depth\_grid\_heatmap} (paquete \texttt{output\_viewer}),
-implementado en Python, puede ejecutarse opcionalmente en una PC conectada a
-la misma red DDS. Genera una visualización en mapa de calor de
+El nodo \code{depth\_grid\_heatmap} (paquete \texttt{output\_viewer})
+puede ejecutarse opcionalmente en una PC conectada a la misma red DDS. Genera una visualización de
 \code{/perception/haptic\_grid} y puede superponer el estado de
 \code{/spatial\_awareness/collision\_risk} para inspección integrada de
 percepción frontal y riesgo contextual. De este modo permite verificar la
 estructura, orientación, actualización y coherencia de los comandos de intensidad
 sin depender de la interfaz háptica física; no sustituye su validación perceptual.
-El nodo
-\code{depth\_obstacle\_filter\_node} publica adicionalmente tópicos de
-depuración: nube de puntos cruda
-(\code{/depth\_obstacle\_filter/debug/depth\_cloud}), nube alineada a
-gravedad (\code{/depth\_obstacle\_filter/debug/raw\_cloud}), suelo detectado
-(\code{/depth\_obstacle\_filter/debug/ground\_cloud}), puntos descartados por
-encima de la cámara
-(\code{/depth\_obstacle\_filter/debug/ceiling\_cloud}) y altura estimada de la
-cámara sobre el suelo (\code{/depth\_obstacle\_filter/camera\_height}), todos
-visualizables con RViz2.
+Los nodos de percepción publican además interfaces opcionales de diagnóstico para inspeccionar en
+RViz2 las representaciones intermedias. Estas salidas no intervienen en el flujo funcional.
 El detalle exhaustivo de tópicos ROS~2, incluyendo productores, consumidores,
 tipos de mensaje y correspondencia con el código fuente, se presenta en el
 Anexo~\ref{anexo:trazabilidad}.
