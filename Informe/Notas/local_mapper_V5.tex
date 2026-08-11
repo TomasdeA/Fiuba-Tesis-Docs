@@ -240,9 +240,11 @@ La rejilla interna se indexa con aritmética \emph{row-major} \cite{stroustrup20
 el índice lineal de la celda $(c_i, c_j)$ es $c_i \cdot N + c_j$, donde
 $c_i$ recorre el eje $X$ y $c_j$ el eje $Z$.
 
-Con los parámetros por defecto ($\Delta = 0{,}10\,\text{m}$, $N = 200$), la
-ventana cubre un área de $20\,\text{m} \times 20\,\text{m}$ centrada en la
-posición actual de la cámara.
+Con los parámetros por defecto ($\Delta = 0{,}10\,\text{m}$, $N = 100$), la
+ventana cubre un área de $10\,\text{m} \times 10\,\text{m}$ centrada en la
+posición actual de la cámara. La memoria se conserva solamente dentro de un
+radio de 5~m; las celdas de las esquinas del soporte cuadrado quedan en estado
+desconocido por encontrarse fuera de esa región circular.
 
 \subsubsection{Ray casting por el algoritmo de Bresenham}
 \label{subsubsec:lm-v5-bresenham}
