@@ -287,6 +287,20 @@ hacer que se procesen datos antiguos. Por lo tanto, la latencia extremo a extrem
 transporte y cálculo, sino también espera en colas. ROS~2 ofrece mecanismos para configurar este
 comportamiento, pero no garantiza por sí solo ejecución en tiempo real.
 
+\subsubsection{Registro y reproducción de datos con \texttt{rosbag2}}
+
+\texttt{rosbag2} registra mensajes ROS~2 junto con su tópico, tipo y marca temporal, y permite
+publicarlos nuevamente conservando la secuencia temporal de la captura \cite{ROS2Bag}. Así, una
+misma escena puede procesarse con distintas configuraciones sin repetir la adquisición física. En
+una comparación experimental esto mantiene constantes las mediciones de entrada y reduce
+variaciones debidas al movimiento del usuario, la posición de los obstáculos o la iluminación.
+
+La reproducción no vuelve determinista toda la ejecución. La planificación del sistema operativo,
+la espera en colas y el tiempo de los callbacks todavía pueden variar entre corridas. Además, los
+perfiles QoS de grabación y reproducción deben ser compatibles con los nodos evaluados. Por ello,
+el rosbag controla la entrada del experimento, mientras que las configuraciones, la velocidad de
+reproducción y la cantidad de repeticiones deben fijarse por separado.
+
 \subsection{Representación compacta y salida embebida}
 
 La salida de la cámara contiene más información que la necesaria para accionar una interfaz
