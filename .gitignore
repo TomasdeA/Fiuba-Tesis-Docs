@@ -27,3 +27,6 @@ TBD/*
 *.acn
 *.acr
 *.alg
+
+rosbag/
+rosbag*/
