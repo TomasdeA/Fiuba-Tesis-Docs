@@ -160,29 +160,90 @@ sensor y no como un error puramente algorítmico: descartar inválidos, exigir s
 mínimo, incorporar persistencia temporal y verificar coherencia con el plano de suelo
 \cite{RS-D400,IntelRealSenseDepthTuning}.
 
-\subsection{ROS~2 como middleware de integración}
+\subsection{ROS~2 como infraestructura de comunicación distribuida}
 \label{sec:mt-ros2}
 
-ROS~2 organiza un sistema robótico como un grafo de nodos que intercambian mensajes tipados
-mediante tópicos, servicios y acciones \cite{ROS}. En este trabajo se utiliza principalmente
-el patrón publicador-suscriptor: cada etapa produce una representación intermedia y la
-siguiente la consume sin depender de la implementación interna del productor. Este
-desacoplamiento permite separar adquisición, percepción, mapeo, visualización y salida al
-hardware.
+ROS~2 proporciona mecanismos para dividir un sistema robótico en componentes y comunicar esos
+componentes dentro de una computadora o a través de una red \cite{ROS}. Esta separación permite
+que adquisición, percepción, mapeo, visualización y salida se desarrollen como módulos distintos.
+La arquitectura concreta del sistema se presenta en el Capítulo~\ref{chap:arquitectura}; aquí se
+introducen únicamente los conceptos necesarios para comprender cómo circulan los datos y qué
+factores pueden afectar su entrega y latencia.
 
-La comunicación en ROS~2 se apoya en DDS. Esto habilita ejecutar el procesamiento principal en
-la Raspberry Pi y visualizar resultados en otra computadora dentro de la misma red, siempre que
-ambas participen del mismo dominio DDS. Además, los remapeos permiten adaptar nombres de
-tópicos en el lanzamiento sin introducir nodos adicionales. Esta propiedad es importante para
-la D435i, cuyo driver publica nombres nativos extensos, mientras que los nodos propios consumen
-interfaces normalizadas.
+\subsubsection{Modelo de comunicación e interfaces}
 
-La teoría relevante para v0 no es solamente la existencia de tópicos, sino la elección de
-mensajes. Una imagen de profundidad se transporta como \texttt{sensor\_msgs/Image}, los
-parámetros intrínsecos como \texttt{sensor\_msgs/CameraInfo}, la grilla compacta como
-\texttt{DepthGrid} y la salida lógica de intensidades como \texttt{HapticGrid}. Al definir mensajes
-explícitos se evita codificar semántica en arreglos sin contexto y se preserva trazabilidad
-entre nodos.
+Un \emph{nodo} es una unidad de procesamiento con una responsabilidad definida. Los nodos forman
+un grafo y se comunican mediante interfaces tipadas. Los \emph{tópicos} implementan comunicación
+asíncrona de tipo publicador--suscriptor: uno o más nodos publican mensajes y los suscriptores los
+reciben sin que ambas partes deban conocerse entre sí. Los \emph{servicios} se usan para una
+solicitud con respuesta breve, mientras que las \emph{acciones} representan tareas prolongadas
+que pueden informar avance o cancelarse \cite{ROS2Interfaces}. El pipeline emplea principalmente
+tópicos porque imágenes, mediciones inerciales, nubes, odometría y mapas son flujos continuos; las
+órdenes puntuales, como iniciar o detener una grabación, se ajustan mejor a un servicio.
+
+El tipo del mensaje define la estructura y las unidades de la información intercambiada. Los tipos
+estándar permiten integrar drivers y herramientas existentes, mientras que los mensajes propios
+expresan contratos específicos del sistema. En ambos casos, una interfaz explícita evita que el
+significado de cada campo dependa de acuerdos implícitos entre productor y consumidor.
+
+\subsubsection{Capas RCL, RMW y DDS}
+
+El código de un nodo no accede directamente a DDS. Los nodos escritos en C++ o Python utilizan las
+bibliotecas cliente \texttt{rclcpp} o \texttt{rclpy}; estas se apoyan en la biblioteca común
+\texttt{rcl}, que delega la comunicación en la interfaz \texttt{RMW} (\emph{ROS Middleware}). Una
+implementación de RMW adapta esa interfaz al middleware elegido. En este sistema,
+\texttt{rmw\_cyclonedds\_cpp} realiza esa adaptación para Cyclone DDS \cite{ROS2RMW}.
+
+DDS se ocupa del descubrimiento de participantes, la serialización y el transporte de los datos.
+El descubrimiento distribuido permite que los nodos se encuentren sin un servidor maestro
+central. El identificador de dominio, \texttt{ROS\_DOMAIN\_ID}, limita qué participantes pueden
+descubrirse entre sí. De esta forma, el procesamiento puede ejecutarse en la Raspberry Pi y la
+visualización en otra computadora, siempre que exista conectividad y ambas pertenezcan al mismo
+dominio. La Figura~\ref{fig:mt-capas-ros2} resume las capas de software que intervienen desde la
+aplicación hasta el sistema operativo.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{marco_teorico/ROS2/capas-ros2.png}
+  \caption{Capas de comunicación de ROS~2 empleadas en el sistema. Los nodos acceden a las
+  funciones de ROS~2 mediante \texttt{rclcpp} o \texttt{rclpy}, construidas sobre la biblioteca
+  común \texttt{rcl}. La interfaz \texttt{RMW} desacopla estas bibliotecas del middleware DDS;
+  en este trabajo se utiliza Cyclone DDS sobre Linux.}
+  \label{fig:mt-capas-ros2}
+\end{figure}
+
+\subsubsection{Calidad de servicio y comportamiento temporal}
+
+Cada publicador y suscriptor posee un perfil de calidad de servicio o QoS. Este perfil no mejora
+el contenido del mensaje: establece cómo debe entregarse. La política de confiabilidad puede ser
+\emph{best effort}, que admite pérdidas para evitar retransmisiones, o \emph{reliable}, que intenta
+garantizar la entrega. La política de historial y la profundidad determinan cuántas muestras se
+conservan. La durabilidad \emph{volatile} entrega solo publicaciones nuevas; con
+\emph{transient local}, el publicador conserva muestras para suscriptores que se conectan después
+\cite{ROS2QoS}. Los perfiles ofrecido y solicitado deben ser compatibles para que se establezca la
+comunicación.
+
+La elección depende de la función del dato. En un flujo rápido de sensores suele ser preferible
+procesar la muestra más reciente antes que esperar la retransmisión de una muestra antigua. En
+cambio, la odometría requiere una entrega más confiable, y estados de baja frecuencia como un mapa
+o una configuración pueden necesitar que un suscriptor nuevo reciba el último valor disponible.
+Por eso el sistema combina \texttt{SensorDataQoS}, perfiles confiables y durabilidad
+\emph{transient local} según el tópico.
+
+Cuando llega un mensaje, su callback queda disponible para ser ejecutado. Si el nodo todavía está
+procesando otra tarea, la muestra permanece en la cola hasta que el ejecutor pueda atenderla. Una
+cola corta puede descartar datos durante una sobrecarga; una cola larga reduce pérdidas, pero puede
+hacer que se procesen datos antiguos. Por lo tanto, la latencia extremo a extremo incluye no solo
+transporte y cálculo, sino también espera en colas. ROS~2 ofrece mecanismos para configurar este
+comportamiento, pero no garantiza por sí solo ejecución en tiempo real.
+
+\subsection{Representación compacta y salida embebida}
+
+La salida de la cámara contiene más información que la necesaria para accionar una interfaz
+háptica de baja resolución. La cadena reduce esa información en etapas: resume la imagen densa,
+conserva la distribución angular de los obstáculos, transforma distancia en intensidad y
+serializa el resultado. Cada etapa cambia la representación, pero mantiene explícita la
+correspondencia espacial entre una región del entorno y una celda de salida.
 
 \subsection{Reducción espacial de la imagen de profundidad}
 \label{sec:mt-depth-grid-encoder}
