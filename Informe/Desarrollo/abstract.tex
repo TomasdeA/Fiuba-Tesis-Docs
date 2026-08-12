@@ -15,23 +15,23 @@ output interface is grounded in the principle of sensory substitution: the brain
 interpret tactile stimuli as spatial information when vision is reduced or absent. On that basis,
 the broader project seeks to translate visual spatial information into haptic stimuli interpretable
 for navigation; it is structured in two complementary stages: (i)~environment capture and local
-mapping, and (ii)~translation into a haptic interface. This thesis, submitted under the
-\textit{Electronic Engineering Thesis} track, addresses exclusively the first stage.
+mapping, and (ii)~translation into a haptic interface. This thesis, addresses exclusively the first
+stage.
 
 Specifically, a perception module is developed in ROS 2 that, using an Intel RealSense D435i camera
 mounted on the user's head and running on a Raspberry Pi~5, generates a compact real-time
 representation of the immediate surroundings. The development follows three incremental versions.
 The v0 version addresses the problem directly and with low latency: it reduces the depth image to
-a grid of 5 rows by 10 columns, converts it to haptic intensities, displays them through
-\texttt{output\_viewer}, and generates the UART frame intended for a future physical interface.
+a grid of 5 rows by 10 columns, converts it to haptic intensities, and generates the UART frame
+intended for a future physical interface, while also providing a visualization of the results for
+debugging purposes.
 Building on this basis, v1 improves measurement interpretation and the signal intended for the
 second stage: it aligns the point cloud with gravity, removes floor and ceiling points, and
 improves the spatial distribution assigned to each motor. Finally, v2 extends protection beyond
 the field of view by using the filtered output of v1 to build and maintain a 2D egocentric local
-occupancy map based on log-odds, with
-Bresenham ray casting, dynamic scrolling and RGB-D and IMU odometry, preserving recent obstacle
-information even after obstacles leave the camera's field of view.
-A fusion node combines this spatial memory with the instantaneous frontal perception of v1.
+occupancy map based on log-odds, with Bresenham ray casting, dynamic scrolling and RGB-D and IMU
+odometry, preserving recent obstacle information even after obstacles leave the camera's field of
+view. A fusion node combines this spatial memory with the instantaneous frontal perception of v1.
 
 System performance is assessed through quantitative metrics including depth error, end-to-end
 latency, obstacle detection precision and recall, temporal stability of the local map, and

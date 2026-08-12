@@ -17,24 +17,22 @@ reorganizarse para interpretar estímulos táctiles como información espacial c
 reducida o ausente. Sobre esa base, el proyecto global busca traducir información espacial visual
 en estímulos hápticos interpretables para la navegación; se estructura en dos etapas
 complementarias, (i)~captación del entorno y mapeo local y (ii)~traducción a interfaz háptica. La
-presente tesis, enmarcada en la modalidad \textit{Tesis de Ingeniería Electrónica}, aborda
-exclusivamente la primera.
+presente tesis, aborda exclusivamente la primera.
 
 En concreto, se desarrolla en ROS~2 un módulo de percepción que, a partir de la cámara Intel
 RealSense D435i montada sobre la cabeza del usuario y ejecutándose en una Raspberry Pi~5, genera en
 tiempo real una representación compacta del entorno inmediato. El desarrollo sigue tres versiones
 incrementales. La v0 resuelve el problema de forma directa y con baja latencia: reduce la imagen de
-profundidad a una grilla de 5 filas $\times$ 10 columnas, la convierte en intensidades hápticas, las
-visualiza mediante \texttt{output\_viewer} y genera la trama UART prevista para una futura interfaz
-física. Sobre esa base, la v1 mejora la interpretación de las mediciones y la señal destinada a la
-segunda etapa: alinea la nube con la gravedad, elimina piso y techo, y mejora la distribución
-espacial asociada a cada motor. Por último, la v2 amplía la protección fuera del campo de visión:
-usa la salida filtrada de v1 para construir un mapa local de ocupación 2D
-egocéntrico basado en log-odds, con
-trazado de rayos Bresenham, desplazamiento dinámico (\emph{scroll}) y odometría por RGB-D e IMU,
-conservando información reciente de obstáculos que han dejado de estar dentro del campo de visión
-de la cámara.
-Un nodo de fusión combina esta memoria espacial con la percepción frontal instantánea de v1.
+profundidad a una grilla de 5 filas $\times$ 10 columnas, la convierte en intensidades hápticas y
+genera la trama UART prevista para una futura interfaz física, además de ofrecer una visualización
+de los resultados para depuración. Sobre esa base, la v1 mejora la interpretación de las
+mediciones y la señal destinada a la segunda etapa: alinea la nube con la gravedad, elimina piso y
+techo, y mejora la distribución espacial asociada a cada motor. Por último, la v2 amplía la
+protección fuera del campo de visión: usa la salida filtrada de v1 para construir un mapa local de
+ocupación 2D egocéntrico basado en log-odds, con trazado de rayos Bresenham, desplazamiento
+dinámico (\emph{scroll}) y odometría por RGB-D e IMU, conservando información reciente de
+obstáculos que han dejado de estar dentro del campo de visión de la cámara. Un nodo de fusión
+combina esta memoria espacial con la percepción frontal instantánea de v1.
 
 El desempeño se evalúa mediante métricas cuantitativas de error de profundidad, latencia extremo a
 extremo, precisión y \textit{recall} en detección de obstáculos, estabilidad temporal del mapa
