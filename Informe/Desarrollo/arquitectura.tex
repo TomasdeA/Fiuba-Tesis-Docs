@@ -5,7 +5,7 @@
 El sistema se compone de un conjunto de nodos ROS~2 que se ejecutan sobre una Raspberry Pi~5,
 orquestados por el archivo de lanzamiento \code{nav.launch.py} del paquete \texttt{nav\_bringup}.
 Todos los nodos de procesamiento quedan contenidos en la misma unidad de cómputo y se comunican
-exclusivamente a través del middleware DDS (\code{rmw\_cyclonedds}). La frontera de la
+exclusivamente a través del middleware DDS (\code{rmw\_cyclonedds\_cpp}). La frontera de la
 implementación física se ubica en la transmisión UART: el sistema genera y serializa los comandos
 de intensidad, pero no incluye el receptor, la electrónica de potencia ni los actuadores.
 Distintos nodos de visualización del paquete (\texttt{output\_viewer}) pueden ejecutarse
@@ -89,15 +89,15 @@ la conciencia espacial, \texttt{DirectionalRisk} describe el riesgo por direcci�
 \texttt{SpatialAwareness} agrupa los tres canales \texttt{left}, \texttt{right} y \texttt{rear}
 junto con una bandera de validez global. Esta separación reduce el acoplamiento entre nodos y evita incorporar información de riesgo dentro de un mensaje destinado a percepción.
 
-El paquete \texttt{nav\_bringup} centraliza la configuración de lanzamiento del sistema en
-\code{nav.launch.py}. Este archivo expone parámetros para habilitar o deshabilitar componentes y
+La configuración de lanzamiento se centraliza en \code{nav.launch.py}, perteneciente al paquete
+\texttt{nav\_bringup}. Este archivo expone parámetros para habilitar o deshabilitar componentes y
 modos de ejecución, entre ellos: selección de pipeline de percepción
 (\texttt{raw}/\texttt{filtered}/\texttt{none}), activación de \texttt{local\_mapper} y
 \texttt{spatial\_awareness}, publicación en hardware y
 herramientas de visualización y depuración. Estas opciones determinan qué nodos se inician y con
 qué parámetros, mientras que la lógica de procesamiento permanece en los paquetes funcionales.
 
-\subsection{Adquisición y normalización de tópicos}
+\subsection{Adquisición y adaptación de tópicos}
 \label{sec:arq-sensor}
 
 El driver de la cámara, lanzado mediante \code{rs\_launch.py} del paquete \code
@@ -111,39 +111,52 @@ tipo \code{sensor\_msgs/Image}, mientras que \code{RS/depth/camera\_info} y
 \code{sensor\_msgs/CameraInfo}. De forma análoga, las mediciones inerciales llegan por tópicos
 específicos del driver y utilizan \code{sensor\_msgs/Imu} como tipo de mensaje.
 
-El launcher \code{nav.launch.py} define remapeos explícitos para cada consumidor, de forma que la
-lógica de procesamiento no dependa de los nombres publicados por el driver y se pueda identificar
-qué flujo alimenta a cada nodo. Las correspondencias de referencia se indican en la
-\Cref{tab:remapper}.
+Cada nodo se suscribe mediante un nombre local, independiente del driver (por ejemplo,
+\code{depth/image}, \code{accel} o \code{rgb/image}), y los archivos de lanzamiento remapean ese
+nombre al tópico efectivo de RealSense. De esta forma, la selección de la fuente queda fuera de la
+lógica de procesamiento y no se crea una segunda copia de las imágenes. La
+\Cref{tab:remapper} documenta los remapeos que componen las configuraciones integradas.
 
 \begin{table}[htbp]
 \centering
-\begin{tabular}{ll}
+\small
+\begin{tabular}{p{0.25\textwidth}p{0.25\textwidth}p{0.40\textwidth}}
 \hline
-\textbf{Tópico de origen (driver)} & \textbf{Tópico normalizado} \\
+\textbf{Nodo consumidor} & \textbf{Entrada del nodo} & \textbf{Tópico efectivo} \\
 \hline
-\texttt{RS/depth/image\_rect\_raw}  & \texttt{/sensors/depth/image} \\
-\texttt{RS/depth/camera\_info}      & \texttt{/sensors/depth/camera\_info} \\
-\texttt{RS/color/image\_raw}        & \texttt{/sensors/color/image} \\
-\texttt{RS/color/camera\_info}      & \texttt{/sensors/color/camera\_info} \\
-\texttt{RS/accel/sample}            & \texttt{/sensors/imu/accel} \\
-\texttt{RS/gyro/sample}             & \texttt{/sensors/imu/gyro} \\
+\texttt{depth\_to\_matrix} & \texttt{depth/image} & \texttt{RS/depth/image\_rect\_raw} \\
+\texttt{depth\_obstacle\_filter} & \texttt{depth/image} & \texttt{RS/depth/image\_rect\_raw} \\
+ & \texttt{depth/camera\_info} & \texttt{RS/depth/camera\_info} \\
+ & \texttt{accel} & \texttt{RS/accel/sample} \\
+\texttt{imu\_filter\_madgwick} & \texttt{imu/data\_raw} & \texttt{RS/imu} \\
+\texttt{rtabmap\_odom} & \texttt{rgb/image} & \texttt{RS/color/image\_raw} \\
+ & \texttt{rgb/camera\_info} & \texttt{RS/color/camera\_info} \\
+ & \texttt{depth/image} & \texttt{RS/aligned\_depth\_to\_color/image\_raw} \\
+ & \texttt{imu} & \texttt{/imu/data\_filtered} \\
 \hline
 \end{tabular}
-\caption{Correspondencias de tópicos implementadas mediante remapeos en \code{nav.launch.py}. En
-esta tabla, \code{RS/} abrevia el prefijo \code{/camera/camera/}.}
+\caption[Entradas locales y tópicos efectivos de los consumidores]{Entradas locales de cada nodo
+y tópicos efectivos seleccionados por los archivos de lanzamiento. \code{RS/} abrevia el prefijo
+\code{/camera/camera/}; \code{/imu/data\_filtered} es la salida de
+\texttt{imu\_filter\_madgwick}, no un tópico del driver. El tópico \code{RS/imu} es la salida
+unificada que el controlador RealSense habilita para v2 mediante
+\code{unite\_imu\_method=1}.}
 \label{tab:remapper}
 \end{table}
 
-Además de estos remapeos, el código actual consume otros flujos del driver de forma directa.
-\texttt{depth\_obstacle\_filter} utiliza \code{RS/depth/image\_rect\_raw},
-\code{RS/depth/camera\_info} y \code{RS/accel/sample}; el filtro de Madgwick
-(paquete \texttt{imu\_filter\_madgwick}) consume \code{RS/imu} para producir
-\code{/imu/data\_filtered}; y \texttt{rtabmap\_odom} utiliza \code{RS/color/image\_raw},
-\code{RS/color/camera\_info}, \code{RS/aligned\_depth\_to\_color/image\_raw} e
-\code{/imu/data\_filtered}. La \Cref{tab:remapper} resume únicamente los remapeos
-explícitos usados como interfaz de normalización, no la totalidad de tópicos de cámara presentes
-en ejecución.
+Los remapeos de \texttt{depth\_to\_matrix}, \texttt{imu\_filter\_madgwick} y
+\texttt{rtabmap\_odom} se declaran en \code{nav.launch.py}. Los de
+\texttt{depth\_obstacle\_filter} se declaran en su lanzador incluido, que lee de su archivo de
+parámetros los nombres RealSense usados como destino. Por tanto, el contrato desacoplado es la
+entrada local de cada nodo. Las herramientas de diagnóstico y grabación que necesitan observar el
+flujo global emplean los nombres del driver.
+
+La separación de entradas inerciales sigue la evolución del sistema. En v1,
+\texttt{depth\_obstacle\_filter} consume solamente \code{RS/accel/sample} para estimar la
+vertical local; no utiliza el giróscopo ni Madgwick. En v2 se habilita además la IMU unificada
+\code{RS/imu}, formada a partir del acelerómetro y el giróscopo. Madgwick la convierte en
+\code{/imu/data\_filtered}, que se entrega como entrada auxiliar a la odometría RGB-D de
+RTAB-Map.
 
 \section{Nodos y flujo de mensajes por versión}
 \label{sec:arq-flujos-versiones}
@@ -164,7 +177,7 @@ El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscrib
 \code{/perception/depth\_grid} con tipo \code{custom\_interfaces/msg/DepthGrid}. El nodo
 \code{haptic\_grid\_generator} consume esa interfaz y publica
 \code{/perception/haptic\_grid} como \code{custom\_interfaces/msg/HapticGrid}; finalmente,
-\code{grid\_to\_motor} recibe la matriz de intensidades para transmitirla por UART. Esta versión
+\code{hardware\_manager} recibe la matriz de intensidades para transmitirla por UART. Esta versión
 establece la cadena funcional de referencia que conservan las versiones posteriores.
 
 La Figura~\ref{fig:mensajes-v0} explicita el contrato de datos de esta ruta. Cada flecha indica el
@@ -185,20 +198,18 @@ Secciones~\ref{sec:metodo-v0-depthgrid} y~\ref{sec:metodo-v0-intensidad}.
 \subsection{Flujo de v1: filtrado y codificación de obstáculos}
 \label{sec:arq-filtro-obstaculos}
 
-El nodo \code{depth\_obstacle\_filter\_node}, del paquete
-\texttt{depth\_obstacle\_filter}, suscribe la imagen de profundidad, sus parámetros
-intrínsecos y el acelerómetro del driver. El nodo publica
-\texttt{/depth\_obstacle\_filter/obstacle\_cloud}
-como salida principal, y cuando se habilita la interfaz hacia mapeo local también
-publica \texttt{/depth\_obstacle\_filter/free\_endpoints}. De forma adicional
-emite \texttt{/depth\_obstacle\_filter/camera\_height} (\texttt{std\_msgs/Float32})
-para informar la altura estimada de cámara respecto del suelo. En TF publica la
-transformación dinámica
-\texttt{gravity\_aligned\_frame}~$\to$~\texttt{camera\_depth\_optical\_frame}.
-La nube de obstáculos es consumida por \code{obstacle\_grid\_encoder}, del paquete
+El nodo \code{depth\_obstacle\_filter}, ejecutado mediante \code{depth\_obstacle\_filter\_node} del
+paquete homónimo, suscribe la imagen de profundidad, sus parámetros intrínsecos y el acelerómetro
+del driver. El nodo publica \texttt{/depth\_obstacle\_filter/obstacle\_cloud} como salida
+principal, y cuando se habilita la interfaz hacia mapeo local también publica
+\texttt{/depth\_obstacle\_filter/free\_endpoints}. De forma adicional emite
+\texttt{/depth\_obstacle\_filter/camera\_height} (\texttt{std\_msgs/Float32}) para informar la
+altura estimada de cámara respecto del suelo. En TF publica la transformación dinámica
+\texttt{gravity\_aligned\_frame}~$\to$~\texttt{camera\_depth\_optical\_frame}. La nube de
+obstáculos es consumida por \code{obstacle\_grid\_encoder}, del paquete
 \texttt{depth\_grid\_encoder}, que la codifica angularmente y publica
-\code{/perception/depth\_grid}. De este modo, v0 y v1 ofrecen el mismo contrato
-\texttt{DepthGrid} a las etapas posteriores, aunque lo construyen a partir de fuentes diferentes.
+\code{/perception/depth\_grid}. De este modo, v0 y v1 ofrecen el mismo contrato \texttt{DepthGrid}
+a las etapas posteriores, aunque lo construyen a partir de fuentes diferentes.
 
 La Figura~\ref{fig:mensajes-v1} muestra ese reemplazo sin presentar v1 como una cadena
 independiente. Las salidas funcionales hacia el codificador son la nube de obstáculos, expresada
@@ -241,7 +252,8 @@ producir la única \texttt{HapticGrid} de salida.
   \label{fig:mensajes-v2}
 \end{figure}
 
-El nodo \code{occupancy\_mapper\_node} (paquete \texttt{local\_mapper}) recibe las evidencias
+El nodo \code{local\_mapper}, ejecutado mediante \code{occupancy\_mapper\_node} del paquete
+\texttt{local\_mapper}, recibe las evidencias
 ocupada y libre publicadas por \texttt{depth\_obstacle\_filter}, junto con
 \texttt{nav\_odom} y la altura de cámara. Es responsable de mantener la memoria espacial y publica
 \texttt{nav\_msgs/OccupancyGrid} en \texttt{/local\_mapper/occupancy\_grid}
@@ -251,14 +263,15 @@ de marcos entre los nodos de v2. El método de asociación temporal y actualizac
 desarrolla en las Secciones~\ref{sec:metodo-v2-evidencia} y
 \ref{sec:metodo-v2-ocupacion}.
 
-El nodo \code{spatial\_awareness\_node} (paquete \texttt{spatial\_awareness}) suscribe la grilla
+El nodo \code{spatial\_awareness}, ejecutado mediante \code{spatial\_awareness\_node} del paquete
+homónimo, suscribe la grilla
 local, la odometría y el estado de apertura angular. Su responsabilidad es producir advertencias
 contextuales para los sectores izquierdo, derecho y posterior. El resultado se publica en
 \code{/spatial\_awareness/collision\_risk} con tipo
 \code{custom\_interfaces/msg/SpatialAwareness}, que contiene un canal
 \code{DirectionalRisk} por sector y un indicador \code{valid} para señalar
-vigencia de sus entradas. El nodo
-\code{haptic\_grid\_generator\_node} recibe este mensaje junto con
+vigencia de sus entradas. El nodo \code{haptic\_grid\_generator}, cuyo ejecutable es
+\code{haptic\_grid\_generator\_node}, recibe este mensaje junto con
 \code{/perception/depth\_grid} y publica una única salida consolidada en
 \code{/perception/haptic\_grid} con tipo \code{custom\_interfaces/msg/HapticGrid}.
 Los criterios de evaluación del riesgo y de fusión se desarrollan en las
@@ -267,7 +280,8 @@ Secciones~\ref{sec:metodo-v2-riesgo} y~\ref{sec:metodo-v2-fusion}.
 \section{Interfaz lógica de salida y transmisión UART}
 \label{sec:arq-hardware}
 
-El nodo \code{grid\_to\_motor} (paquete \texttt{hardware\_manager}) suscribe
+El nodo \code{hardware\_manager}, ejecutado mediante \code{grid\_to\_motor} del paquete
+\texttt{hardware\_manager}, suscribe
 \code{/perception/haptic\_grid}; por lo tanto, recibe comandos de intensidad ya
 calculados y no procesa distancias. Su responsabilidad es adaptar la matriz lógica al rango de
 salida configurado y serializarla para su transmisión UART al microcontrolador. La implementación
