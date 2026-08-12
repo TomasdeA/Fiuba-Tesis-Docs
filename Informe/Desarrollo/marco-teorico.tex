@@ -978,9 +978,11 @@ completo de cierre de lazo y optimización global.
 La incorporación de Madgwick corresponde a v2, no a v1. En v1 la señal inercial relevante es
 el acelerómetro, porque permite estimar la vertical local a partir de la gravedad con bajo
 costo. En v2, en cambio, la odometría necesita una orientación IMU filtrada que combine
-acelerómetro y giróscopo. El driver de la D435i publica mediciones inerciales, pero la
-orientación del mensaje IMU no constituye por sí misma una orientación filtrada utilizable por
-odometría.
+acelerómetro y giróscopo. Para esta versión, el controlador de la D435i se configura con
+\texttt{unite\_imu\_method=1}: además de los flujos inerciales separados, publica el tópico
+unificado \texttt{/camera/camera/imu} que consume Madgwick. La orientación de ese mensaje no
+constituye por sí misma una estimación filtrada utilizable por la odometría; Madgwick publica el
+cuaternión resultante en \texttt{/imu/data\_filtered}.
 
 El problema es que ninguna de las dos mediciones inerciales resuelve por sí sola la orientación
 de forma robusta. El giróscopo describe bien los cambios rápidos de orientación, pero su
@@ -1243,8 +1245,9 @@ temporal interna como su codificación en el mensaje publicado.
 
 La Figura~\ref{fig:mt-ejemplo-log-odds} representa la secuencia numérica anterior. En cada
 punto se muestran por separado el log-odds del eje vertical, la probabilidad recuperada y el
-valor de \texttt{OccupancyGrid.data[i]}. El cruce por $l=0$ permite identificar cuándo la
-evidencia acumulada deja de favorecer ocupación y pasa a favorecer espacio libre.
+valor almacenado en \texttt{data[i]} del mensaje \texttt{OccupancyGrid}. El cruce por $l=0$
+permite identificar cuándo la evidencia acumulada deja de favorecer ocupación y pasa a favorecer
+espacio libre.
 
 \begin{figure}[H]
   \centering
