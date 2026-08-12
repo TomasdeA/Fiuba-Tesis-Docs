@@ -13,6 +13,13 @@ opcionalmente en una PC separada, suscribiéndose a los mismos tópicos a travé
 topología completa del sistema en su versión final integra percepción instantánea, conciencia
 espacial y mapeo local, tal como se muestra en la \Cref{fig:arquitectura-v2}.
 
+Esta organización responde a los condicionantes planteados en la introducción: concentra en la
+Raspberry Pi~5 el recorrido funcional necesario para producir la salida lógica, emplea
+representaciones compactas entre etapas y permite trasladar las herramientas opcionales de
+visualización y depuración a una computadora externa. Además, conserva la percepción frontal como
+ruta independiente de la odometría y del mapa local, de modo que la memoria espacial de v2 aporta
+información contextual sin sustituir la observación instantánea.
+
 El Anexo~\ref{anexo:trazabilidad} muestra la correspondencia entre la arquitectura, las decisiones
 metodológicas y el código fuente mediante un mapeo nodo → tópicos → archivos fuente.
 
