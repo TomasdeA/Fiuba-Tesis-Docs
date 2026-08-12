@@ -61,24 +61,34 @@ tridimensional del entorno en una representación compacta destinada a una inter
 utilizando una plataforma embebida y manteniendo acotados el retardo, la variación temporal y el
 consumo de recursos.
 
-Las restricciones determinantes del diseño son:
+El proyecto global está orientado a una solución portátil. La presente tesis se limita al módulo
+de percepción y procesamiento, por lo que no evalúa la portabilidad del dispositivo completo, que
+depende además de la fuente de alimentación, la electrónica de actuación, los actuadores y el soporte
+corporal.
+
+El diseño del módulo de percepción está condicionado por la plataforma embebida disponible, la
+necesidad de generar información reciente durante la marcha y la continuidad de la detección. En
+particular:
 \begin{itemize}
-  \item \textbf{Portabilidad:} se registrarán la masa, las dimensiones y la potencia eléctrica del
-        conjunto implementado formado por cámara y unidad de cómputo.
-        \textcolor{red}{[FALTA DEFINIR los valores máximos admisibles y medir el conjunto final].}
-  \item \textbf{Cómputo embebido limitado:} el sistema se ejecutará en una Raspberry Pi~5
-        \cite{RaspberryPi}, sin depender de CUDA ni de una GPU discreta. Se medirán uso de CPU,
-        memoria, temperatura y eventos de limitación térmica.
-        \textcolor{red}{[FALTA DEFINIR los límites de aceptación y completar las mediciones].}
-  \item \textbf{Latencia:} se medirá el retardo extremo a extremo desde la adquisición hasta la
-        publicación de la salida lógica.
-        \textcolor{red}{[FALTA DEFINIR la latencia máxima admisible y medir mediana, percentil 95 y
-        peor caso].}
-  \item \textbf{Estabilidad temporal:} se cuantificarán la variación de la salida ante una escena
-        estática, la tasa de cuadros sin detección y el tiempo durante el cual persiste una
-        ocupación después de desaparecer la evidencia.
-        \textcolor{red}{[FALTA DEFINIR los umbrales de aceptación y realizar las mediciones].}
+  \item \textbf{Plataforma embebida:} todos los componentes necesarios para generar la salida
+        lógica se ejecutarán sobre una Raspberry Pi~5 \cite{RaspberryPi}, sin depender de CUDA ni
+        de una GPU discreta. Esta condición requiere representaciones compactas y algoritmos
+        compatibles con los recursos disponibles. La viabilidad de la implementación se evaluará
+        mediante el uso de CPU y memoria, la temperatura de operación y la presencia de eventos de
+        limitación térmica.
+  \item \textbf{Desempeño temporal:} el módulo deberá producir información con un retardo y una
+        tasa de actualización compatibles con su uso previsto durante la marcha. La evaluación
+        abarcará desde la adquisición de la imagen hasta la publicación de la salida lógica.
+  \item \textbf{Continuidad de la percepción:} la salida deberá evitar variaciones espurias y
+        pérdidas intermitentes de obstáculos. En la versión con mapeo local se evaluará además el
+        compromiso entre conservar observaciones relevantes y eliminar ocupaciones que hayan
+        dejado de ser válidas.
+  \item \textbf{Capacidad de detección:} el módulo deberá detectar obstáculos relevantes dentro de
+        la región espacial y el rango de operación definidos para el sistema.
 \end{itemize}
+
+Las definiciones operativas, los criterios cuantitativos y los procedimientos de evaluación se
+presentan en el Capítulo~\ref{chap:experimentos}.
 
 \section{Objetivos}
 
