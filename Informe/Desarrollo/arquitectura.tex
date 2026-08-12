@@ -76,12 +76,13 @@ Figura~\ref{fig:arquitectura-v2}.
   \label{fig:arquitectura-v2}
 \end{figure}
 
-\section{Infraestructura y adquisición de datos}
+\section{Infraestructura del sistema}
 
 El sistema utiliza paquetes de soporte para definir los mensajes, los parámetros y los modos de
-ejecución compartidos. Por separado, los tópicos publicados por el driver RealSense se remapean a
-nombres internos estables. Así, los nodos de procesamiento no dependen de los nombres concretos
-del driver y la configuración de la cámara puede cambiar sin modificar el resto del sistema.
+ejecución compartidos, componentes opcionales para observar su funcionamiento y una interfaz
+estable con el sensor. Los tópicos publicados por el driver RealSense se remapean a nombres
+internos, de modo que la configuración de la cámara puede cambiar sin modificar los nodos de
+procesamiento.
 
 \subsection{Paquetes de soporte e infraestructura}
 \label{sec:arq-soporte}
@@ -103,6 +104,30 @@ modos de ejecución, entre ellos: selección de pipeline de percepción
 \texttt{spatial\_awareness}, publicación en hardware y
 herramientas de visualización y depuración. Estas opciones determinan qué nodos se inician y con
 qué parámetros, mientras que la lógica de procesamiento permanece en los paquetes funcionales.
+
+\subsection{Visualización y diagnóstico}
+\label{sec:arq-viz}
+
+El paquete \texttt{output\_viewer} agrupa componentes auxiliares desacoplados del procesamiento
+principal mediante tópicos ROS~2. Por ello pueden ejecutarse de forma opcional en el equipo de
+cómputo principal o en una PC conectada a la misma red DDS. El nodo
+\code{depth\_grid\_heatmap} representa la distribución espacial de intensidades y el estado de las
+celdas de \code{/perception/haptic\_grid}, como matriz o como proyección del campo frontal, y puede
+incorporar los indicadores de riesgo lateral y posterior de
+\code{/spatial\_awareness/collision\_risk}. También ofrece un control opcional de la apertura
+angular del codificador; esta es la única interacción del paquete que puede modificar la
+configuración del flujo de percepción.
+
+Las restantes capacidades cubren distintos niveles del diagnóstico. El nodo
+\code{grid\_signal\_monitor} supervisa continuidad, frecuencia y contenido de las señales de
+profundidad, nube de obstáculos y grilla. El nodo \code{odometry\_path} transforma la odometría en
+una trayectoria acumulada, mientras que la configuración provista para RViz2 integra nubes
+intermedias, marcos de referencia, mapa, trayectoria e imagen de la cámara. Estas interfaces
+permiten observar el funcionamiento y localizar degradaciones entre etapas, pero no participan en
+la generación del comando háptico ni sustituyen su validación perceptual. Los detalles de
+implementación y operación se reservan para sus capítulos correspondientes; la trazabilidad de
+tópicos, tipos de mensaje y componentes se presenta en el
+Anexo~\ref{anexo:trazabilidad}.
 
 \subsection{Adquisición y adaptación de tópicos}
 \label{sec:arq-sensor}
@@ -184,8 +209,13 @@ El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscrib
 \code{/perception/depth\_grid} con tipo \code{custom\_interfaces/msg/DepthGrid}. El nodo
 \code{haptic\_grid\_generator} consume esa interfaz y publica
 \code{/perception/haptic\_grid} como \code{custom\_interfaces/msg/HapticGrid}; finalmente,
-\code{hardware\_manager} recibe la matriz de intensidades para transmitirla por UART. Esta versión
-establece la cadena funcional de referencia que conservan las versiones posteriores.
+\code{hardware\_manager} recibe la matriz de intensidades para transmitirla por UART.
+\label{sec:arq-hardware}
+Este nodo no procesa distancias: adapta la salida lógica al rango configurado y la serializa para
+el microcontrolador. La frontera física del sistema se ubica en esa transmisión, ya que el receptor,
+la electrónica de potencia y los actuadores quedan fuera del alcance de la tesis. Esta versión
+establece la cadena funcional de referencia que conservan las versiones posteriores. El escalado,
+el formato de trama y el control de frecuencia se describen en el capítulo de Implementación.
 
 La Figura~\ref{fig:mensajes-v0} explicita el contrato de datos de esta ruta. Cada flecha indica el
 nombre del tópico, el tipo de mensaje y su contenido relevante. El diagrama distingue así la
@@ -283,31 +313,3 @@ vigencia de sus entradas. El nodo \code{haptic\_grid\_generator}, cuyo ejecutabl
 \code{/perception/haptic\_grid} con tipo \code{custom\_interfaces/msg/HapticGrid}.
 Los criterios de evaluación del riesgo y de fusión se desarrollan en las
 Secciones~\ref{sec:metodo-v2-riesgo} y~\ref{sec:metodo-v2-fusion}.
-
-\section{Interfaz lógica de salida y transmisión UART}
-\label{sec:arq-hardware}
-
-El nodo \code{hardware\_manager}, ejecutado mediante \code{grid\_to\_motor} del paquete
-\texttt{hardware\_manager}, suscribe
-\code{/perception/haptic\_grid}; por lo tanto, recibe comandos de intensidad ya
-calculados y no procesa distancias. Su responsabilidad es adaptar la matriz lógica al rango de
-salida configurado y serializarla para su transmisión UART al microcontrolador. La implementación
-del escalado, el formato de trama y el control de frecuencia se describe en el capítulo de
-Implementación. La validación del receptor, de la electrónica de potencia y de los motores
-vibrotáctiles queda fuera del alcance de esta tesis.
-
-\section{Visualización y depuración}
-\label{sec:arq-viz}
-
-El nodo \code{depth\_grid\_heatmap} (paquete \texttt{output\_viewer})
-puede ejecutarse opcionalmente en una PC conectada a la misma red DDS. Genera una visualización de
-\code{/perception/haptic\_grid} y puede superponer el estado de
-\code{/spatial\_awareness/collision\_risk} para inspección integrada de
-percepción frontal y riesgo contextual. De este modo permite verificar la
-estructura, orientación, actualización y coherencia de los comandos de intensidad
-sin depender de la interfaz háptica física; no sustituye su validación perceptual.
-Los nodos de percepción publican además interfaces opcionales de diagnóstico para inspeccionar en
-RViz2 las representaciones intermedias. Estas salidas no intervienen en el flujo funcional.
-El detalle exhaustivo de tópicos ROS~2, incluyendo productores, consumidores,
-tipos de mensaje y correspondencia con el código fuente, se presenta en el
-Anexo~\ref{anexo:trazabilidad}.
