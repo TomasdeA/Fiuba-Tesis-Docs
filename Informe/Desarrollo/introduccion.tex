@@ -1,8 +1,9 @@
 \section{Contexto y motivación}
 
-Las personas con ceguera o baja visión enfrentan dificultades significativas al desplazarse por
-entornos desconocidos o dinámicos.
-Las herramientas de asistencia tradicionales resuelven funciones diferentes. El bastón blanco
+La movilidad autónoma en entornos desconocidos o dinámicos exige acceder de manera continua a
+información sobre obstáculos, desniveles y cambios en el espacio circundante. Para las personas
+con ceguera o baja visión, esta información se obtiene principalmente mediante herramientas de
+asistencia tradicionales que resuelven funciones diferentes. El bastón blanco
 aporta información por contacto sobre el espacio inmediato y el estado del suelo, pero su alcance
 queda limitado por la longitud y el barrido realizado por el usuario. El perro guía puede anticipar
 y evitar obstáculos durante la marcha, aunque no comunica una representación espacial explícita
@@ -30,7 +31,7 @@ Los trabajos académicos que combinan cámaras RGB-D con retroalimentación háp
 productos como el \emph{SuperBrain~1} \cite{SeventhSense2024SuperBrain} muestran el nivel de
 funcionalidad que puede alcanzar un sistema comercial.
 
-Esta tesis estudia cómo obtener una representación loca~ compacta de obstáculos mediante una cámara
+Esta tesis estudia cómo obtener una representación local compacta de obstáculos mediante una cámara
 RGB-D y una Raspberry Pi~5, sin pretender reproducir el alcance funcional ni el nivel de validación
 de un producto comercial. El Capítulo~\ref{chap:estado-arte} analiza estas soluciones en detalle y
 compara el enfoque adoptado en esta tesis con ellas.
@@ -134,7 +135,7 @@ Específicamente, el módulo deberá desarrollarse en tres niveles incrementales
 Los parámetros numéricos y umbrales de decisión se refinarán mediante una fase de calibración y
 pruebas experimentales, descritas en el Capítulo~\ref{chap:experimentos}.
 
-\section{Contribuciones del trabajo}
+\section{Contribuciones}
 
 Los principales aportes técnicos de esta tesis son::
 
