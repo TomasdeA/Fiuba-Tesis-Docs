@@ -21,7 +21,9 @@ de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourb
 \cite{Dakopoulos2010} presentan una revisión exhaustiva de estos sistemas, clasificándolos según el
 tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación
 (auditivo, háptico, voz) y la zona del cuerpo en la que presentan la estimulación (mano, muñeca,
-torso, cabeza). A partir de estos antecedentes, los sistemas revisados se dividen en dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que incorporan percepción densa y, en algunos casos, mapeo local.
+torso, cabeza). A partir de estos antecedentes, los sistemas de asistencia revisados se dividen en
+dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que incorporan
+percepción densa y, en algunos casos, mapeo local.
 
 \subsection{Criterios de adopción}
 \label{subsec:ea-criterios}
@@ -37,33 +39,28 @@ entrenamiento extenso. A estos criterios se agregan dos dimensiones técnicas ad
 para el presente trabajo: \emph{resolución espacial} del sensor y \emph{memoria temporal} en la
 representación del entorno.
 
+En esta comparación, el carácter vestible describe la forma de uso y no implica necesariamente
+cómputo embebido ni autonomía técnica. Se marca como satisfecho cuando la fuente presenta el
+prototipo como un equipo corporal que puede utilizarse durante la marcha, y como parcialmente
+satisfecho cuando, aunque los sensores y la interfaz se portan sobre el cuerpo, el conjunto depende
+de una computadora convencional. El criterio de manos libres se evalúa de manera independiente,
+según la necesidad de manipular el sistema durante su operación.
+
 \subsection{Sistemas sin RGB-D (sensado puntual)}
 \label{subsec:ea-propuestas}
 
-Entre las propuestas sin uso de RGB-D incluidas en esta revisión se distinguen tres enfoques:
-
-\subsubsection{Arreglos vibrotáctiles corporales}
-\label{subsec:ea-vibrotactiles}
-
-Novich y Eagleman~\cite{Novich2015} estudiaron los límites perceptuales de la piel como canal de
-información y concluyeron que un arreglo de actuadores sobre el torso puede alcanzar tasas de
-transferencia del orden de bits por segundo, suficientes para codificar patrones espaciales
-rudimentarios. Desde el punto de vista de los criterios de adopción, el sistema satisface las
-condiciones de \emph{manos libres}, \emph{oídos libres} y de dispositivo vestible. Sin embargo, requiere
-movimientos corporales activos para explorar el entorno, lo que compromete el criterio de
-\emph{simplicidad} durante la marcha. La resolución espacial es limitada y no se contempla memoria
-temporal de las observaciones.
+Entre las propuestas sin uso de RGB-D incluidas en esta revisión se distinguen dos enfoques:
 
 \subsubsection{Bastones inteligentes}
 \label{subsec:ea-bastones}
 
-Santos et al.~\cite{Santos2023} proponen un bastón instrumentado con sensores ultrasónicos que
-retransmite la información de proximidad mediante vibración en el mango. Al incorporar los sensores
-directamente en el bastón blanco, el criterio de \emph{manos libres} se cumple, dado que no se
-introduce un dispositivo adicional que ocupe las manos. El sistema es simple en su operación y no
-interfiere con la audición. La limitación estructural más relevante es que la detección queda
-restringida a la zona barrida por el bastón, sin cobertura vertical, lo que resulta en baja
-resolución espacial efectiva. Tampoco incorpora memoria temporal de obstáculos.
+Texeira et al.~\cite{Santos2023} proponen una interfaz háptica incorporada a un bastón largo. Tres
+sensores ultrasónicos se fijan al bastón y nueve motores, distribuidos en tres muñequeras, indican
+la presencia y la dirección de obstáculos bajos y elevados. Como no introduce un dispositivo
+manual adicional al bastón y todos sus componentes se portan en este o sobre el cuerpo, satisface
+los criterios de manos libres y de dispositivo vestible adoptados en esta comparación. El sistema
+es simple en su operación y no interfiere con la audición. Cada sensor entrega una medición puntual,
+por lo que la resolución espacial es muy baja. Tampoco incorpora memoria temporal de obstáculos.
 
 \subsubsection{Dispositivos ultrasónicos portátiles}
 \label{subsec:ea-ultrasonicos}
@@ -90,15 +87,26 @@ discute en la \Cref{subsec:ea-superbrain}.
 \subsubsection{Percepción instantánea sin memoria temporal}
 \label{subsec:ea-percepcion-instantanea}
 
-Yang et al.\ \cite{Yang2016} proponen un sistema portátil basado en el sensor Intel RealSense R200 que detecta el área transitable y comunica la información al usuario mediante retroalimentación sonora estereofónica. Su trabajo demuestra que la densidad espacial del sensor RGB-D se puede explotar en tiempo real sobre hardware embebido para mejorar significativamente la cobertura de detección respecto de sistemas ultrasónicos, siendo validado con participantes invidentes en entornos interiores y exteriores.
+Yang et al.\ \cite{Yang2016} proponen un sistema portátil basado en el sensor Intel RealSense R200
+que detecta el área transitable y comunica la información al usuario mediante retroalimentación
+sonora estereofónica por conducción ósea. El prototipo integra la cámara y una IMU en un armazón
+corporal, pero ejecuta el procesamiento en una Microsoft Surface Pro~3 conectada por USB; por lo
+que no constituye una solución de cómputo embebido autocontenida. No obstante, los autores presentan
+la implementación como un prototipo vestible y su operación no requiere ocupar las manos. El
+criterio de oídos libres no se considera satisfecho porque la realimentación utiliza el canal
+auditivo, aunque los auriculares de conducción ósea no bloqueen físicamente el oído. El trabajo
+demuestra que la
+densidad espacial del sensor RGB-D se puede explotar para mejorar la cobertura de detección respecto
+de sistemas ultrasónicos y fue validado con ocho participantes con discapacidad visual en entornos
+interiores y exteriores.
 
-No obstante, el trabajo de Yang et al.\ no incorpora información inercial para compensar la
-inclinación del sensor respecto al plano horizontal, ni implementa una etapa de mapeo local. La
-representación final se obtiene directamente del fotograma instantáneo, por lo que toda información
-sobre obstáculos se pierde en cuanto estos abandonan el campo de visión de la cámara. Esto impide
-acumular un historial de observaciones que podría ser utilizado por una lógica de evitación de
-colisiones para anticipar obstáculos que, aunque ya no visibles en ese instante, siguen siendo
-relevantes para la trayectoria del usuario.
+Yang et al.\ emplean las mediciones de actitud de la MPU6050 para compensar la orientación de la
+nube de puntos durante la segmentación del suelo, pero no estiman el desplazamiento del usuario ni
+implementan una etapa de mapeo local. La representación final se obtiene directamente del fotograma
+instantáneo, por lo que toda información sobre obstáculos se pierde en cuanto estos abandonan el
+campo de visión de la cámara. Esto impide acumular un historial de observaciones que podría ser
+utilizado por una lógica de evitación de colisiones para anticipar obstáculos que, aunque ya no
+sean visibles en ese instante, sigan siendo relevantes para la trayectoria del usuario.
 
 \subsubsection{Sistemas con mapeo local e integración inercial}
 \label{subsec:ea-mapeo-inercial}
@@ -113,7 +121,10 @@ hacia un destino, transmitiendo la dirección al usuario a través del chaleco. 
 validado con sujetos ciegos reales en entornos interiores no conocidos previamente y corre a
 aproximadamente 30\,Hz sobre una laptop. La contribución central es demostrar que la combinación de
 RGB-D, IMU y grilla de ocupación resulta viable para asistencia portátil a ciegos en tiempo real;
-su limitación más evidente es la dependencia de hardware de cómputo no embebido (laptop).
+su limitación más evidente es la dependencia de hardware de cómputo no embebido (una laptop
+estándar). El sistema no requiere manipulación manual durante la operación, pero el carácter
+vestible se considera parcialmente satisfecho porque el conjunto depende de esa computadora
+convencional.
 
 Zhang et al.\ \cite{Zhang2021DVIO} avanzan sobre esta línea incorporando una IMU externa de mayor
 precisión (VN-100) y un algoritmo de odometría visual-inercial potenciado por profundidad
@@ -140,8 +151,8 @@ El dispositivo es un casco portado en la cabeza que integra cámaras estéreo de
 para extender el campo de detección lateral, y una cámara térmica que permite la percepción de
 personas y fuentes de calor. La interfaz de salida consiste en una matriz de puntos de presión
 sobre la frente del usuario (\emph{haptic mat}), que transmite posición, movimiento y distancia
-de objetos de forma continua. A diferencia de los arreglos vibrotáctiles convencionales revisados
-en la \Cref{subsec:ea-propuestas}, este mecanismo de presión genera una experiencia táctil más
+de objetos de forma continua. A diferencia de los arreglos vibrotáctiles convencionales, este
+mecanismo de presión genera una experiencia táctil más
 rica y precisa. Una función adicional, asistida por inteligencia artificial, implementa un
 \emph{zoom} inteligente que permite enfocar selectivamente objetos de interés en la escena y
 representarlos con mayor resolución háptica, capacidad que supera lo previsto en el prototipo
@@ -151,7 +162,8 @@ Según la información pública del fabricante, el dispositivo no requiere el us
 interfiere con la audición y se porta sobre el cuerpo. Estos atributos permiten analizarlo respecto
 de los criterios de adopción, aunque la simplicidad de uso requiere evidencia con usuarios y no se
 infiere únicamente de su descripción comercial. Su costo se encuentra en el orden de miles de
-euros y su desarrollo demandó más de diez años, esto marca una diferencia importante de alcance respecto del prototipo académico desarrollado en esta tesis. En consecuencia, no se plantea
+euros y su desarrollo demandó más de diez años. Esto marca una diferencia importante de alcance
+respecto del prototipo académico desarrollado en esta tesis. En consecuencia, no se plantea
 una equivalencia funcional con esta tesis. El \emph{SuperBrain~1} se utiliza como referencia de las
 capacidades que puede alcanzar una solución madura, mientras que este trabajo estudia un
 subconjunto acotado: percepción local, salida lógica compacta y ejecución en hardware embebido.
@@ -177,7 +189,7 @@ información acumulada.
 En contraste, los sistemas con RGB-D incorporan cámaras de profundidad para aumentar la resolución
 espacial y, en algunos casos, añadir memoria temporal mediante mapeo local. Esta evolución
 tecnológica se expresa en la Tabla~\ref{tab:comparacion-eta}, que consolida la evaluación de todos
-los sistemas revisados en este capítulo, desde los basados en sensores puntuales hasta los de
+los sistemas de asistencia revisados en este capítulo, desde los basados en sensores puntuales hasta los de
 cámara de profundidad y el producto comercial \emph{SuperBrain~1}, respecto de los criterios de
 Dakopoulos y Bourbakis~\cite{Dakopoulos2010} y las dos dimensiones técnicas adicionales. La tabla
 evidencia la progresión desde soluciones de baja resolución y sin memoria temporal hacia sistemas
@@ -186,7 +198,8 @@ con percepción densa y acumulación de historial, con el nivel de inversión qu
 La clasificación es cualitativa y se limita a las capacidades descritas por cada fuente. Se
 considera resolución muy baja cuando el sistema entrega una única distancia o dirección, y alta
 cuando conserva una medición densa del campo observado. La memoria temporal se marca únicamente
-cuando el trabajo describe una representación persistente del entorno. La última fila corresponde
+cuando el trabajo describe una representación persistente del entorno; si la fuente no documenta
+esa capacidad, se marca como no satisfecha. La última fila corresponde
 al proyecto global, que integra el módulo de percepción y mapeo desarrollado en esta tesis con la
 interfaz háptica física implementada en la segunda etapa. Por eso los criterios de adopción se
 evalúan sobre el dispositivo completo, mientras que la resolución espacial y la memoria temporal
@@ -204,12 +217,11 @@ de Dakopoulos y Bourbakis~\cite{Dakopoulos2010} y dos criterios técnicos adicio
 \textbf{Sistema} & \textbf{Manos} & \textbf{Oídos} & \textbf{Vestible} & \textbf{Simple} & \textbf{Resolución} & \textbf{Memoria} \\
  & \textbf{libres} & \textbf{libres} & & & \textbf{espacial} & \textbf{temporal}\\
 \midrule
-Novich y Eagleman~\cite{Novich2015}                     & \checkmark & \checkmark & \checkmark & $\sim$     & baja     & \texttimes \\
-Santos et al.~\cite{Santos2023}                         & \checkmark & \checkmark & $\sim$     & \checkmark & muy baja & \texttimes \\
+Texeira et al.~\cite{Santos2023}                        & \checkmark & \checkmark & \checkmark & \checkmark & muy baja & \texttimes \\
 Petsiuk y Pearce~\cite{Petsiuk2019UltrasoundNavigation} & $\sim$     & \checkmark & \checkmark & \checkmark & muy baja & \texttimes \\
-Yang et al.~\cite{Yang2016}                             & \checkmark & \checkmark & \checkmark & $\sim$     & alta     & \texttimes \\
-Lee y Medioni~\cite{Lee2016RGBD}                        & \checkmark & \checkmark & \checkmark & $\sim$     & alta     & \checkmark \\
-SuperBrain~1~\cite{SeventhSense2024SuperBrain}          & \checkmark & \checkmark & \checkmark & \checkmark & alta     & $\sim$     \\
+Yang et al.~\cite{Yang2016}                             & \checkmark & \texttimes & \checkmark & $\sim$     & alta     & \texttimes \\
+Lee y Medioni~\cite{Lee2016RGBD}                        & \checkmark & \checkmark & $\sim$     & $\sim$     & alta     & \checkmark \\
+SuperBrain~1~\cite{SeventhSense2024SuperBrain}          & \checkmark & \checkmark & \checkmark & $\sim$     & alta     & \texttimes \\
 Proyecto global                                         & \checkmark & \checkmark & \checkmark & \checkmark & media & \checkmark \\
 \bottomrule
 \end{tabularx}
