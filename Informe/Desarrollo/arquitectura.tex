@@ -215,7 +215,8 @@ Este nodo no procesa distancias: adapta la salida lógica al rango configurado y
 el microcontrolador. La frontera física del sistema se ubica en esa transmisión, ya que el receptor,
 la electrónica de potencia y los actuadores quedan fuera del alcance de la tesis. Esta versión
 establece la cadena funcional de referencia que conservan las versiones posteriores. El escalado,
-el formato de trama y el control de frecuencia se describen en el capítulo de Implementación.
+el formato de trama y el control de frecuencia se describen en el
+Capítulo~\ref{chap:implementacion}.
 
 La Figura~\ref{fig:mensajes-v0} explicita el contrato de datos de esta ruta. Cada flecha indica el
 nombre del tópico, el tipo de mensaje y su contenido relevante. El diagrama distingue así la
@@ -238,8 +239,8 @@ Secciones~\ref{sec:metodo-v0-depthgrid} y~\ref{sec:metodo-v0-intensidad}.
 El nodo \code{depth\_obstacle\_filter}, ejecutado mediante \code{depth\_obstacle\_filter\_node} del
 paquete homónimo, suscribe la imagen de profundidad, sus parámetros intrínsecos y el acelerómetro
 del driver. El nodo publica \texttt{/depth\_obstacle\_filter/obstacle\_cloud} como salida
-principal, y cuando se habilita la interfaz hacia mapeo local también publica
-\texttt{/depth\_obstacle\_filter/free\_endpoints}. De forma adicional emite
+principal, y cuando se habilita la interfaz hacia mapeo local también publica la evidencia de
+suelo en \texttt{/depth\_obstacle\_filter/ground\_evidence}. De forma adicional emite
 \texttt{/depth\_obstacle\_filter/camera\_height} (\texttt{std\_msgs/Float32}) para informar la
 altura estimada de cámara respecto del suelo. En TF publica la transformación dinámica
 \texttt{gravity\_aligned\_frame}~$\to$~\texttt{camera\_depth\_optical\_frame}. La nube de

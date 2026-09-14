@@ -5,7 +5,7 @@ Sección~\ref{sec:intro-objetivo-tecnico}.
 Este capítulo explica el significado de las representaciones y transformaciones utilizadas.
 La correspondencia concreta entre nodos, mensajes de entrada y mensajes de salida se muestra,
 para v0, v1 y v2, en las Figuras~\ref{fig:mensajes-v0}, \ref{fig:mensajes-v1} y
-\ref{fig:mensajes-v2} del capítulo de arquitectura. Esta separación permite presentar los
+\ref{fig:mensajes-v2} del Capítulo~\ref{chap:arquitectura}. Esta separación permite presentar los
 fundamentos sin repetir la topología de software y mantener la relación entre cada concepto y los
 datos que circulan por ROS~2.
 
@@ -60,6 +60,7 @@ repetibles: la interfaz no necesita reconstruir toda la imagen, sino entregar pa
 táctiles consistentes que el usuario pueda aprender a interpretar.
 
 \subsection{Percepción RGB-D y geometría de cámara}
+\label{sec:mt-rgbd}
 
 Este bloque vincula el principio de medición del sensor con la representación geométrica que
 utiliza el pipeline. Primero se explica cómo la D435i obtiene profundidad y bajo qué condiciones
@@ -69,7 +70,6 @@ dos fuentes de error diferentes: las limitaciones físicas de la medición y una
 incorrecta de sus coordenadas.
 
 \subsubsection{Principio físico de la cámara Intel RealSense D435i}
-\label{sec:mt-rgbd}
 
 Los sensores RGB-D combinan información visual convencional con una medición de profundidad.
 En la familia Intel RealSense D400, y en particular en la D435i, la profundidad se obtiene
@@ -125,7 +125,6 @@ Antes de expresar esa relación es necesario precisar respecto de qué origen y 
 las coordenadas obtenidas.
 
 \subsubsection{Sistemas de coordenadas, pose y transformaciones}
-\label{subsec:mt-transformaciones}
 
 Una misma posición física adquiere coordenadas distintas según el origen y los ejes elegidos.
 Ese origen con sus tres ejes constituye un \emph{marco de referencia}. La pose de un marco $B$
@@ -140,10 +139,9 @@ mediciones permanecen en el marco óptico de la cámara. Las versiones posterior
 transformaciones para pasar primero a un marco alineado con la gravedad y luego a un marco común
 en el que se acumulan observaciones tomadas en instantes distintos. ROS~2 representa estas
 relaciones mediante el árbol TF; las convenciones concretas empleadas por v2 se presentan en la
-Sección~\ref{sec:mt-frames}.
+Sección~\ref{sec:mt-pose-coherencia-temporal}.
 
 \subsubsection{Modelo de cámara \emph{pinhole} y proyección inversa}
-\label{subsec:mt-pinhole}
 
 El modelo \emph{pinhole} relaciona las coordenadas de imagen con las coordenadas espaciales.
 Un punto
@@ -184,7 +182,6 @@ aproximadamente la cantidad de proyecciones por un factor $s^2$; no debe confund
 \emph{voxel grid}, que agrupa puntos después de proyectarlos al espacio tridimensional.
 
 \subsubsection{Limitaciones por superficies especulares e iluminación intensa}
-\label{subsec:mt-depth-reflections}
 
 La estimación estéreo supone que los píxeles comparados en ambas cámaras observan el mismo
 punto físico mediante trayectorias ópticas directas y que su apariencia local es
@@ -302,6 +299,7 @@ el rosbag controla la entrada del experimento, mientras que las configuraciones,
 reproducción y la cantidad de repeticiones deben fijarse por separado.
 
 \subsection{Representación compacta y salida embebida}
+\label{sec:mt-representacion-compacta}
 
 La salida de la cámara contiene más información que la necesaria para accionar una interfaz
 háptica de baja resolución. La cadena reduce esa información en etapas: resume la imagen densa,
@@ -310,7 +308,6 @@ serializa el resultado. Cada etapa cambia la representación, pero mantiene expl
 correspondencia espacial entre una región del entorno y una celda de salida.
 
 \subsubsection{Reducción espacial de la imagen de profundidad}
-\label{sec:mt-depth-grid-encoder}
 
 Una imagen de profundidad a resolución nativa contiene cientos de miles de píxeles por fotograma,
 pero esa densidad no puede trasladarse de forma directa a una interfaz háptica corporal. La
@@ -372,7 +369,6 @@ el mensaje \texttt{DepthGrid} publicado.
 \end{figure}
 
 \subsubsection{Codificación angular de la nube filtrada}
-\label{sec:mt-angular-grid}
 
 Aunque v0 reduce directamente la imagen de profundidad en ROIs de imagen, las versiones v1 y v2
 construyen la grilla a partir de una nube de obstáculos ya filtrada. En ese caso, la
@@ -401,7 +397,7 @@ corporal.
 La Figura~\ref{fig:mt-codificacion-angular-geometrica} sigue un único punto para mostrar su
 asignación horizontal, su asignación vertical y la reducción final por celda. La aplicación del
 mismo criterio sobre una nube completa y su correspondencia con el mensaje publicado se presenta
-en la Figura~\ref{fig:metodo-codificacion-angular} del capítulo de método.
+en la Figura~\ref{fig:metodo-codificacion-angular} del Capítulo~\ref{chap:metodo}.
 
 \begin{figure}[htbp]
   \centering
@@ -413,7 +409,6 @@ en la Figura~\ref{fig:metodo-codificacion-angular} del capítulo de método.
 \end{figure}
 
 \subsubsection{Mapeo de distancia a comando de intensidad}
-\label{sec:mt-dist-to-intensity}
 
 Para traducir la distancia por celda a una señal háptica se emplea una función lineal
 invertida y saturada. La proximidad del obstáculo debe producir mayor intensidad, con
@@ -467,7 +462,6 @@ matemáticas de la función.
 \end{figure}
 
 \subsubsection{Comunicación serie embebida}
-\label{sec:mt-uart}
 
 La transmisión prevista entre la computadora de placa simple y el futuro controlador de actuación
 requiere definir un protocolo de enlace. UART
@@ -507,6 +501,7 @@ completa de orientación cuando no aporta a la salida háptica y puede aumentar 
 dependencias y costo computacional.
 
 \subsection{Orientación y alineación gravitacional}
+\label{sec:mt-orientacion-gravitacional}
 
 La clasificación de suelo y obstáculos requiere expresar la nube respecto de la vertical, no
 respecto de una cámara cuya inclinación cambia con la cabeza del usuario. Para fundamentar esa
@@ -516,7 +511,6 @@ acelerómetro y el filtrado necesario para que las aceleraciones propias de la m
 interpreten directamente como cambios de orientación.
 
 \subsubsection{Ángulos de cámara y convención óptica}
-\label{sec:mt-camera-angles}
 
 La orientación de la cámara puede describirse mediante ángulos de Euler: \emph{roll} ($\phi$),
 \emph{pitch} ($\theta$) y \emph{yaw} ($\psi$). En la convención óptica de la D435i, $x$
@@ -558,7 +552,6 @@ puntos pertenecen al suelo; su importancia aparece en v2, cuando se acumulan obs
 un marco común.
 
 \subsubsection{Singularidad de Euler y cuaterniones}
-\label{sec:mt-quaternions}
 
 Los ángulos de Euler presentan una singularidad conocida como \emph{gimbal lock}: cuando
 $\theta=\pm90^\circ$, dos ejes de rotación quedan alineados y se pierde un grado de libertad.
@@ -613,7 +606,6 @@ misma orientación física.
 \end{figure}
 
 \subsubsection{Alineación gravitacional con acelerómetro}
-\label{sec:mt-imu}
 
 La IMU de la D435i incluye acelerómetro y giróscopo de tres ejes \cite{RS-D400}. En v1, el
 acelerómetro se usa para estimar la dirección de la gravedad. Esta elección evita integrar
@@ -639,11 +631,12 @@ ambas contribuciones a partir de una única muestra no es posible.
 \end{figure}
 
 A partir de $\mathbf{a}=(a_x,a_y,a_z)^T$ pueden estimarse roll y pitch sin integración
-temporal:
+temporal. Para el marco óptico adoptado, conviene expresar primero la dirección hacia abajo como
+$\mathbf{g}_c=-\mathbf{a}$, porque el acelerómetro en reposo mide fuerza específica. Entonces:
 \begin{equation}
-  \phi = \operatorname{atan2}(a_y,a_z),
+  \phi = \operatorname{atan2}(-a_x,-a_y),
   \qquad
-  \theta = \operatorname{atan2}\!\left(-a_x,\sqrt{a_y^2+a_z^2}\right).
+  \theta = \operatorname{atan2}\!\left(-a_z,\sqrt{a_x^2+a_y^2}\right).
   \label{eq:accel-roll-pitch}
 \end{equation}
 La ecuación~\ref{eq:accel-roll-pitch} no estima yaw, ya que la gravedad no contiene
@@ -681,7 +674,6 @@ forma explícita.
 \end{figure}
 
 \subsubsection{Filtrado inercial local para la dirección de gravedad}
-\label{sec:mt-accel-filter}
 
 Durante la marcha el acelerómetro registra aceleraciones lineales de la cabeza, vibraciones y
 golpes \cite{menz2003acceleration,Woodman2007}. Por eso,
@@ -697,6 +689,7 @@ intervalos en los que la hipótesis de gravedad dominante resulta poco confiable
 criterios adoptados se especifican en la Sección~\ref{sec:metodo-v1-gravedad}.
 
 \subsection{Estimación y clasificación geométrica del suelo}
+\label{sec:mt-ground-detection}
 
 Una vez alineada la nube con gravedad, remover el suelo no consiste únicamente en ajustar un
 plano. El procedimiento debe estimar una tolerancia acorde al ruido, reducir el costo de cálculo,
@@ -705,7 +698,6 @@ clasificar la escena respecto del plano aceptado. La altura de cámara obtenida 
 actúa además como una comprobación geométrica y como información para las etapas posteriores.
 
 \subsubsection{Detección del plano del suelo}
-\label{sec:mt-ground-detection}
 
 Una vez que la nube está alineada a gravedad, el suelo aparece como un conjunto de puntos
 coplanares a una altura aproximadamente constante. Un plano se representa mediante:
@@ -723,7 +715,6 @@ La ecuación~\ref{eq:point-plane-dist} permite clasificar puntos según su separ
 del plano estimado.
 
 \subsubsection{Estimación adaptativa de ruido}
-\label{subsec:mt-nn-noise}
 
 El ruido de profundidad depende de la distancia y de la reflectividad. Para adaptar la
 tolerancia de inliers, se estima la distancia media al vecino más cercano sobre un subconjunto
@@ -749,7 +740,6 @@ plausible y prever un valor de respaldo cuando la estimación no resulte confiab
 adoptados se especifican en la Sección~\ref{sec:metodo-v1-suelo}.
 
 \subsubsection{Submuestreo por voxel grid}
-\label{subsec:mt-voxel}
 
 Una nube a plena resolución puede contener cientos de miles de puntos. Como el conteo de
 inliers de RANSAC escala linealmente con la cantidad de puntos, una estrategia habitual de
@@ -789,7 +779,6 @@ para el recorrido activo se explicita en la Sección~\ref{sec:metodo-v1-proyecci
 \end{figure}
 
 \subsubsection{RANSAC y refinamiento por mínimos cuadrados}
-\label{subsec:mt-ransac}
 
 En una escena real, el plano del suelo coexiste con obstáculos, paredes y ruido. RANSAC
 (\emph{Random Sample Consensus}) estima modelos paramétricos en presencia de valores atípicos
@@ -859,7 +848,6 @@ con:
 \end{equation}
 
 \subsubsection{Robustez ante suelo parcialmente visible}
-\label{subsec:mt-ground-robustness}
 
 Cuando la cámara apunta al frente, el suelo puede ocupar una fracción pequeña de la nube.
 Una métrica de calidad respecto del total de puntos penalizaría escenas donde el piso es
@@ -894,7 +882,6 @@ la reutilización temporal, los caminos de fallo y la clasificación final, se p
 Sección~\ref{sec:metodo-v1-suelo}.
 
 \subsubsection{Clasificación geométrica y región superior excluida}
-\label{subsec:mt-point-classification}
 
 Una vez obtenido el plano, la distancia con signo permite separar los puntos compatibles con
 el suelo de los obstáculos. Se etiqueta como suelo un punto dentro de la tolerancia o situado
@@ -916,7 +903,6 @@ marco previo a la estimación; la segunda muestra la separación resultante entr
 superior excluida y los puntos conservados como obstáculos.
 
 \subsubsection{Realimentación de la altura de cámara}
-\label{subsec:mt-camera-height}
 
 La distancia del origen al plano estimado proporciona una medición de la altura de la cámara.
 Para impedir que errores aislados modifiquen bruscamente la grilla, esta estimación solo se
@@ -932,7 +918,7 @@ montaje. Esta realimentación modifica la asignación vertical, pero no altera l
 
 El procedimiento adoptado para validar y realimentar esta altura se presenta en la
 Sección~\ref{sec:metodo-v1-altura}; su evaluación experimental se define en el bloque v1 del
-capítulo de experimentos.
+Capítulo~\ref{chap:experimentos}.
 
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v2: odometría, mapa local y conciencia espacial}
@@ -950,6 +936,7 @@ Esta incorporación requiere distinguir el movimiento incremental usado para acu
 del problema más amplio de construir y corregir un mapa global.
 
 \subsection{Estimación de pose y coherencia temporal}
+\label{sec:mt-pose-coherencia-temporal}
 
 Acumular observaciones exige conocer no solo cuánto se movió la cámara, sino también a qué
 instante corresponde cada pose y en qué convención están expresados sus ejes. Por eso el bloque
@@ -958,7 +945,6 @@ usada por el mapa: orientación inercial filtrada, desplazamiento RGB-D y asocia
 ambas mediciones dentro de marcos compatibles.
 
 \subsubsection{Odometría, localización, mapeo y SLAM}
-\label{subsec:mt-odom-localizacion-slam}
 
 Estos términos describen problemas relacionados pero no equivalentes. La \emph{odometría}
 estima el cambio de pose a partir del movimiento observado y, por ello, su error tiende a
@@ -973,7 +959,6 @@ interpretar correctamente el papel de RTAB-Map: se emplea su componente odométr
 completo de cierre de lazo y optimización global.
 
 \subsubsection{Filtro de Madgwick para orientación IMU}
-\label{sec:mt-madgwick}
 
 La incorporación de Madgwick corresponde a v2, no a v1. En v1 la señal inercial relevante es
 el acelerómetro, porque permite estimar la vertical local a partir de la gravedad con bajo
@@ -1073,7 +1058,6 @@ conjunta. La elección de Madgwick responde, además, a su bajo costo de cálcul
 adecuado para ejecución embebida.
 
 \subsubsection{Odometría RGB-D con RTAB-Map}
-\label{sec:mt-vio}
 
 La odometría visual estima el movimiento de la cámara a partir de cambios entre fotogramas
 consecutivos \cite{Hartley2004}. En v2 se utiliza \texttt{rgbd\_odometry} de RTAB-Map
@@ -1097,7 +1081,6 @@ su incorporación se plantea en la Sección~\ref{sec:metodo-v2} como evidencia d
 adoptado, no como fundamento general de la odometría visual.
 
 \subsubsection{Marcos de referencia y convención REP-103}
-\label{sec:mt-frames}
 
 ROS define convenciones estándar de unidades y marcos en REP-103 \cite{REP103}. Sin embargo,
 los flujos ópticos de cámara utilizan una convención natural para imágenes: $x$ hacia la
@@ -1135,7 +1118,6 @@ integración de v2 y se ubica en la Sección~\ref{sec:metodo-v2}, donde puede co
 RViz sin convertir una convención específica del sistema en una propiedad general de ROS.
 
 \subsubsection{Sincronización temporal de observaciones y odometría}
-\label{sec:mt-sync}
 
 El mapa local combina observaciones y poses producidas a frecuencias distintas. Asociar datos solo
 por orden de llegada puede aplicar una pose incorrecta a una nube y desplazar artificialmente los
@@ -1150,6 +1132,7 @@ su conducta durante el arranque. La selección concreta se muestra en la
 Sección~\ref{sec:metodo-v2}.
 
 \subsection{Representación y actualización del mapa local}
+\label{sec:mt-mapa-local}
 
 La memoria espacial de v2 se construye como una ventana local de ocupación, no como un mapa
 permanente del entorno. Las subsecciones siguientes justifican esa representación y describen
@@ -1159,7 +1142,6 @@ observaciones antiguas. En conjunto, estas operaciones determinan qué recuerda 
 durante cuánto tiempo esa memoria continúa siendo confiable.
 
 \subsubsection{Representaciones espaciales locales}
-\label{sec:mt-local-maps}
 
 Se distingue entre mapas globales, que buscan representar un entorno completo, y mapas locales
 de corto alcance, centrados en el usuario y limitados a una ventana espacial. Los mapas locales
@@ -1173,7 +1155,6 @@ la visualización y mantener consistencia entre la nube 3D, el plano de suelo y 
 representación 2D.
 
 \subsubsection{Grillas de ocupación y log-odds}
-\label{sec:mt-occupancy-grid}
 
 La grilla de ocupación fue introducida por Elfes \cite{Elfes1989} como una discretización
 probabilística del espacio. Cada celda $m_i$ almacena la probabilidad de ocupación
@@ -1259,11 +1240,11 @@ espacio libre.
 \end{figure}
 
 \subsubsection{Ray casting con Bresenham}
-\label{sub:bresenham}
 
-Además de marcar ocupada la celda del obstáculo, el mapa debe marcar como libre el espacio
-atravesado por el rayo de medición. El segmento continuo medido por la cámara debe convertirse,
-por lo tanto, en una sucesión de celdas de la grilla. Para ello se usa el algoritmo de Bresenham
+Además de incorporar la clase del retorno observado, el mapa debe marcar como libre el espacio
+atravesado por el rayo de medición. En este sistema, dicho retorno puede corresponder a un
+obstáculo o a un punto de suelo. El segmento continuo comprendido entre la cámara y el retorno
+debe convertirse, por lo tanto, en una sucesión de celdas de la grilla. Para ello se usa el algoritmo de Bresenham
 \cite{Bresenham1965}. Dado un origen $(x_0,z_0)$ y un destino $(x_1,z_1)$ en coordenadas
 enteras de celda, el algoritmo avanza sobre el eje dominante y decide cuándo incrementar el
 eje subordinado mediante una variable de error acumulado. El resultado es una aproximación
@@ -1271,31 +1252,32 @@ discreta del segmento formada por celdas contiguas; no es el conjunto geométric
 celdas que la recta llega a tocar. Esta construcción evita calcular intersecciones en punto
 flotante.
 
-En este sistema se aplican dos tipos de rayos. Los rayos con obstáculo marcan libres las
-celdas intermedias y ocupada la celda final. Los rayos asociados a suelo, región superior
-excluida o mediciones sin obstáculo dentro del rango marcan libre también el extremo final. Para no borrar
-evidencia acumulada de forma excesiva, una celda recibe evidencia libre como máximo una vez
-por frame.
+En este sistema se aplican dos casos según la clase del primer retorno seleccionado en cada sector
+angular. Si corresponde a un obstáculo, las celdas intermedias reciben evidencia libre y la celda
+final recibe evidencia ocupada. Si corresponde al suelo, tanto las celdas intermedias como la final
+reciben evidencia libre. La región superior excluida no genera rayos, y la ausencia de retorno en
+un sector tampoco se interpreta como espacio libre ni se extrapola hasta el alcance máximo. Para
+no acumular evidencia de forma excesiva, una celda recibe evidencia libre como máximo una vez por
+frame.
 
 La Figura~\ref{fig:mt-bresenham-rayos} muestra la discretización espacial de ambos casos. La
 línea azul une, en orden, los centros de las celdas seleccionadas por Bresenham desde la cámara
 hasta el destino; por eso no debe interpretarse como la intersección geométrica exacta entre una
-recta y la grilla. Las celdas verdes reciben evidencia libre. Si el extremo corresponde a un obstáculo,
-la última celda se reserva para evidencia ocupada (rojo). Si la medición no contiene un obstáculo
-dentro del rango, el recorrido se extiende hasta el límite medible representado y su extremo
-también recibe evidencia libre.
+recta y la grilla. Las celdas verdes reciben evidencia libre. Si el retorno corresponde a un
+obstáculo, la última celda se reserva para evidencia ocupada (rojo); si corresponde al suelo, la
+celda final también recibe evidencia libre. En ambos casos el recorrido termina en una observación
+real, no en un punto artificial ubicado en el límite del rango.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.95\textwidth]{__Graficos/marco_teorico/bresenham_rayos/salida/bresenham_rayos.png}
-  \caption{Recorrido discreto de Bresenham sobre la grilla: las celdas intermedias reciben
-  evidencia libre; ante un obstáculo el extremo es ocupado y, en caso contrario, la evidencia
-  libre se extiende hasta el límite del rango representado.}
+  \caption{Recorrido discreto de Bresenham hasta el primer retorno observado: las celdas
+  intermedias reciben evidencia libre; la celda final se marca ocupada si contiene un obstáculo y
+  libre si corresponde al suelo. Los sectores sin retorno no generan un rayo.}
   \label{fig:mt-bresenham-rayos}
 \end{figure}
 
 \subsubsection{Ventana local deslizante y olvido espacial}
-\label{sec:mt-sliding-window}
 
 La memoria espacial se mantiene en una ventana finita. Cuando la odometría indica
 desplazamiento del sensor, la grilla se desplaza una cantidad entera de celdas y las celdas
@@ -1317,7 +1299,6 @@ El corrimiento entero, la acumulación subcelda y la conservación de los ejes d
 la Sección~\ref{sec:metodo-v2-ocupacion}.
 
 \subsubsection{Filtrado espacial y temporal}
-\label{sec:mt-spatiotemporal-filtering}
 
 El filtrado espacial aparece en dos niveles. Primero, la reducción a \texttt{DepthGrid} resume
 múltiples muestras en celdas. Segundo, la grilla de ocupación acumula evidencia por celda en
@@ -1329,6 +1310,7 @@ por evidencia contradictoria o eliminando regiones que abandonan la ventana loca
 adoptada se especifica en la Sección~\ref{sec:metodo-v2-ocupacion}.
 
 \subsection{Evaluación y comunicación del riesgo contextual}
+\label{sec:mt-riesgo-contextual}
 
 El mapa local no se transmite directamente al usuario: primero debe reducirse a una indicación
 de riesgo compatible con la salida frontal ya existente. Este bloque describe esa reducción en
@@ -1338,7 +1320,6 @@ resultado sin sustituir la percepción instantánea de v1 ni generar una segunda
 salida.
 
 \subsubsection{Conciencia espacial y tiempo hasta colisión}
-\label{sec:mt-spatial-awareness}
 
 La capa de conciencia espacial evalúa riesgos fuera del campo frontal ya comunicado por la
 grilla háptica. Para no interpretar ruido aislado como un objeto, las celdas suficientemente
@@ -1412,7 +1393,6 @@ resultado experimental.
 \end{figure}
 
 \subsubsection{Fusión háptica con riesgo contextual}
-\label{sec:mt-haptic-fusion}
 
 En v2, la salida háptica ya no representa únicamente la percepción frontal instantánea. La
 grilla frontal sigue codificando distancia a obstáculos en el campo visual, mientras que la
@@ -1452,4 +1432,5 @@ La precisión cuantifica qué proporción de las detecciones fue correcta; el \e
 proporción de los obstáculos existentes fue detectada; y $F_1$ resume ambas magnitudes. La
 latencia \emph{end-to-end}, la tasa de publicación, la estabilidad temporal y el consumo de
 recursos también requieren extremos, ventanas y condiciones explícitas. Su selección por versión,
-las referencias y los procedimientos concretos se establecen en el capítulo experimental.
+las referencias y los procedimientos concretos se establecen en el
+Capítulo~\ref{chap:experimentos}.
