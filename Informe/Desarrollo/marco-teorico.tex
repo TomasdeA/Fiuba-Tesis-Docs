@@ -1261,9 +1261,10 @@ espacio libre.
 \subsubsection{Ray casting con Bresenham}
 \label{sub:bresenham}
 
-Además de marcar ocupada la celda del obstáculo, el mapa debe marcar como libre el espacio
-atravesado por el rayo de medición. El segmento continuo medido por la cámara debe convertirse,
-por lo tanto, en una sucesión de celdas de la grilla. Para ello se usa el algoritmo de Bresenham
+Además de incorporar la clase del retorno observado, el mapa debe marcar como libre el espacio
+atravesado por el rayo de medición. En este sistema, dicho retorno puede corresponder a un
+obstáculo o a un punto de suelo. El segmento continuo comprendido entre la cámara y el retorno
+debe convertirse, por lo tanto, en una sucesión de celdas de la grilla. Para ello se usa el algoritmo de Bresenham
 \cite{Bresenham1965}. Dado un origen $(x_0,z_0)$ y un destino $(x_1,z_1)$ en coordenadas
 enteras de celda, el algoritmo avanza sobre el eje dominante y decide cuándo incrementar el
 eje subordinado mediante una variable de error acumulado. El resultado es una aproximación
@@ -1271,26 +1272,28 @@ discreta del segmento formada por celdas contiguas; no es el conjunto geométric
 celdas que la recta llega a tocar. Esta construcción evita calcular intersecciones en punto
 flotante.
 
-En este sistema se aplican dos tipos de rayos. Los rayos con obstáculo marcan libres las
-celdas intermedias y ocupada la celda final. Los rayos asociados a suelo, región superior
-excluida o mediciones sin obstáculo dentro del rango marcan libre también el extremo final. Para no borrar
-evidencia acumulada de forma excesiva, una celda recibe evidencia libre como máximo una vez
-por frame.
+En este sistema se aplican dos casos según la clase del primer retorno seleccionado en cada sector
+angular. Si corresponde a un obstáculo, las celdas intermedias reciben evidencia libre y la celda
+final recibe evidencia ocupada. Si corresponde al suelo, tanto las celdas intermedias como la final
+reciben evidencia libre. La región superior excluida no genera rayos, y la ausencia de retorno en
+un sector tampoco se interpreta como espacio libre ni se extrapola hasta el alcance máximo. Para
+no acumular evidencia de forma excesiva, una celda recibe evidencia libre como máximo una vez por
+frame.
 
 La Figura~\ref{fig:mt-bresenham-rayos} muestra la discretización espacial de ambos casos. La
 línea azul une, en orden, los centros de las celdas seleccionadas por Bresenham desde la cámara
 hasta el destino; por eso no debe interpretarse como la intersección geométrica exacta entre una
-recta y la grilla. Las celdas verdes reciben evidencia libre. Si el extremo corresponde a un obstáculo,
-la última celda se reserva para evidencia ocupada (rojo). Si la medición no contiene un obstáculo
-dentro del rango, el recorrido se extiende hasta el límite medible representado y su extremo
-también recibe evidencia libre.
+recta y la grilla. Las celdas verdes reciben evidencia libre. Si el retorno corresponde a un
+obstáculo, la última celda se reserva para evidencia ocupada (rojo); si corresponde al suelo, la
+celda final también recibe evidencia libre. En ambos casos el recorrido termina en una observación
+real, no en un punto artificial ubicado en el límite del rango.
 
 \begin{figure}[H]
   \centering
   \includegraphics[width=0.95\textwidth]{__Graficos/marco_teorico/bresenham_rayos/salida/bresenham_rayos.png}
-  \caption{Recorrido discreto de Bresenham sobre la grilla: las celdas intermedias reciben
-  evidencia libre; ante un obstáculo el extremo es ocupado y, en caso contrario, la evidencia
-  libre se extiende hasta el límite del rango representado.}
+  \caption{Recorrido discreto de Bresenham hasta el primer retorno observado: las celdas
+  intermedias reciben evidencia libre; la celda final se marca ocupada si contiene un obstáculo y
+  libre si corresponde al suelo. Los sectores sin retorno no generan un rayo.}
   \label{fig:mt-bresenham-rayos}
 \end{figure}
 

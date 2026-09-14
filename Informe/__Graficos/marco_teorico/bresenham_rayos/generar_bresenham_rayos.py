@@ -25,8 +25,8 @@ def discrete_ray(x0, y0, x1, y1):
 def main():
     fig, axes = plt.subplots(1, 2, figsize=(12, 5.1), constrained_layout=True)
     origin = (2, 2)
-    cases = [(True, (11, 7), "Medición con obstáculo"),
-             (False, (14, 8), "Medición sin obstáculo dentro del rango")]
+    cases = [(True, (11, 7), "Primer retorno: obstáculo"),
+             (False, (14, 8), "Primer retorno: suelo")]
     for ax, (occupied, endpoint, title) in zip(axes, cases):
         intermediate = discrete_ray(*origin, *endpoint)
         free_cells = intermediate if occupied else intermediate + [endpoint]
@@ -42,7 +42,9 @@ def main():
         ax.annotate("", xy=route[-1], xytext=route[-2], arrowprops=dict(arrowstyle="->", color="#2457a6", lw=2.3), zorder=4)
         ax.scatter(*origin, s=75, color="#2457a6", edgecolor="white", linewidth=.8, zorder=4)
         ax.text(origin[0]-.15, origin[1]-.75, "celda de la cámara", ha="center", fontsize=9)
-        ax.text(endpoint[0]+.15, endpoint[1]+.55, "celda ocupada" if occupied else "límite del rango", ha="center", fontsize=9)
+        ax.text(endpoint[0]+(.15 if occupied else .35), endpoint[1]+.55,
+                "celda ocupada" if occupied else "celda de suelo libre",
+                ha="center" if occupied else "right", fontsize=9)
         ax.set_title(title); ax.set(aspect="equal", xlim=(-.5, 14.5), ylim=(-.5, 9.5)); ax.set_xticks([]); ax.set_yticks([])
     axes[1].legend(handles=[Patch(facecolor="#a8d8a8", label="evidencia libre"), Patch(facecolor="#e45756", label="evidencia ocupada")], loc="lower right", framealpha=.95, fontsize=9)
     OUT.parent.mkdir(parents=True, exist_ok=True)

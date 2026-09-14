@@ -238,8 +238,8 @@ Secciones~\ref{sec:metodo-v0-depthgrid} y~\ref{sec:metodo-v0-intensidad}.
 El nodo \code{depth\_obstacle\_filter}, ejecutado mediante \code{depth\_obstacle\_filter\_node} del
 paquete homónimo, suscribe la imagen de profundidad, sus parámetros intrínsecos y el acelerómetro
 del driver. El nodo publica \texttt{/depth\_obstacle\_filter/obstacle\_cloud} como salida
-principal, y cuando se habilita la interfaz hacia mapeo local también publica
-\texttt{/depth\_obstacle\_filter/free\_endpoints}. De forma adicional emite
+principal, y cuando se habilita la interfaz hacia mapeo local también publica la evidencia de
+suelo en \texttt{/depth\_obstacle\_filter/ground\_evidence}. De forma adicional emite
 \texttt{/depth\_obstacle\_filter/camera\_height} (\texttt{std\_msgs/Float32}) para informar la
 altura estimada de cámara respecto del suelo. En TF publica la transformación dinámica
 \texttt{gravity\_aligned\_frame}~$\to$~\texttt{camera\_depth\_optical\_frame}. La nube de

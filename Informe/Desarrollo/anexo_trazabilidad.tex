@@ -15,7 +15,7 @@ A continuación se exponen tres tablas de referencia que relacionan los nodos pr
         \addlinespace
         \texttt{rgbd\_odometry} & \texttt{rtabmap\_odom} & /camera/camera/color/image\_raw, /camera/camera/color/camera\_info, /camera/camera/aligned\_depth\_to\_color/image\_raw, /imu/data\_filtered & nav\_odom \\
         \addlinespace
-        \texttt{depth\_obstacle\_filter} & \texttt{depth\_obstacle\_filter} & /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info, /camera/camera/accel/sample & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/free\_endpoints, /depth\_obstacle\_filter/camera\_height, /depth\_obstacle\_filter/debug/* \\
+        \texttt{depth\_obstacle\_filter} & \texttt{depth\_obstacle\_filter} & /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info, /camera/camera/accel/sample & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/ground\_evidence, /depth\_obstacle\_filter/camera\_height, /depth\_obstacle\_filter/debug/* \\
         \hline
     \end{tabularx}
     \caption{Trazabilidad de adquisición, prefiltrado IMU y percepción geométrica.}
@@ -30,7 +30,7 @@ A continuación se exponen tres tablas de referencia que relacionan los nodos pr
         \hline
         \textbf{Nodo} & \textbf{Paquete} & \textbf{In} & \textbf{Out} \\
         \hline
-        \texttt{local\_mapper} & \texttt{local\_mapper} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/free\_endpoints, nav\_odom, /depth\_obstacle\_filter/camera\_height & /local\_mapper/occupancy\_grid, TF odom $\to$ gravity\_aligned\_frame \\
+        \texttt{local\_mapper} & \texttt{local\_mapper} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/ground\_evidence, nav\_odom, /depth\_obstacle\_filter/camera\_height & /local\_mapper/occupancy\_grid, TF odom $\to$ gravity\_aligned\_frame \\
         \addlinespace
         \texttt{obstacle\_grid\_encoder} & \texttt{depth\_grid\_encoder} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/camera\_height & /perception/depth\_grid, /perception/depth\_grid/aperture\_state\_deg \\
         \addlinespace
