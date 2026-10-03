@@ -892,9 +892,9 @@ El valor adoptado para $\Delta_c$ se especifica en la Sección~\ref{sec:metodo-v
 Esta región no constituye una detección semántica de techos. Reúne cualquier medición situada
 más de $\Delta_c$ por encima de la cámara y puede contener ramas, carteles u otros elementos
 elevados. Se mantiene el término \texttt{CEILING} únicamente al referirse a la etiqueta del
-mensaje o del código. Su descarte y el empleo submuestreado de esos puntos como extremos de
-espacio libre son decisiones que deben validarse experimentalmente, porque una proyección 2D
-puede perder información sobre obstáculos elevados.
+mensaje o del código. Estos puntos se excluyen tanto de la nube de obstáculos como de la
+evidencia libre enviada al mapa. Su descarte debe validarse experimentalmente, porque la
+clasificación y la posterior proyección 2D pueden perder información sobre obstáculos elevados.
 
 La aplicación de esta clasificación sobre una escena real se muestra en las
 Figuras~\ref{fig:metodo-gravity-alignment}
@@ -907,14 +907,15 @@ superior excluida y los puntos conservados como obstáculos.
 La distancia del origen al plano estimado proporciona una medición de la altura de la cámara.
 Para impedir que errores aislados modifiquen bruscamente la grilla, esta estimación solo se
 acepta cuando el plano supera requisitos de calidad, cantidad de inliers e inclinación. La
-altura aceptada se filtra, se limita el cambio por actualización y los saltos grandes deben
-repetirse de forma coherente antes de iniciar una transición más rápida.
+altura aceptada se filtra y se limita el cambio por actualización. Las mediciones que se alejan
+del valor filtrado más que el umbral de salto permitido se rechazan y se conserva la altura
+anterior. Su repetición no habilita una transición más rápida.
 
-El valor resultante actualiza el límite vertical superior usado por la codificación espacial.
-De este modo, las cinco filas mantienen una relación con el espacio comprendido entre la zona
-inferior y la altura observada de la cámara, aun cuando cambie el usuario o la posición de
-montaje. Esta realimentación modifica la asignación vertical, pero no altera la matriz final de
-5 filas por 10 columnas.
+El valor resultante actualiza $Y_{\max}$, el límite inferior físico de la codificación espacial,
+sumando un margen a la altura estimada. El límite superior físico, $Y_{\min}$, permanece fijo;
+la distinción se debe a que el eje $Y$ crece hacia abajo desde la cámara. De este modo, las cinco
+filas se distribuyen entre la región superior protegida y el suelo observado. Esta realimentación
+modifica la asignación vertical, pero no altera la matriz final de 5 filas por 10 columnas.
 
 El procedimiento adoptado para validar y realimentar esta altura se presenta en la
 Sección~\ref{sec:metodo-v1-altura}; su evaluación experimental se define en el bloque v1 del
