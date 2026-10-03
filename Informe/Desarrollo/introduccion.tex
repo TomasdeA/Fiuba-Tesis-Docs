@@ -32,7 +32,7 @@ productos como el \emph{SuperBrain~1} \cite{SeventhSense2024SuperBrain} muestran
 funcionalidad que puede alcanzar un sistema comercial.
 
 Esta tesis estudia cómo obtener una representación local compacta de obstáculos mediante una cámara
-RGB-D y una Raspberry Pi~5, sin pretender reproducir el alcance funcional ni el nivel de validación
+RGB-D, primero en una computadora de desarrollo y luego evaluando su ejecución en Raspberry Pi~5, sin pretender reproducir el alcance funcional ni el nivel de validación
 de un producto comercial. El Capítulo~\ref{chap:estado-arte} analiza estas soluciones en detalle y
 compara el enfoque adoptado en esta tesis con ellas.
 
@@ -40,7 +40,7 @@ compara el enfoque adoptado en esta tesis con ellas.
   \centering
   \includegraphics[width=0.85\textwidth]{_Imagenes/arquitectura/Arquitectura-global.png}
   \caption{Visión general del sistema de asistencia sensorial desarrollado en esta tesis.
-           El sistema que corre en la Raspberry Pi 5 genera una representación compacta del entorno
+           La Raspberry Pi~5 representa el destino embebido propuesto para generar una representación compacta del entorno
            destinada a una futura interfaz háptica portada por el usuario.}
   \label{fig:intro-arquitectura-general}
 \end{figure}
@@ -58,8 +58,8 @@ mediciones más densas, a costa de una mayor demanda de procesamiento
 
 El problema de ingeniería que aborda esta tesis es, por lo tanto, transformar información
 tridimensional del entorno en una representación compacta destinada a una interfaz háptica,
-utilizando una plataforma embebida y manteniendo acotados el retardo, la variación temporal y el
-consumo de recursos.
+manteniendo acotados el retardo, la variación temporal y el consumo de recursos, y determinar
+bajo qué condiciones puede ejecutarse en una plataforma embebida.
 
 El proyecto global está orientado a una solución portátil. La presente tesis se limita al módulo
 de percepción y procesamiento, por lo que no evalúa la portabilidad del dispositivo completo, que
@@ -70,12 +70,12 @@ El diseño del módulo de percepción está condicionado por la plataforma embeb
 necesidad de generar información reciente durante la marcha y la continuidad de la detección. En
 particular:
 \begin{itemize}
-  \item \textbf{Plataforma embebida:} todos los componentes necesarios para generar la salida
-        lógica se ejecutarán sobre una Raspberry Pi~5 \cite{RaspberryPi}, sin depender de CUDA ni
-        de una GPU discreta. Esta condición requiere representaciones compactas y algoritmos
-        compatibles con los recursos disponibles. La viabilidad de la implementación se evaluará
-        mediante el uso de CPU y memoria, la temperatura de operación y la presencia de eventos de
-        limitación térmica.
+  \item \textbf{Plataformas de evaluación:} la computadora de desarrollo permite establecer
+        primero la referencia funcional y computacional de v0, v1 y v2. Después se evalúa la
+        Raspberry Pi~5 \cite{RaspberryPi}, sin depender de una GPU discreta, con la misma
+        configuración y, si resulta necesario, con perfiles de menor carga. La prueba debe
+        determinar qué capacidades sostiene, cuáles requiere limitar y si los recursos
+        disponibles resultan insuficientes.
   \item \textbf{Desempeño temporal:} el módulo deberá producir información con un retardo y una
         tasa de actualización compatibles con su uso previsto durante la marcha. La evaluación
         abarcará desde la adquisición de la imagen hasta la publicación de la salida lógica.
@@ -111,7 +111,7 @@ visualizarlos y deja implementada su transmisión mediante UART.
 Esta tesis aborda exclusivamente la primera etapa: captar el entorno y generar una representación
 local compacta a partir de percepción RGB-D. El foco se sitúa en transformar la medición cruda de
 profundidad en información espacial destinada a navegación asistida y caracterizar su retardo,
-estabilidad temporal y consumo de recursos sobre una plataforma embebida.
+estabilidad temporal y consumo de recursos en PC, y evaluar posteriormente la viabilidad embebida.
 
 \subsection{Objetivo técnico}
 \label{sec:intro-objetivo-tecnico}
@@ -119,7 +119,8 @@ estabilidad temporal y consumo de recursos sobre una plataforma embebida.
 El objetivo técnico es desarrollar un módulo que transforme mediciones de profundidad en una
 representación espacial compacta y en una matriz lógica de intensidades destinada a la segunda
 etapa del proyecto. Para materializar y evaluar ese objetivo se adoptan ROS~2 \cite{ROS}, una cámara
-Intel RealSense D435i \cite{RS-D400} y una Raspberry Pi~5 como decisiones de implementación.
+Intel RealSense D435i \cite{RS-D400}, una PC de referencia y una Raspberry Pi~5 como
+plataforma embebida a evaluar.
 
 Específicamente, el módulo deberá desarrollarse en tres niveles incrementales:
 \begin{itemize}
@@ -136,9 +137,8 @@ Específicamente, el módulo deberá desarrollarse en tres niveles incrementales
         se evaluará experimentalmente;
   \item \textbf{v2 (mapeo local):} implementar una capa de mapeo de corto alcance basada en
         grillas de ocupación log-odds \cite{Elfes1989, Thrun2005}, con memoria temporal de
-        obstáculos, mecanismo de desplazamiento de ventana egocéntrica e integración de
-        información inercial para compensar cambios de orientación durante la actualización del
-        mapa. Su capacidad para conservar información sobre obstáculos fuera del campo frontal se
+        obstáculos, mecanismo de desplazamiento de una ventana local con ejes fijos en el marco odométrico
+        y odometría RGB-D asistida por orientación inercial. Su capacidad para conservar información sobre obstáculos fuera del campo frontal se
         evaluará en los escenarios definidos para v2.
 \end{itemize}
 
@@ -147,7 +147,7 @@ pruebas experimentales, descritas en el Capítulo~\ref{chap:experimentos}.
 
 \section{Contribuciones}
 
-Los principales aportes técnicos de esta tesis son::
+Los principales aportes técnicos de esta tesis son:
 
 \begin{itemize}
   \item una arquitectura incremental que permite comparar una transformación directa de
@@ -157,7 +157,7 @@ Los principales aportes técnicos de esta tesis son::
         de activaciones producidas por piso y techo sobre cómputo embebido;
   \item una representación compacta que separa la percepción métrica frontal del riesgo contextual
         y permite verificar ambas señales sin depender de la interfaz háptica física;
-  \item un esquema de memoria local y fusión que permite mantener la advertencia cuando un
+  \item un esquema de memoria local y fusión que permite estudiar la continuidad de la advertencia cuando un
         obstáculo previamente observado sale del campo de visión;
   \item un protocolo experimental reproducible para caracterizar error, detección, latencia,
         estabilidad temporal y consumo de recursos.
@@ -172,7 +172,7 @@ El alcance de esta tesis comprende:
   \item la integración del módulo desarrollado con el ecosistema ROS~2, la generación y visualización
         de la matriz de intensidades y su serialización para transmisión mediante UART;
   \item la generación de representaciones compactas de un mapa de ocupación para navegación
-        asistida sobre hardware embebido;
+        asistida, con evaluación posterior de su ejecución embebida;
   \item la caracterización cuantitativa del desempeño del sistema en términos de precisión, latencia
         y consumo de recursos.
 \end{itemize}
@@ -184,9 +184,10 @@ y la implementación de la interfaz háptica física (microcontrolador receptor,
 potencia, actuadores y soporte corporal), así como su caracterización y la validación con usuarios
 finales.
 
-La plataforma embebida adoptada es una Raspberry Pi~5 \cite{RaspberryPi}. Las pruebas
-experimentales caracterizarán el uso de CPU, memoria y latencia para determinar el margen operativo
-de la implementación sobre esa plataforma, no para decidir posteriormente su selección.
+La Raspberry Pi~5 es la plataforma embebida disponible para la segunda fase de evaluación. Su
+uso no presupone que pueda sostener todas las versiones ni sus perfiles más exigentes. Un
+resultado válido de esta tesis es delimitar su funcionamiento, documentar las restricciones
+necesarias o justificar, mediante mediciones, la necesidad de mayor capacidad de cómputo o memoria.
 
 \section{Organización del documento}
 
