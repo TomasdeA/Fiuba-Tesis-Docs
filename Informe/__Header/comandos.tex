@@ -30,6 +30,13 @@
       \centering\color{red}\textbf{GRÁFICO PENDIENTE.} #1}}
   \end{center}}
 
+% Marcador visible para mediciones aún no realizadas.
+\providecommand{\medicionpendiente}[1]{%
+  \begin{center}
+    \fcolorbox{red}{white}{\parbox{0.90\textwidth}{%
+      \centering\color{red}\textbf{MEDICIÓN PENDIENTE.} #1}}
+  \end{center}}
+
 % Paréntesis: \pa{algo}, tamaño variable: \pa*{}
 \DeclarePairedDelimiter{\pa}{\lparen}{\rparen}
 % Corchetes: \br{algo}, tamaño variable: \br*{}
