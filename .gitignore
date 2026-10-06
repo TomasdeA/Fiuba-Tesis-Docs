@@ -1,4 +1,3 @@
-TBD/*
 
 # LaTeX auxiliary files
 *.aux
@@ -28,5 +27,22 @@ TBD/*
 *.acr
 *.alg
 
+__pycache__/
+*.py[cod]
+*.bag
+*.db3
+*.db3-*
+*.mcap
 rosbag/
 rosbag*/
+
+# Notas locales del informe
+Informe/Seguimiento/
+
+# Graficos/Imagenes en proceso
+implementacion/
+experimentos/
+resultados/
+discusion/
+conclusiones/
+trabajo_futuro/
