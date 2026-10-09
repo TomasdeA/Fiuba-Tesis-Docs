@@ -226,7 +226,7 @@ Secciones~\ref{sec:metodo-v0-depthgrid} y~\ref{sec:metodo-v0-intensidad}.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{mensajes/mensajes-v0}
+  \includegraphics[width=\textwidth]{arquitectura/mensajes/mensajes-v0}
   \caption{Mensajes funcionales de v0. La imagen de profundidad se reduce a
   \texttt{DepthGrid}, se transforma en una matriz lógica \texttt{HapticGrid} y se entrega a la
   interfaz de transmisión.}
@@ -256,7 +256,7 @@ en el marco alineado con gravedad, y la altura de cámara. El resultado vuelve a
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth,trim=0 125 0 0,clip]{mensajes/mensajes-v1}
+  \includegraphics[width=\textwidth,trim=0 125 0 0,clip]{arquitectura/mensajes/mensajes-v1}
   \caption{Mensajes funcionales de v1. La imagen, los intrínsecos y el acelerómetro permiten
   obtener una nube de obstáculos alineada y codificarla conservando el contrato
   \texttt{DepthGrid}--\texttt{HapticGrid} de v0.}
@@ -283,7 +283,7 @@ producir la única \texttt{HapticGrid} de salida.
 
 \begin{figure}[H]
   \centering
-  \includegraphics[width=\textwidth]{mensajes/mensajes-v2}
+  \includegraphics[width=\textwidth]{arquitectura/mensajes/mensajes-v2}
   \caption{Mensajes funcionales de v2. La ruta frontal se complementa con odometría, memoria
   local y riesgo contextual, que se fusiona antes de publicar la matriz háptica final. Se
   muestran únicamente los mensajes que intervienen en el procesamiento funcional principal.}
