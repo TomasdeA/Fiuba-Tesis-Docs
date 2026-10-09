@@ -39,6 +39,14 @@ rosbag*/
 # Notas locales del informe
 Informe/Seguimiento/
 
+# Capitulos en proceso
+Informe/Desarrollo/implementacion.tex
+Informe/Desarrollo/experimentos.tex
+Informe/Desarrollo/resultados.tex
+Informe/Desarrollo/discusion.tex
+Informe/Desarrollo/conclusiones.tex
+Informe/Desarrollo/futuro.tex
+
 # Graficos/Imagenes en proceso
 implementacion/
 experimentos/
