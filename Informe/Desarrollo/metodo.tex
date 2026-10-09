@@ -107,3 +107,33 @@ Esta línea base permitió aislar dos problemas: la activación persistente del 
 ocupa una parte importante del campo de profundidad, y la pérdida de contexto cuando un obstáculo
 sale del campo frontal luego de haber sido observado. Esas dos limitaciones motivan v1 y v2,
 respectivamente.
+
+\section{Versión v1: filtrado geométrico de la escena}
+\label{sec:metodo-v1}
+
+La v1 conserva la representación compacta de v0, pero cambia la señal que la alimenta. En lugar de
+codificar profundidad cruda, primero separa la escena en suelo, obstáculos y techo. El objetivo es
+que la matriz háptica responda a elementos relevantes para la marcha, no a superficies esperadas
+como el piso ni a estructuras superiores que no representan colisión corporal inmediata. Los
+fundamentos de orientación, gravedad y segmentación de suelo se presentan en la
+Sección~\ref{sec:mt-v1}.
+
+La Figura~\ref{fig:metodo-reduccion-v1-filtrado} anticipa el resultado completo de la versión sobre
+el mismo instante de E1-A usado para v0. Arriba se observa la nube alineada después de retirar suelo
+y región superior; en el centro, su reducción a una \texttt{DepthGrid} angular; y abajo, la
+\texttt{HapticGrid} comunicada. La desaparición de las activaciones producidas por el piso permite
+apreciar inmediatamente el salto funcional respecto de v0. Las subsecciones siguientes desarrollan
+en orden las decisiones que producen esta salida.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/metodo/reduccion_v1_R01_fase_inicial/salida/reduccion_v1_R01_fase_inicial.png}
+  \caption[Reducción v1 alineada y filtrada]{Reducción v1 del mismo instante de E1-A usado en
+  v0. Arriba se proyecta angularmente la nube ya alineada con la gravedad y se muestran
+  exclusivamente puntos clasificados como obstáculos: el suelo y la región superior ya fueron
+  retirados. En el centro, la \texttt{DepthGrid} publicada conserva la mínima distancia radial por
+  sector angular y banda vertical respecto del suelo; los sectores sin obstáculos se representan
+  en blanco. Abajo se muestra la \texttt{HapticGrid} resultante, lo que permite observar directamente
+  qué activaciones desaparecen respecto de v0 después del filtrado geométrico.}
+  \label{fig:metodo-reduccion-v1-filtrado}
+\end{figure}
