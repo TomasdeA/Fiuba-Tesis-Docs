@@ -384,3 +384,61 @@ transitoria desplace simultáneamente las cinco filas de salida.
   extensión vertical de la grilla; si la estimación se rechaza, se conserva la altura anterior.}
   \label{fig:metodo-realimentacion-altura}
 \end{figure}
+
+\subsection{Codificación angular de obstáculos}
+\label{sec:metodo-v1-angular}
+
+En v1 la \texttt{DepthGrid} ya no se construye por regiones rectangulares de imagen sino a partir
+de la nube de obstáculos filtrada. Las filas pasan a representar franjas verticales en metros,
+mientras que las columnas se asignan por ángulo horizontal. Esta elección desacopla la grilla
+háptica de la resolución de imagen y la vincula con direcciones espaciales percibidas por el
+usuario.
+
+Esta representación difiere de la utilizada en v0. En aquella versión, cada celda correspondía a
+una región rectangular de la imagen y su valor se obtenía como la mínima profundidad axial $z$ de
+sus píxeles. Esta elección era coherente con una reducción directa de la imagen, ya que $z$ es la
+magnitud entregada por el sensor. En v1, en cambio, la grilla se construye a partir de puntos
+tridimensionales agrupados por dirección angular. Por ello se adopta como valor de cada celda la
+mínima distancia radial $d=\sqrt{x^2+z^2}$: esta magnitud representa la separación real en el plano
+horizontal y evita que un obstáculo lateral sea considerado artificialmente más cercano por
+utilizar únicamente su componente frontal. El cambio no modifica el criterio conservador de
+conservar el obstáculo más próximo; modifica la definición de distancia para hacerla consistente
+con la representación espacial empleada en cada versión.
+
+El encoder acumula primero sobre una resolución angular interna mayor, asociada al campo horizontal
+del sensor, y luego reduce esa representación a las columnas publicadas según la apertura activa.
+Así, cambiar la apertura no requiere reconstruir el pipeline ni modificar la dimensión final de la
+futura interfaz háptica. Para cada punto se usa distancia radial en el plano horizontal, lo que evita
+subestimar obstáculos laterales. La partición por ángulo y el uso de distancia radial se fundamentan
+en la Sección~\ref{sec:mt-representacion-compacta}.
+
+La salida incorpora una retención temporal breve de la última grilla no vacía. Si aparece un frame
+vacío aislado, la grilla anterior puede sostenerse durante una ventana corta. Esta decisión actúa
+como filtro anti-glitch ante fallas transitorias de segmentación, sin introducir memoria espacial
+de largo plazo. Esa responsabilidad queda reservada para v2.
+
+La representación conserva cinco bandas verticales y diez columnas de salida. La
+fila cero corresponde al límite superior de la región corporal considerada y el límite inferior se
+adapta con la altura estimada de la cámara. Como $Y$ crece hacia abajo, estos límites corresponden
+respectivamente a $Y_{\min}$, fijo, y $Y_{\max}$, actualizado con la altura más un margen.
+El control de rango del codificador limita la componente frontal $z$ en el marco alineado con la
+gravedad, mientras que la celda conserva distancia radial $\sqrt{x^2+z^2}$. La apertura, la
+resolución angular interna y los límites métricos se exponen junto con los parámetros de implementación, ya que pueden
+modificarse sin alterar el método.
+
+La Figura~\ref{fig:metodo-codificacion-angular} ilustra la correspondencia entre la nube filtrada,
+los sectores angulares y las bandas verticales que producen el contrato de grilla común a las tres versiones.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/metodo/codificacion_angular/salida/codificacion_angular.png}
+  \caption{Codificación angular y vertical de una nube en una \texttt{DepthGrid} de
+  5 filas por 10 columnas.}
+  \label{fig:metodo-codificacion-angular}
+\end{figure}
+
+La salida angular conserva la menor distancia radial $\sqrt{X^2+Z^2}$ de cada sector. Por este
+motivo puede superar ligeramente \SI{5}{\metre}: el codificador limita la componente frontal
+$Z$ en el marco alineado, mientras que la distancia radial aumenta para puntos laterales.
+Este resultado no implica que el filtro inicial haya admitido píxeles con profundidad axial
+fuera de su intervalo útil en el marco óptico de la cámara.
