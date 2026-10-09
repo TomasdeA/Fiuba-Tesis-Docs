@@ -1,87 +1,109 @@
-% Método (cómo / por qué): descripción de los algoritmos y decisiones de diseño (qué hace cada módulo internamente, fórmulas, parámetros por defecto, razones para elegir X sobre Y, filtros, validaciones y métricas de robustez). Aquí sí va la teoría aplicada (pero no la teoría general — eso va al marco teórico). Ejemplos: descripción del filtro IIR (α ≈ 0.136), esquema log-odds y valores l_occ/l_free, diseño del scroll, fusión (max/sum/weighted_sum) y cómo se evalúa su comportamiento.
-\section{Metodología implementada}
-La metodología implementada está organizada como un pipeline de percepción y fusión háptica ejecutado mediante nodos ROS2. El diseño separa las etapas de normalización de entradas, percepción instantánea de baja latencia, mapeo local con historial, generación de indicadores de riesgo y fusión para la generación de señales hápticas. A continuación se describen los módulos principales, los flujos de mensajes ROS2 y los parámetros relevantes de la implementación.
+% Método (cómo / por qué): decisiones algorítmicas que materializan la arquitectura.
+% No repite la topología de nodos ni los detalles operativos de implementación.
+Una vez establecidos los fundamentos y la arquitectura, este capítulo justifica las decisiones de
+procesamiento que materializan el recorrido ya presentado: qué mediciones se aceptan, cómo se
+reducen, qué evidencia se descarta o conserva y bajo qué condiciones modifica la salida. La
+exposición mantiene el orden incremental definido en la Sección~\ref{sec:intro-objetivo-tecnico}
+para mostrar qué limitación motiva cada decisión, sin volver a describir la topología de las tres
+versiones.
 
-% Nota: la estructura del capítulo prioriza la operación base (reducción y envío rápido) seguida de las extensiones (mapeo local, VIO y fusión).
+Los detalles de clases, parámetros ROS~2, archivos de configuración, ejecución y despliegue se
+reservan para el Capítulo~\ref{chap:implementacion}; el protocolo de evaluación y los valores
+medidos corresponden a los Capítulos~\ref{chap:experimentos} y~\ref{chap:resultados},
+respectivamente.
 
-Para facilitar la trazabilidad entre la descripción de la arquitectura, las decisiones metodológicas y el código fuente, véase el Anexo~\ref{anexo:trazabilidad}, que incluye un mapeo nodo → tópicos → archivos fuente.
+Las figuras reutilizan las escenas conceptuales definidas en el
+Capítulo~\ref{chap:experimentos}. Cuando se compara una alternativa de procesamiento, se conserva
+el mismo fotograma o tramo temporal para atribuir el cambio al método y no al entorno. Las pruebas
+de desempeño y su trazabilidad experimental se concentran en los capítulos posteriores.
 
-\section{Normalización de entradas y preprocesado}
-La adquisición y normalización de tópicos se implementa en el nodo \texttt{sensor\_topic\_remapper\_node}. Este nodo suscribe los flujos publicados por el driver de la cámara y los republica sin procesamiento bajo el espacio de nombres normalizado \texttt{/sensors/} para desacoplar el resto del pipeline de los nombres específicos del driver.
+\section{Versión v0: percepción frontal directa}
+\label{sec:metodo-v0}
 
-El preprocesado de cada frame de profundidad se realiza en \texttt{DepthProjector::projectDepthImage} (implementado en \texttt{local\_mapper} y reutilizado por \texttt{depth\_to\_matrix}). En la práctica se convierte la profundidad (enteros 16 bits, mm) a metros, se descartan valores inválidos (por ejemplo 0 y 65535), y se aplican umbrales configurables de rango (\texttt{range\_min\_m}, \texttt{range\_max\_m}). La interfaz permite añadir filtrados espaciales (mediana, bilateral) antes de la reducción de resolución.
+La v0 parte de una premisa deliberadamente simple: si una medición de profundidad cae dentro del
+rango útil, debe poder convertirse en una activación háptica con el menor procesamiento posible.
+Esta versión funciona como referencia de baja latencia y como punto de comparación para medir el
+costo y el beneficio de las capas posteriores. Sus fundamentos generales se desarrollan en la
+Sección~\ref{sec:mt-v0}.
 
-\section{Representación compacta instantánea (DepthGrid)}
-La reducción de la imagen densa a una representación de baja dimensión se implementó en \texttt{depth\_to\_matrix} del paquete \texttt{depth\_grid\_encoder}. Cada frame produce un mensaje \texttt{custom\_interfaces/msg/DepthGrid} publicado en \texttt{/perception/depth\_grid}. Por defecto la grilla tiene dimensiones $R\times C = 5\times 10$ (configurable) y cada celda contiene estadísticas por celda: distancia media, mínimo, máximo y conteo de puntos válidos (tipo \texttt{DepthCellStats}). Esta representación permite percepción de baja latencia y costo de transmisión reducido.
+\subsection{Reducción de profundidad a \texttt{DepthGrid}}
+\label{sec:metodo-v0-depthgrid}
 
-\section{Módulos del mapeo local}
-El nodo \texttt{local\_mapper\_node} agrupa la lógica de mapeo local en cuatro módulos claramente diferenciados:
+La primera decisión metodológica fue fijar \texttt{DepthGrid} como contrato compacto entre
+percepción y generación de comandos hápticos. En v0 se construye directamente desde regiones de la
+imagen de profundidad, con 5 filas $\times$ 10 columnas, dimensión fijada por la salida prevista.
+Antes de acumular se descartan lecturas inválidas y muestras fuera del rango operativo.
+Cada celda conserva la profundidad mínima, la media, la máxima y la cantidad de muestras válidas.
+Para generar la intensidad háptica se utiliza la profundidad mínima de la región, es decir, el
+menor valor entre los píxeles aceptados. La elección de este estadístico y sus limitaciones se
+justifican en la Sección~\ref{sec:metodo-v0-intensidad}.
 
-\begin{itemize}
-  \item \textbf{ImuFilter:} implementa un filtro paso-bajo IIR de orden 1 sobre las lecturas del acelerómetro (parámetro \texttt{alpha} aproximadamente $0.136$ en la configuración por defecto, equivalente a $f_c\approx 5\,\text{Hz}$). Rechaza outliers por norma excesiva (umbral por defecto $\|\mathbf{a}\|>2.5\,g$) y realiza integración de la velocidad angular para estimar la guiñada (yaw) con corrección de bias acumulado en la fase de calibración inicial. El filtro alimenta tanto la alineación gravitacional como el prior inercial para el estimador visual.
+La grilla no intenta describir toda la imagen. Su función en esta versión es entregar una señal
+frontal compacta, trazable y compatible con la matriz háptica, dejando explícita la diferencia entre
+celda sin evidencia, celda con una lectura cercana aislada y celda con soporte espacial más denso.
+La justificación perceptual y la reducción por regiones de interés se desarrollan en las
+secciones~\ref{sec:mt-sustitucion} y~\ref{sec:mt-representacion-compacta}.
 
-  \item \textbf{DepthProjector:} convierte la imagen de profundidad a una nube de puntos 3D mediante la proyección pinhole inversa usando \texttt{sensor\_msgs/CameraInfo}. Se descartan puntos fuera de rango o inválidos.
+La Figura~\ref{fig:metodo-reduccion-v0-casos-limite} aplica esta reducción a un único fotograma
+de E1-A, su configuración inicial multirrango. Las regiones A, B y C permiten seguir tres casos diferentes desde la imagen hasta la grilla:
+una medición apenas superior al límite inferior, una medición intermedia y una región cuyas
+muestras superan por completo el límite superior. Aunque la configuración incluía una tabla
+situada físicamente a menos de $z_{\min}=\SI{0.25}{\metre}$ en el extremo izquierdo, esa
+superficie no produjo profundidades positivas en el fotograma seleccionado: sus píxeles quedaron
+sin medición válida, comportamiento consistente con la proximidad y la región lateral sin
+solapamiento estereoscópico. Por lo tanto, este caso no se interpreta como el límite físico de la
+cámara. La región A contiene la lectura positiva válida más próxima, de \SI{0.257}{\metre}. La
+región B publica \SI{1.923}{\metre}. En C, todas las muestras
+son mayores que $z_{\max}=\SI{5}{\metre}$ y se descartan, por lo que la celda queda sin evidencia y
+se representa en blanco. Las mismas marcas se repiten sobre la grilla para hacer explícita la
+correspondencia entre entrada y salida. El mismo instante se procesa con v1 para que el cambio de
+representación pueda atribuirse al método y no a una disposición diferente del entorno.
 
-  \item \textbf{GravityAligner:} estima la orientación respecto a la gravedad a partir del acelerómetro filtrado y rota la nube de puntos al marco alineado con el plano del suelo. Esto evita que la inclinación del sensor afecte la interpretación de una grilla horizontal.
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/metodo/reduccion_v0_R01_fase_inicial/salida/reduccion_v0_R01_fase_inicial.png}
+  \caption[Reducción v0 de la configuración E1-A]{Reducción de la configuración inicial
+  multirrango E1-A a una
+  \texttt{DepthGrid} de $5\times10$. A señala la medición válida más próxima a $z_{\min}$; B, una
+  distancia intermedia; y C, una región compuesta exclusivamente por muestras mayores que
+  $z_{\max}$. v0 descarta estas últimas y publica la celda C sin evidencia. El tercer panel muestra
+  la \texttt{HapticGrid}: las distancias se convierten a intensidad y las celdas que no producen
+  estimulación se representan con valor cero.}
+  \label{fig:metodo-reduccion-v0-casos-limite}
+\end{figure}
 
-  \item \textbf{LocalMapper:} mantiene una grilla de ocupación 2D egocéntrica (publicada en \texttt{/mapping/local\_grid} como \texttt{nav\_msgs/OccupancyGrid}) actualizada por log-odds y con trazado de rayos por el algoritmo de Bresenham. Las actualizaciones usan incrementos configurables (por defecto $l_{\text{occ}}=+0.85$ y $l_{\text{free}}=-0.40$) y saturación en límites definidos en \texttt{params.yaml}.
-\end{itemize}
+La comprobación del descarte de mediciones positivas menores que $z_{\min}$ se presenta en
+la Sección~\ref{sec:res-v0}. El umbral es una decisión de filtrado y no el límite físico del sensor.
 
-El \texttt{LocalMapper} implementa además un mecanismo de desplazamiento dinámico (\emph{scroll}): cuando la odometría indica un desplazamiento, la grilla se desplaza internamente por un número entero de celdas equivalente al desplazamiento (parámetros \texttt{resolution}, \texttt{grid\_size} controlan la granularidad y dimensión). Las celdas que salen del marco se descartan y las nuevas se inicializan con prior neutro.
+\subsection{Conversión de distancia a intensidad}
+\label{sec:metodo-v0-intensidad}
 
-\section{Odometría visual--inercial y filtros de robustez}
-La plataforma puede arrancar en distintos modos de odometría. Cuando se usa odometría visual (modos \texttt{visual\_only} o \texttt{full}), el sistema lanza un filtro de actitud (Madgwick) que publica \texttt{/imu/data\_filtered} y el nodo \texttt{rgbd\_odometry} de \texttt{rtabmap\_odom} para estimar \texttt{/odom}. En la práctica el nodo de odometría se lanza retrasado (~5 s) para asegurar la convergencia del filtro Madgwick y la estabilidad del driver.
+La etapa de generación háptica aplica a la salida de v0 el mapeo
+distancia--intensidad definido para el sistema. Como valor representativo de cada celda se
+adoptó la distancia mínima: esta decisión prioriza el obstáculo medido más cercano, incluso
+cuando ocupa solo una fracción de la región. El criterio es deliberadamente conservador para
+la asistencia ante obstáculos, aunque resulta más sensible que la media a mediciones atípicas
+cercanas; por esa razón, la validez y el rango de las muestras se controlan antes de su
+acumulación. Las celdas sin
+mediciones válidas quedan inactivas y las distancias por encima del máximo dejan de producir
+estímulo. En esta etapa no existe memoria espacial ni riesgo contextual, de modo que la señal
+háptica representa únicamente la percepción frontal instantánea. El mapeo utilizado se fundamenta
+en la Sección~\ref{sec:mt-representacion-compacta}.
 
-El \texttt{local\_mapper} incorpora filtros de sanidad sobre los mensajes de odometría: filtro de covarianza y límites de desplazamiento entre poses consecutivas (umbrales configurables) para descartar estimaciones espurias antes de aplicar el \emph{scroll}.
+El tercer panel de la Figura~\ref{fig:metodo-reduccion-v0-casos-limite} muestra esta transformación
+sobre la \texttt{DepthGrid} real de E1-A. Para representar exclusivamente el comando comunicado,
+tanto una celda sin evidencia como una medición situada fuera del alcance háptico se visualizan con
+intensidad cero. La curva empleada para convertir distancia en intensidad se presenta, sin
+repetirla aquí, en la Figura~\ref{fig:mt-distancia-intensidad} del
+Capítulo~\ref{chap:marco-teorico}.
 
-\section{Conciencia espacial y generación de overlay}
-El nodo \texttt{spatial\_awareness\_node} consume la grilla local (\texttt{/mapping/local\_grid}) y las lecturas IMU para calcular un indicador de riesgo por sector. La métrica incluye una ponderación por la tasa de guiñada instantánea (extraída del giróscopo) para amplificar la advertencia en la dirección de giro. El resultado se publica como \texttt{/haptics/overlay\_grid} (tipo \texttt{DepthGrid}), que representa una capa de atención espacial derivada del mapeo local.
+El rango perceptivo aceptado por los codificadores se extiende más allá del rango comunicado por
+la salida háptica. Por eso una medición válida pero más lejana que el alcance de estimulación
+permanece en \texttt{DepthGrid}, pero produce intensidad cero. El modelo conserva
+la diferencia conceptual entre ausencia de evidencia y una observación válida que no genera estimulación;
+la representación concreta de ambos estados se detalla en el Capítulo~\ref{chap:implementacion}.
 
-\section{Fusión háptica}
-El nodo \texttt{haptic\_grid\_generator} recibe las dos representaciones: la percepción instantánea \texttt{/perception/depth\_grid} y el \emph{overlay} \texttt{/haptics/overlay\_grid}. Implementa estrategias de fusión configurables: \texttt{max}, \texttt{sum} y \texttt{weighted\_sum}, con suavizado temporal entre frames. Cuando el \emph{overlay} no está presente (tópico sin publicadores), el nodo actúa en modo paso directo (passthrough) y publica la percepción original sin añadir latencia notable. La salida final se publica en \texttt{/haptics/intensity\_grid}.
-
-\section{Interfaz serial y protocolo hacia el ESP32}
-El nodo \texttt{grid\_to\_motor} (paquete \texttt{hardware\_manager}) convierte la \texttt{DepthGrid} de intensidad en comandos de actuadores. Cada celda se mapea a un ciclo de trabajo PWM mediante una función lineal invertida saturada (parámetros configurables en \texttt{params.yaml}). La trama transmitida por UART usa un formato ASCII simple:
-\begin{center}
-\texttt{L $d_0$ $d_1$ \ldots $d_{N-1}$\\n}
-\end{center}
-con velocidad por defecto 115200 bps (8N1) y sin control de flujo. Para evitar saturación del buffer serie se implementó un mecanismo de \emph{throttling} que descarta envíos si el intervalo desde el último mensaje es inferior a \texttt{send\_period\_ms}.
-
-\section{Visualización y tópicos de depuración}
-Para inspección experimental se proporciona el nodo \texttt{depth\_grid\_heatmap} (paquete \texttt{output\_viewer}) que suscribe los tópicos de percepción e intensidad y genera mapas de calor interactivos. \texttt{local\_mapper} publica además tópicos de depuración como \texttt{/mapping/debug/points\_filtered} y \texttt{/mapping/debug/camera\_height\_m} que facilitan la validación y ajustes de parámetros durante experimentos.
-
-\section{Parámetros, calibración y archivo de configuración}
-Todos los parámetros operativos (resolución de grilla, dimensiones de \texttt{DepthGrid}, umbrales de profundidad, log-odds, filtros IMU, umbrales de sanidad para odometría, puerto serie y \texttt{send\_period\_ms}) se exponen como parámetros ROS2 y vienen definidos por defecto en \texttt{params.yaml}. El sistema incluye una fase de calibración inicial para estimar la altura sobre el suelo y el bias del giroscopio, requerida para estabilizar el filtro IMU y la alineación gravitacional.
-
-\section{Resumen de decisiones de diseño}
-Las decisiones de diseño principales fueron: (i) separar percepción instantánea (baja latencia, baja resolución) y mapeo local (mayor fidelidad, historial), (ii) normalizar nombres de tópicos para desacoplar drivers del procesamiento, (iii) usar una representación compacta \texttt{DepthGrid} para transmisión y fusión, y (iv) mantener un protocolo serie simple y robusto para el ESP32, sacrificando complejidad por predictibilidad en entornos embebidos.
-
-
-\begin{equation}
-  \begin{pmatrix} x' \ z' \end{pmatrix}
-  = \begin{pmatrix} \cos\psi & -\sin\psi \ \sin\psi & \cos\psi \end{pmatrix}
-    \begin{pmatrix} x \ z \end{pmatrix}.
-  \label{eq:rotation-2d}
-\end{equation}
-
-\noindent Esta rotación garantiza que el eje $Z^+$ de la grilla apunte siempre en la dirección inicial de avance del robot (orientación de referencia al inicio de la sesión), independientemente de cómo haya girado el sensor.
-
-\section{Integración de IMU para compensación}
-Para compensar la inclinación roll/pitch del sensor, se estimó la orientación a partir de la lectura del acelerómetro y se rotaron los puntos de la nube a un marco alineado con la gravedad antes de la fusión en la grilla local. La estimación de orientación y la rotación de puntos se implementaron en \texttt{GravityAligner::estimateOrientation} y \texttt{Quaternion::rotatePoint}. La sincronización IMU--profundidad se asume a nivel de disponibilidad de la última lectura del acelerómetro; en \texttt{local\_mapper\_node.cpp} se guarda la última lectura de aceleración y ésta se pasa al procesamiento del frame cuando llega la imagen de profundidad.
-
-\section{Odometría visual-inercial: pipeline y filtros de sanidad}
-\label{sec:met-vio-pipeline}
-
-La estimación de la trayectoria del robot se obtiene del nodo \texttt{rgbd\_odometry} de RTAB-Map \cite{Labbe2019RTAB}, que publica \texttt{nav\_msgs/Odometry} en \texttt{/odom}. El nodo \texttt{local\_mapper\_node} se suscribe a ese tópico y procesa cada mensaje en \texttt{onOdom()}.
-
-Debido a que el entorno de prueba presenta superficies homogéneas (paredes blancas, suelos lisos) con escasas características visuales, el estimador puede producir saltos de pose espurios. Se implementaron dos filtros de sanidad en cascada:
-
-\begin{enumerate}
-  \item \textbf{Filtro de covarianza:} si cualquier elemento diagonal de la covarianza de posición $\Sigma_p$ supera $\sigma^2_{\max} = 0.05\,\text{m}^2$, el mensaje se descarta y se emite una advertencia. Este umbral indica baja confianza del estimador.
-  \item \textbf{Filtro de delta máxima:} si el desplazamiento entre dos poses consecutivas supera $|\Delta x| > 0.15\,\text{m}$ o $|\Delta z| > 0.15\,\text{m}$ en un único frame (imposible para velocidad de marcha humana normal), el mensaje se descarta y se reinicia la pose de referencia.
-\end{enumerate}
-
-Solo los mensajes que superan ambos filtros se usan para actualizar la posición acumulada y disparar el mecanismo de scroll de la grilla.
-
-\section{Parámetros y calibración}
-Los parámetros de operación (resolución de grilla, límites de profundidad, rango de alturas válidas, log-odds y umbrales de los filtros de sanidad) se declararon como parámetros ROS2 con valores por defecto en \texttt{params.yaml}. Se definió además una fase de calibración de la altura del suelo que se ejecuta durante los primeros segundos de operación y que invoca \texttt{LocalMapper::calibrateGround} para obtener muestras de suelo alineadas a gravedad; el algoritmo de estimación usa un percentil bajo de las alturas observadas como estimador robusto del plano del suelo.
+Esta línea base permitió aislar dos problemas: la activación persistente del suelo, porque el piso
+ocupa una parte importante del campo de profundidad, y la pérdida de contexto cuando un obstáculo
+sale del campo frontal luego de haber sido observado. Esas dos limitaciones motivan v1 y v2,
+respectivamente.
