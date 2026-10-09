@@ -203,3 +203,184 @@ También se implementó una reducción por vóxeles como alternativa al acotamie
 candidatos de RANSAC. Como no integra la cadena adoptada, su configuración se describe
 en el Capítulo~\ref{chap:implementacion} y su comparación geométrica y temporal se reserva para los
 capítulos~\ref{chap:experimentos} y~\ref{chap:resultados}.
+
+\subsection{Alineación con gravedad}
+\label{sec:metodo-v1-gravedad}
+
+Antes de buscar el suelo, la nube se expresa en un marco alineado con la gravedad. La orientación
+vertical se actualiza solo cuando la aceleración filtrada es compatible con una medición dominada
+por gravedad. Si la norma se aleja de $1g$, se conserva la última orientación estable para evitar
+que movimientos de cabeza contaminen la segmentación.
+
+La señal se suaviza con el filtro IIR de la Ecuación~\ref{eq:iir-accel}. Las muestras incompatibles
+con una medición dominada por gravedad no actualizan la orientación, aunque se conservan como
+diagnóstico de movimiento. Los coeficientes, umbrales y frecuencia de operación utilizados se
+documentan en el Capítulo~\ref{chap:implementacion}.
+
+En la Figura~\ref{fig:metodo-gravity-alignment} se observa el efecto de esta transformación sobre
+E1-G, configuración con una superficie elevada. Antes de la alineación, la vertical de la nube depende
+de la orientación de la cámara. Después, los puntos se expresan respecto de la gravedad y el eje
+óptico conserva la inclinación física con la que fue adquirida la escena. La transformación no
+fuerza el piso a ser horizontal: la pendiente residual, debida a la escena o al error de estimación,
+permanece observable para el ajuste de plano.
+
+En el instante mostrado, la mediana cuasiestática del acelerómetro corresponde a
+$+36{,}7^\circ$ en pitch y $+2{,}3^\circ$ en roll según la Ecuación~\ref{eq:accel-roll-pitch} y la
+convención del marco óptico de la cámara. La implementación no encadena esas dos rotaciones de
+Euler: calcula el cuaternión de rotación mínima que lleva la aceleración normalizada a la vertical
+canónica y lo aplica a toda la nube. Los ángulos permiten interpretar la corrección inercial; no
+son una medición de la inclinación del piso. En la vista frontal, el eje físico $X$ aporta una
+referencia visual del cambio de roll, pero su ángulo proyectado no equivale a una nueva
+descomposición de Euler del cuaternión conjunto.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/metodo/alineacion_gravedad_R01/salida/alineacion_gravedad_R01_fase8_planos.png}
+  \caption[Alineación con gravedad y estimación del plano de suelo]{Alineación con gravedad
+  sobre E1-G, configuración con una superficie elevada sin apoyo
+  inferior visible. Se
+  muestran el fotograma de profundidad y los mismos inliers del plano de suelo antes y después de
+  aplicar la alineación estimada con el acelerómetro. Las vistas laterales permiten observar la
+  corrección de pitch y las frontales, la de roll; el resto de la nube se representa en gris solo
+  como contexto. La línea negra discontinua representa una sección del plano ajustado. El punto
+  negro indica la posición de la cámara y la flecha azul, la orientación de su eje óptico $Z$ antes
+  y después de expresarlo respecto de la gravedad. Las vistas frontales añaden el eje físico $X$ en
+  rojo para hacer visible la corrección de roll.}
+  \label{fig:metodo-gravity-alignment}
+\end{figure}
+
+Esta decisión mantiene la segmentación geométrica independiente de la odometría visual-inercial.
+v1 necesita conocer la vertical local, no estimar trayectoria. El yaw no interviene en la
+separación suelo-obstáculo, por lo que no se introduce en esta etapa. La estimación de roll y
+pitch a partir del acelerómetro y el filtrado inercial local se explican en las
+Sección~\ref{sec:mt-orientacion-gravitacional}.
+
+\subsection{Estimación robusta del suelo}
+\label{sec:metodo-v1-suelo}
+
+Con la nube alineada, el suelo se busca en la región donde debería aparecer para una cámara montada
+en la cabeza. El eje vertical del marco alineado toma $Y$ positivo hacia abajo. Por eso el plano de
+suelo se busca en una banda inferior de la nube, no alrededor del origen de la cámara. El método
+combina una banda candidata, tolerancia dependiente del ruido, RANSAC y validación geométrica. Los
+fundamentos de estas operaciones se presentan en la Sección~\ref{sec:mt-ground-detection}.
+
+La Figura~\ref{fig:metodo-gravity-alignment} ilustra también esta etapa. Los puntos
+magenta son los inliers que sostienen la hipótesis de suelo y la línea negra discontinua es una
+sección del plano refinado. Al mostrar los mismos inliers antes y después de la rotación, la figura
+separa dos operaciones sucesivas: primero se establece una vertical común mediante el acelerómetro
+y luego se mide la inclinación que el piso conserva dentro de ese marco. Para esta observación, el
+plano alineado presenta una pendiente frontal de $+3{,}5^\circ$, una pendiente lateral de
+$-3{,}6^\circ$ y una inclinación tridimensional total cercana a $5{,}0^\circ$. Estas magnitudes
+describen el plano detectado después de compensar el roll y el pitch de la cámara; no describen una
+segunda rotación aplicada a ella.
+
+La tolerancia adaptativa se acota y, si no puede estimarse, se reemplaza por un valor de respaldo.
+Durante la búsqueda de RANSAC se combina además con el término proporcional al alcance de la
+Ecuación~\ref{eq:variable-tol}. Una vez refinado el plano, la clasificación final utiliza la
+tolerancia adaptativa global: acepta los puntos situados dentro de ella y también los que aparecen
+por debajo del plano. Esta asimetría evita convertir en obstáculos pequeñas penetraciones debidas
+al ruido. Esta política evita tanto una aceptación casi nula por subestimación del ruido como una tolerancia
+excesivamente amplia; sus límites concretos se documentan en el
+Capítulo~\ref{chap:implementacion}.
+
+La validez del plano no depende solo de encontrar muchos inliers. También se exige que su normal
+sea compatible con el eje vertical y que la calidad relativa supere un mínimo. Para evitar saltos
+cuando el suelo queda parcialmente visible, se conserva un plano previo válido y se lo reutiliza si
+continúa explicando la nube actual con suficiente soporte. Esta caché temporal reduce
+intermitencias sin convertir el plano en una constante: si deja de cumplir los criterios de
+calidad, se vuelve a ejecutar la estimación robusta.
+
+La Figura~\ref{fig:metodo-flujo-estimador-suelo} resume el procedimiento adoptado. La nube de
+entrada debe contener al menos diez puntos: por debajo de ese mínimo el estimador retorna sin
+clasificar y deja vacías las particiones de suelo, obstáculos y región superior. Para las entradas
+que superan ese control, los diagnósticos y el submuestreo opcional se calculan en paralelo. Si
+la nube preparada para la búsqueda resulta insuficiente, RANSAC no produce un candidato válido o
+falla la validación geométrica, se ejecuta la clasificación sin plano de suelo: no se asignan
+puntos a suelo, pero sí se separan obstáculos y región superior.
+
+El refinamiento conserva el plano inicial si reúne menos de tres inliers o si el ajuste por
+mínimos cuadrados no entrega un plano válido. Así, un fallo de esa operación no elimina por sí
+solo una hipótesis ya aceptada. Si el plano almacenado todavía explica la observación con la
+tolerancia usada para clasificar suelo, se refina sobre la nube actual, con ese mismo respaldo,
+y se vuelve a validar, evitando la búsqueda RANSAC cuando sigue siendo aceptable. El plano
+aceptado reemplaza el almacenado; si la revalidación falla, se ejecuta la búsqueda completa.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.60\textwidth,height=0.64\textheight,keepaspectratio]{_Imagenes/metodo/RANSAC/RANSAC-diagram.png}
+  \caption{Esquema conceptual de estimación del suelo: preparación de candidatos y tolerancia,
+  reutilización de un plano anterior válido o búsqueda mediante RANSAC, validación y refinamiento,
+  y clasificación geométrica con o sin plano. Las condiciones de retorno y el tratamiento del
+  refinamiento se detallan en el Capítulo~\ref{chap:implementacion}.}
+  \label{fig:metodo-flujo-estimador-suelo}
+\end{figure}
+
+La Figura~\ref{fig:metodo-ground-ceiling-classification} muestra el resultado de esta clasificación
+sobre una escena real. Los puntos pertenecientes al piso quedan marcados como suelo, las estructuras
+superiores como techo y el resto de la escena permanece disponible como obstáculo potencial.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{_Imagenes/metodo/gravity_aligment/descarte-piso.png}
+    \caption{Puntos clasificados como suelo}
+    \label{fig:metodo-ransac-ground}
+  \end{subfigure}
+  \hfill
+  \begin{subfigure}[b]{0.48\textwidth}
+    \centering
+    \includegraphics[width=\textwidth]{_Imagenes/metodo/gravity_aligment/descarte-techo.png}
+    \caption{Puntos descartados como región superior}
+    \label{fig:metodo-ceiling-cut}
+  \end{subfigure}
+  \caption{Clasificación geométrica de la nube alineada antes de construir la grilla háptica.}
+  \label{fig:metodo-ground-ceiling-classification}
+\end{figure}
+
+Una vez validado el plano, los puntos se clasifican en tres conjuntos. Los compatibles con la tolerancia final o
+situados por debajo del plano se consideran suelo. Los puntos ubicados por encima de un margen respecto del plano horizontal de la
+cámara se descartan bajo la categoría operativa de región superior. En
+este contexto, el término no refiere únicamente al techo físico de la escena, sino a cualquier
+estructura ubicada por encima del margen configurado respecto de la cámara. Se excluyen bajo la hipótesis de
+que quedan fuera del volumen corporal protegido; esa hipótesis debe comprobarse para el montaje.
+El resto queda como obstáculo. Solo esta última partición alimenta la grilla háptica.
+
+El panel (b) permite observar esta distinción en una situación menos evidente que un techo plano:
+parte de una estructura cuelga en la escena, pero permanece por encima de la altura de protección
+definida respecto de la cámara. Bajo el supuesto de montaje a la altura de la cabeza, esa geometría
+se trata como externa a la envolvente corporal considerada. Esto no garantiza ausencia de
+colisión para otro montaje, postura o superficie inclinada.
+Si se conservara como obstáculo, su distancia reducida produciría una intensidad háptica elevada y
+podría interpretarse como una colisión inminente. Su descarte evita entonces una advertencia fuerte
+pero irrelevante, aun cuando la superficie sea cercana y no corresponda al techo físico del recinto.
+
+\subsection{Altura de cámara como realimentación geométrica}
+\label{sec:metodo-v1-altura}
+
+El plano de suelo también permite estimar la altura de la cámara. Esa magnitud se filtra antes de
+ser utilizada: se rechazan saltos incompatibles, se limita el cambio máximo por actualización y se
+publica solo cuando la variación supera un umbral. Además, la altura se actualiza únicamente si el
+plano de suelo cumple condiciones más estrictas de inclinación, calidad e inliers que las usadas
+para segmentar obstáculos.
+
+Esta realimentación estabiliza la ventana vertical del encoder de obstáculos. En lugar de fijar
+una altura nominal para todos los usuarios y montajes, el sistema adapta el límite inferior de la
+grilla al suelo observado, pero lo hace con suficiente inercia para no trasladar ruido de RANSAC a
+la salida háptica. La relación entre plano de suelo, altura de cámara y estabilidad temporal se
+vincula con la sección~\ref{sec:mt-ground-detection}.
+
+El procedimiento completo se resume en la Figura~\ref{fig:metodo-realimentacion-altura}. La rama
+de rechazo es parte del método aunque una observación individual no produzca una altura nueva: ante
+un plano inválido o un salto no plausible se conserva el valor anterior, evitando que una falla
+transitoria desplace simultáneamente las cinco filas de salida.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{_Imagenes/metodo/Altura/Altura.png}
+  \caption[Realimentación de la altura de cámara]{Procedimiento de realimentación geométrica de la
+  altura. Solo una estimación de suelo válida, con soporte e inclinación compatibles, atraviesa el
+  filtrado temporal. Cuando el cambio es suficiente, se publica la nueva altura y se adapta la
+  extensión vertical de la grilla; si la estimación se rechaza, se conserva la altura anterior.}
+  \label{fig:metodo-realimentacion-altura}
+\end{figure}
