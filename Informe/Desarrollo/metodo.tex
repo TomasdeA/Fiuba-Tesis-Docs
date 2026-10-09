@@ -552,3 +552,138 @@ reales. Por ello, ambos incrementos se calibran conjuntamente con el umbral de o
 el experimento de la Sección~\ref{sec:exp-log-odds-calibration}; la configuración inicial y los
 valores seleccionados se documentan en los capítulos~\ref{chap:implementacion}
 y~\ref{chap:resultados}, respectivamente.
+
+\subsection{Actualización de grilla de ocupación}
+\label{sec:metodo-v2-ocupacion}
+
+La memoria espacial se representa como una grilla local 2D actualizada con evidencia ocupada y
+libre. La actualización conserva tres reglas metodológicas: saturar la evidencia para evitar
+crecimiento indefinido, recorrer las celdas atravesadas por cada rayo y mantener un prior neutro
+para las regiones nuevas o descartadas. La actualización en log-odds y el trazado de rayos se
+describen en la Sección~\ref{sec:mt-mapa-local}.
+
+Antes del trazado, cada punto 3D se transforma al índice de la celda que contiene su proyección
+sobre el plano del mapa. Los obstáculos que caen en una misma celda se deduplican, de modo que esa
+celda recibe un único incremento ocupado durante el cuadro. Las celdas de suelo se incorporan
+directamente como evidencia libre, salvo cuando coinciden con una celda ocupada.
+
+Para completar el espacio situado entre el sensor y las superficies observadas, los puntos de
+suelo y obstáculo se agrupan en 360 sectores angulares. En cada sector se conserva únicamente el
+retorno más cercano y se traza un rayo de Bresenham hasta su celda. Las celdas anteriores al retorno
+reciben evidencia libre; la celda final conserva la actualización directa correspondiente a suelo
+u obstáculo. Si el recorrido encuentra una celda ocupada en el cuadro actual o con log-odds acumulado
+positivo, se detiene antes de modificarla o de completar espacio libre detrás de ella.
+
+Las celdas libres también se deduplican. Así, durante una misma actualización, cada celda recibe
+como máximo un incremento libre aunque varios rayos compartan parte del recorrido. Esta regla y la
+prioridad de la evidencia ocupada evitan que la densidad de puntos o la convergencia de rayos cerca
+del sensor multipliquen artificialmente la evidencia dentro de un único cuadro. El recorrido
+discreto y el tratamiento diferente del retorno se ilustran en la
+Figura~\ref{fig:mt-bresenham-rayos}.
+
+La protección de memoria impide que el barrido proyectado borre por sí solo una ocupación
+positiva previa. La observación directa de suelo en esa celda puede reducirla, siempre que no
+haya un obstáculo actual en conflicto. Esta distinción separa completar espacio libre de
+confirmar que desapareció un obstáculo recordado.
+
+La grilla funciona como una ventana local deslizante centrada en el sensor. Cuando la odometría lo
+desplaza una fracción acumulada equivalente a una celda, el contenido del mapa se corre en índices enteros y las
+nuevas celdas entrantes vuelven al prior neutro. La posición del sensor permanece así en el centro
+de la ventana. Además, se aplica un radio de olvido alrededor del sensor: aunque la ventana sea cuadrada, las celdas situadas
+fuera de ese círculo se reinicializan como desconocidas. De esta forma, el sistema conserva memoria
+útil en el entorno inmediato sin convertir el mapa local en una reconstrucción global.
+La elección de una representación local, deslizante y con olvido espacial se fundamenta en las
+Sección~\ref{sec:mt-mapa-local}.
+
+No se aplica decaimiento explícito por edad. Una ocupación pierde evidencia cuando observaciones directas de suelo la
+contradicen o desaparece al quedar fuera del radio de memoria o de la ventana deslizante. En
+consecuencia, una celda no observada nuevamente puede conservar su estado durante todo el tiempo
+que permanezca dentro de la región local.
+
+La Figura~\ref{fig:metodo-ventana-trayectoria} compara una reconstrucción acumulada del
+recorrido con la memoria local. La primera se obtiene reproduciendo las mismas nubes y la misma
+odometría, sin borrado por distancia y con una grilla suficientemente amplia para conservar todo
+lo observado. Es una referencia visual estimada por el sistema, no una medición independiente
+del entorno. En operación, el mapa local mantiene sus ejes y su tamaño; solo cambia su origen en
+odometría. La trayectoria completa se dibuja para visualizar el movimiento, pero no forma parte
+de la memoria de ocupación: puede extenderse fuera de la ventana aunque allí ya no se conserve
+ocupación.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{__Graficos/metodo/riesgo_R03/salida/ventana_trayectoria.png}
+\caption{Mapa acumulado del recorrido (arriba) y ventanas locales (debajo), en los mismos
+ejes de odometría. Las ventanas muestran, en orden de lectura, la reconstrucción inicial,
+el instante posterior a la alarma derecha, el alejamiento con centro en $X \simeq \SI{-7}{\metre}$
+y el final del recorrido. La línea verde representa el camino recorrido y los cuadrados
+delimitan las ventanas locales. Todas las vistas comparten los límites de los ejes.}
+\label{fig:metodo-ventana-trayectoria}
+\end{figure}
+
+\subsection{Evaluación de riesgo fuera del campo frontal}
+\label{sec:metodo-v2-riesgo}
+
+La capa de conciencia espacial interpreta la grilla de ocupación como conjunto de celdas ocupadas
+y descarta activaciones aisladas mediante agrupamiento por conectividad. Cada componente restante
+se evalúa respecto de la pose y la velocidad del usuario. Un candidato solo genera riesgo si queda
+fuera de la apertura frontal ya comunicada, dentro de una banda de distancia útil, alineado con el
+corredor corporal, con velocidad de cierre positiva y con tiempo hasta colisión menor al horizonte
+configurado.
+
+El riesgo se separa en tres regiones semánticas: izquierda, derecha y posterior. En cada región se
+conserva el candidato más urgente, definido por mayor intensidad y, ante empate, menor tiempo hasta
+colisión. La intensidad se calcula a partir del tiempo hasta colisión: riesgos más inminentes
+producen valores mayores. Para evitar parpadeos alrededor del umbral de activación se aplica
+histéresis sobre la velocidad de cierre. Mientras el contexto es válido y el canal permanece
+activo, se limita la pendiente temporal de la intensidad. Al desactivarse el canal o invalidarse
+el contexto, la intensidad contextual pasa directamente a cero, sin una rampa de apagado.
+Estos criterios corresponden al modelo de conciencia espacial y tiempo hasta colisión presentado
+en la Sección~\ref{sec:mt-riesgo-contextual}.
+
+La comprobación sobre mensajes registrados y la figura de los tres sectores se presentan en
+la Sección~\ref{sec:res-riesgo}. Aquí se define el criterio de selección, sin asumir que una
+activación publicada corresponda necesariamente a un riesgo físico correctamente localizado.
+
+La selección combina un umbral de ocupación, vecindad de ocho conexiones y una cantidad mínima de
+celdas por componente. La apertura frontal efectiva se excluye del análisis contextual para no
+duplicar la señal de v1. El corredor incorpora el radio corporal y la incertidumbre debida a la
+discretización del mapa. La conversión de TTC a intensidad satura los riesgos más inmediatos y
+anula los que quedan fuera del horizonte temporal adoptado.
+
+La velocidad puede obtenerse del dato publicado por la odometría o de la derivada de poses.
+Se prefiere la primera cuando ambas fuentes plausibles son consistentes; ante discrepancia se
+utiliza la derivada de poses. Si solo una fuente es plausible, se usa esa; si ninguna lo es,
+se invalida la estimación de velocidad. Luego se filtra la fuente seleccionada antes de evaluar
+cierre. Los controles y constantes se documentan en el Capítulo~\ref{chap:implementacion}.
+
+Si el mapa o la odometría dejan de recibirse dentro de la ventana de vigencia, la capa contextual
+se marca como inválida. Esta regla comprueba recepción reciente, no exactitud de la pose ni
+antigüedad de adquisición. En
+ese caso no se fusiona con la percepción frontal, preservando el comportamiento reactivo de v1 como
+modo degradado.
+
+\subsection{Fusión háptica de percepción y contexto}
+\label{sec:metodo-v2-fusion}
+
+La fusión final no intenta reconstruir una segunda imagen de profundidad. La percepción frontal y
+el riesgo contextual tienen naturalezas distintas: la primera describe distancias por celda. El
+segundo describe peligro por región. Por eso la v2 superpone el riesgo contextual sobre zonas
+predefinidas de la matriz háptica: canales laterales sobre columnas extremas y canal posterior
+sobre columnas centrales. En cada celda se conserva la intensidad máxima entre la señal frontal y
+la contextual.
+
+La asignación adoptada aplica el riesgo izquierdo al borde izquierdo, el derecho al borde derecho
+y el posterior a la zona central. La última intensidad contextual válida puede conservarse durante
+una ventana breve. Esta persistencia evita un apagado
+instantáneo ante una actualización aislada ausente, pero no reemplaza la comprobación de vigencia
+de mapa y odometría.
+
+Esta regla mantiene una propiedad de la salida lógica: una intensidad mayor nunca se reduce
+por la llegada de otra capa de información. La señal contextual complementa a la frontal cuando el
+obstáculo ya no está en el campo comunicado, pero no anula la respuesta instantánea ante obstáculos
+visibles.
+La regla de superposición háptica se fundamenta en la Sección~\ref{sec:mt-riesgo-contextual}.
+
+La fusión conserva intensidades numéricas, pero no demuestra equivalencia perceptual entre
+una escala basada en distancia y otra basada en TTC. La interpretación del canal posterior,
+superpuesto en columnas centrales, requiere validación en la segunda etapa del proyecto.

@@ -1,0 +1,94 @@
+{
+  "bag": "/home/tomasdea/Tesis/bags/experimentos_tesis/derivados/R03_completa_timing_floor_v2",
+  "t0": 1790271755.628242,
+  "samples": [
+    {
+      "t": 33.02682375907898,
+      "origin": [
+        -4.600000381469727,
+        -3.300001621246338
+      ],
+      "window_center": [
+        0.3999996930360794,
+        1.699998453259468
+      ],
+      "pose": [
+        0.40409597754478455,
+        1.7226355075836182
+      ]
+    },
+    {
+      "t": 74.11956429481506,
+      "origin": [
+        -4.600000381469727,
+        -2.9000020027160645
+      ],
+      "window_center": [
+        0.3999996930360794,
+        2.0999980717897415
+      ],
+      "pose": [
+        0.39400514960289,
+        2.0836455821990967
+      ]
+    },
+    {
+      "t": 91.19714212417603,
+      "origin": [
+        -12.000012397766113,
+        -3.7000012397766113
+      ],
+      "window_center": [
+        -7.000012323260307,
+        1.2999988347291946
+      ],
+      "pose": [
+        -7.013027667999268,
+        1.4030680656433105
+      ]
+    },
+    {
+      "t": 108.04383206367493,
+      "origin": [
+        -19.700040817260742,
+        1.599997639656067
+      ],
+      "window_center": [
+        -14.700040742754936,
+        6.599997714161873
+      ],
+      "pose": [
+        -14.76832103729248,
+        6.606325149536133
+      ]
+    }
+  ],
+  "right_episode_last_active_s": 73.12204647064209,
+  "intermediate_target_center_x_m": -7.0,
+  "accumulated": {
+    "bag": "/home/tomasdea/Tesis/bags/experimentos_tesis/derivados/R03_completa_acumulado_v1",
+    "t": 114.24660778045654,
+    "grid_size": 600,
+    "resolution": 0.10000000149011612,
+    "map_count": 1614,
+    "minimum_boundary_margin_m": 7.635006368160248,
+    "same_odometry_verified": true,
+    "same_observation_stamps_verified": true,
+    "sensor_range_m": 5.0,
+    "forget_radius_m": 0.0,
+    "observed_bounds": [
+      -19.849815759807825,
+      7.350184645503759,
+      -3.8499745316803455,
+      10.650025684386492
+    ],
+    "plot_xlim": [
+      -21.0,
+      9.0
+    ],
+    "plot_ylim": [
+      -6.0,
+      14.0
+    ]
+  }
+}
