@@ -442,3 +442,44 @@ motivo puede superar ligeramente \SI{5}{\metre}: el codificador limita la compon
 $Z$ en el marco alineado, mientras que la distancia radial aumenta para puntos laterales.
 Este resultado no implica que el filtro inicial haya admitido píxeles con profundidad axial
 fuera de su intervalo útil en el marco óptico de la cámara.
+
+\section{Versión v2: memoria espacial y riesgo contextual}
+\label{sec:metodo-v2}
+
+La v2 conserva la percepción frontal filtrada de v1 y agrega una segunda fuente de información:
+una memoria local del entorno. La motivación es cubrir situaciones en las que un obstáculo fue
+observado, pero deja de estar dentro del campo frontal comunicado mientras el usuario sigue
+moviéndose. En esa condición, la percepción instantánea puede apagarse aunque el riesgo continúe
+existiendo.
+Los fundamentos de odometría, mapas locales y conciencia espacial se reúnen en la
+Sección~\ref{sec:mt-v2}.
+
+La estimación de pose se obtiene exclusivamente mediante odometría RGB-D, asistida por un prior de
+orientación inercial. Desde el punto de vista metodológico, esa
+odometría no reemplaza la percepción frontal: habilita ubicar observaciones sucesivas en un mismo
+marco local y estimar la velocidad necesaria para evaluar riesgo. El filtrado de suelo de v1 sigue
+operando con su alineación gravitacional propia. El rol de la orientación inercial, la odometría
+RGB-D, los marcos de referencia y la sincronización temporal se desarrolla en las
+Sección~\ref{sec:mt-pose-coherencia-temporal}.
+
+Para incorporar una observación al mapa es necesario conocer dónde estaba el sistema cuando la
+capturó. Por eso, cada par de nubes se asocia con una pose de odometría según sus sellos de tiempo.
+Como muestra la Figura~\ref{fig:metodo-sincronizacion-temporal}, si la observación ocurre entre las
+poses $o_3$ y $o_4$, se interpola una pose en el instante de la observación. La posición se
+interpola linealmente y el yaw por el arco angular más corto. Si existe una pose con el mismo
+sello, se usa directamente. Esa pose permite transformar las nubes desde el marco del sensor
+al marco odométrico.
+
+Cuando la odometría todavía no cubre el instante de la observación, el par de nubes espera en
+una cola acotada. No se extrapola: si no llega una pose válida dentro del tiempo de espera o si
+las poses vecinas están demasiado separadas, se descarta la observación. Los límites temporales
+y la gestión del búfer se documentan en la Sección~\ref{sec:impl-local-mapper}.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=0.86\textwidth]{__Graficos/metodo/sincronizacion_temporal/salida/sincronizacion_temporal.png}
+  \caption{Asociación temporal en el caso normal. Para ubicar la observación en el marco
+  odométrico se interpola entre las poses vecinas $o_3$ y $o_4$, evaluando la pose en el sello
+  de la observación.}
+  \label{fig:metodo-sincronizacion-temporal}
+\end{figure}
