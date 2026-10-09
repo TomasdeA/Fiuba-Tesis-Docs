@@ -483,3 +483,72 @@ y la gestión del búfer se documentan en la Sección~\ref{sec:impl-local-mapper
   de la observación.}
   \label{fig:metodo-sincronizacion-temporal}
 \end{figure}
+
+\subsection{Evidencia ocupada y evidencia libre}
+\label{sec:metodo-v2-evidencia}
+
+El mapa local recibe dos tipos de evidencia derivados del mismo frame filtrado. Los puntos
+clasificados como obstáculo incrementan ocupación y los puntos de suelo aportan evidencia libre
+directa en sus celdas proyectadas. Además, el mapeador agrupa ambas clases por sectores angulares y
+conserva el retorno más cercano de cada sector. Las celdas recorridas desde el sensor hasta ese
+primer retorno se marcan como libres; el retorno conserva su clase original, libre si corresponde
+al suelo y ocupado si corresponde a un obstáculo.
+La interpretación probabilística de evidencia ocupada y libre se apoya en la
+Sección~\ref{sec:mt-mapa-local}.
+
+La clasificación de suelo, obstáculo y región superior se realiza todavía en 3D, utilizando
+$(X,Y,Z)$. La interfaz con el mapa, en cambio, conserva únicamente la posición horizontal de
+cada observación. La evidencia de suelo se publica desde el filtro con componente vertical nula,
+mientras que los puntos de obstáculo mantienen su altura en la nube de salida. Al ingresar al
+mapeador, de ambos tipos de evidencia se toman las componentes $(X,Z)$ del marco alineado con la
+gravedad; estas se transforman al marco \texttt{odom} mediante el ángulo de \emph{yaw} y la
+traslación horizontal estimados, y luego se discretizan en la grilla. En consecuencia, la altura
+sí interviene en la clasificación previa, pero no en la selección de la celda que recibe la
+actualización. Esta reducción permite representar el entorno mediante un mapa 2D, aunque puede
+superponer observaciones que en la escena pertenecen a alturas diferentes.
+
+La reducción puede superponer en una misma celda evidencia procedente de alturas diferentes. Para
+resolver el conflicto dentro de un fotograma, la evidencia ocupada tiene prioridad sobre la libre.
+El suelo visible detrás de una estructura elevada, en cambio, conserva sus propias celdas libres
+porque se incorpora directamente y no depende de prolongar un rayo a través del obstáculo.
+
+La superficie elevada de E1-G constituye el caso complementario. Permanece dentro de la extensión
+vertical protegida y, por lo tanto, se clasifica como obstáculo aunque exista espacio por debajo.
+Al transferirse al mapeador, su posición horizontal $(X,Z)$ define destinos ocupados con
+independencia de la altura. Esta decisión conservadora reserva como ocupada toda columna espacial
+que interseca la región corporal considerada. Sin embargo, el suelo visible detrás de la
+estructura conserva sus propias celdas libres.
+
+Esta distinción evita que el mapa solo acumule positivos. Sin evidencia libre,
+un obstáculo que ya no está presente tendería a permanecer ocupado indefinidamente. Al incorporar
+evidencia directa de suelo, la grilla puede corregir ocupaciones antiguas cuando la observación
+actual contradice el estado previo.
+
+La Figura~\ref{fig:metodo-evidencia-ocupada-libre} reúne la observación cruda, su clasificación 3D
+y la evidencia 2D de un cuadro aislado para dos casos complementarios. La reconstrucción parte
+sin memoria previa; por ello no muestra la protección de ocupaciones acumuladas. En E1-C, la persona cercana oculta el
+suelo inmediatamente delante de la cámara: allí el barrido completa como libres las celdas
+anteriores al primer retorno. En E1-G, el suelo observado detrás de la estructura elevada se
+conserva como evidencia libre directa. En la última columna, las celdas verdes proceden del suelo,
+las naranjas son el aporte exclusivo del raycasting y las rojas son destinos ocupados.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/metodo/evidencia_ocupada_libre/salida/evidencia_ocupada_libre_R01.png}
+  \caption[Evidencia ocupada y libre]{De izquierda a derecha se muestran la profundidad cruda, la
+  clasificación tridimensional y la actualización 2D resultante. La fila superior corresponde a E1-C: ante la
+  persona cercana, el raycasting aporta las celdas libres comprendidas entre el sensor y el primer
+  retorno. La fila inferior corresponde a E1-G: el suelo medido detrás de la estructura elevada
+  permanece como evidencia libre directa.}
+  \label{fig:metodo-evidencia-ocupada-libre}
+\end{figure}
+
+Se asigna mayor magnitud a la evidencia ocupada que a una contradicción libre aislada. Esta
+asimetría prioriza
+la conservación de una advertencia frente a una contradicción libre aislada, un criterio inicial
+conservador para asistencia. No obstante, una confianza ocupada excesiva puede prolongar
+obstáculos inexistentes, mientras que una confianza libre excesiva puede borrar detecciones
+reales. Por ello, ambos incrementos se calibran conjuntamente con el umbral de ocupación mediante
+el experimento de la Sección~\ref{sec:exp-log-odds-calibration}; la configuración inicial y los
+valores seleccionados se documentan en los capítulos~\ref{chap:implementacion}
+y~\ref{chap:resultados}, respectivamente.
