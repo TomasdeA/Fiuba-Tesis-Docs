@@ -137,3 +137,69 @@ en orden las decisiones que producen esta salida.
   qué activaciones desaparecen respecto de v0 después del filtrado geométrico.}
   \label{fig:metodo-reduccion-v1-filtrado}
 \end{figure}
+
+\subsection{Proyección 3D y rango útil}
+\label{sec:metodo-v1-proyeccion}
+
+La v1 conserva el criterio de v0 de descartar mediciones inválidas y limitar la profundidad axial,
+con una diferencia en los extremos: v0 acepta el intervalo cerrado $[z_{\min},z_{\max}]$, mientras
+que el filtro de v1 exige $z_{\min}<Z<z_{\max}$. Con la configuración adoptada, una medición
+exactamente igual a \SI{0.25}{\metre} o \SI{5}{\metre} se acepta en v0 y se descarta en v1.
+Esta comprobación inicial utiliza la coordenada $Z$ del marco óptico de la cámara, antes de
+cualquier alineación con la gravedad; su significado sigue siendo el de profundidad axial del
+sensor.
+
+Las versiones difieren también en cómo reducen las mediciones. En v0, la profundidad axial de cada
+muestra aceptada se acumula directamente en una región rectangular de la imagen y se conserva el
+mínimo de esa región. En v1, la imagen se retroproyecta mediante el modelo de cámara a puntos
+métricos $(X,Y,Z)$; después del control inicial de rango, la nube válida se rota al marco alineado
+con la gravedad. Sobre esas
+coordenadas se estiman el suelo y las regiones verticales, y los obstáculos restantes se agrupan
+por ángulo horizontal y altura respecto del suelo. La distancia publicada deja así de ser la
+profundidad axial de un píxel y pasa a ser la distancia radial $\sqrt{X^2+Z^2}$ del obstáculo en el
+plano horizontal. La retroproyección y ambas métricas se desarrollan en la
+Sección~\ref{sec:mt-rgbd}.
+
+Antes de acumular la grilla frontal, el codificador aplica un segundo control de rango, esta vez
+sobre la componente $Z$ de la nube alineada con la gravedad. En esa etapa se aceptan ambos
+extremos del intervalo configurado. Por lo tanto, una muestra aceptada por el filtro inicial
+puede descartarse en el codificador si la rotación cambia su componente frontal hasta dejarla
+fuera del intervalo. Este segundo control se desarrolla en la
+Sección~\ref{sec:metodo-v1-angular}.
+
+Las mediciones que superan $z_{\max}$ tampoco se interpretan como obstáculos en v1. Sin embargo,
+incluso cuando se habilita la interfaz del mapeador local se mantiene ese descarte. La evidencia libre de v2 se obtiene del suelo observado y del recorrido anterior al
+primer retorno de cada sector angular.
+
+Para acotar el costo antes de la segmentación, la reducción de carga se adelanta al nivel de
+imagen mediante submuestreo de píxeles. Además, la búsqueda de suelo se limita a una banda candidata
+y a una cantidad máxima de puntos de esa banda cuando la escena contiene demasiadas muestras. Esta
+política evita que RANSAC herede el peor caso de la resolución completa del sensor. El submuestreo
+espacial y su relación con el costo de segmentación se discuten en la
+Sección~\ref{sec:mt-ground-detection}.
+
+La Figura~\ref{fig:metodo-candidatos-v1-R01} resume la continuidad y la bifurcación entre ambas
+versiones sobre E1-D, configuración
+con el obstáculo a una primera distancia intermedia, elegida por presentar el cuerpo completo, suelo visible y fondo
+lejano, sin la superficie colocada junto a la cámara. El submuestreo con
+\texttt{depth\_pixel\_stride=2} reduce la entrada a un cuarto antes de retroproyectar. Las mediciones
+finitas dentro del intervalo siguen el recorrido tridimensional de v1, mientras que v0 las habría
+reducido directamente en el plano de imagen. Las superiores a $z_{\max}$ no se convierten en
+obstáculos. En este
+fotograma no se observaron mediciones positivas inferiores a $z_{\min}$.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{__Graficos/metodo/candidatos_geometricos_v1_R01/salida/candidatos_geometricos_v1_R01_fase4.png}
+  \caption[Continuidad y diferencias entre la reducción de v0 y v1]{Continuidad y diferencias
+  entre v0 y v1 sobre E1-D. El control de validez y rango se realiza en ambos casos con la
+  profundidad axial $Z$ del sensor. v0 acumula inmediatamente esas muestras en regiones de imagen;
+  v1 las retroproyecta a 3D, alinea la nube con la gravedad y utiliza geometría métrica antes de
+  construir la grilla. Las lecturas lejanas no se incorporan como obstáculos.}
+  \label{fig:metodo-candidatos-v1-R01}
+\end{figure}
+
+También se implementó una reducción por vóxeles como alternativa al acotamiento directo de los
+candidatos de RANSAC. Como no integra la cadena adoptada, su configuración se describe
+en el Capítulo~\ref{chap:implementacion} y su comparación geométrica y temporal se reserva para los
+capítulos~\ref{chap:experimentos} y~\ref{chap:resultados}.
