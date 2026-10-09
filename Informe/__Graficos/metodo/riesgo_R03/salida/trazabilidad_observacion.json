@@ -1,0 +1,50 @@
+{
+  "bag": "/home/tomasdea/Tesis/bags/experimentos_tesis/derivados/R03_completa_timing_floor_v2",
+  "source": "/home/tomasdea/Tesis/bags/experimentos_tesis/R03_completa",
+  "t0": 1790271755.628242,
+  "observation_stamp": 1790271758.5966506,
+  "risk_stamp": 1790271802.551881,
+  "haptic_stamp": 1790271802.3630123,
+  "pixel": [
+    564,
+    274
+  ],
+  "depth_m": 2.803,
+  "optical_point": [
+    -0.3812250689805799,
+    -0.4152623302673071,
+    2.8030002553785467
+  ],
+  "aligned_point": [
+    -0.3592342436313629,
+    1.25991952419281,
+    2.5412869453430176
+  ],
+  "world_point": [
+    -0.08993860520422459,
+    2.5825216993689537
+  ],
+  "map_cell": [
+    49,
+    75
+  ],
+  "later_map_cell": [
+    43,
+    50
+  ],
+  "target_world": [
+    -0.050000667572021484,
+    2.5499987602233887
+  ],
+  "angular_cell": [
+    3,
+    4
+  ],
+  "cell_count": 105,
+  "cell_min": 2.4005374908447266,
+  "ymax": 1.6502586364746095,
+  "reprojection_error_m": 3.303035768258681e-07,
+  "risk_intensity": 31.645950317382812,
+  "ttc": 1.4461958408355713,
+  "note": "Same world cell at two timestamps, not point/object identity tracking; early point contributes but need not set the cell minimum"
+}

@@ -687,3 +687,53 @@ La regla de superposición háptica se fundamenta en la Sección~\ref{sec:mt-rie
 La fusión conserva intensidades numéricas, pero no demuestra equivalencia perceptual entre
 una escala basada en distancia y otra basada en TTC. La interpretación del canal posterior,
 superpuesto en columnas centrales, requiere validación en la segunda etapa del proyecto.
+
+\section{Síntesis del método resultante}
+\label{sec:metodo-alcance}
+
+El método queda definido por cinco decisiones principales. Primero, separar percepción
+instantánea y memoria espacial para que el sistema pueda degradar a una respuesta frontal de baja
+latencia. Segundo, depurar suelo y techo antes de codificar obstáculos, evitando estímulos
+permanentes que no aportan asistencia a la marcha. Tercero, mantener \texttt{DepthGrid} como
+contrato compacto entre percepción y generación de comandos hápticos. Cuarto, modelar el riesgo contextual por regiones
+semánticas en lugar de forzarlo a una grilla de profundidad. Quinto, fusionar por máximo para que
+la capa contextual solo agregue advertencias y no debilite la percepción frontal.
+
+Los detalles de ejecución, parámetros YAML, protocolo UART, herramientas de depuración y despliegue
+en Raspberry Pi corresponden al Capítulo~\ref{chap:implementacion}. La discusión de compromisos,
+limitaciones y alternativas evaluadas se desarrolla en el Capítulo~\ref{chap:discusion}.
+
+La salida física no forma parte de esta metodología. El resultado final del método perceptual es una
+grilla de intensidades lógicas. Su adaptación y serialización pertenecen a Implementación; la
+recepción de la trama, el accionamiento de motores y la evaluación perceptual de la interfaz
+corporal corresponden a la segunda etapa del proyecto.
+
+La Figura~\ref{fig:metodo-trazabilidad-observacion} reúne las representaciones sobre una
+misma adquisición. El píxel de profundidad es una entrada común a las versiones; la proyección
+3D, clasificación y agrupamiento angular pertenecen a v1 y se conservan en v2. La memoria del
+mapa y la evaluación contextual son incorporaciones de v2. La advertencia posterior se muestra
+en un segundo instante, cuando la ubicación observada permanece en memoria.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\textwidth]{__Graficos/metodo/riesgo_R03/salida/trazabilidad_observacion.png}
+\caption{Trazabilidad de una medición hasta la memoria y la salida lógica. El píxel $(564,274)$
+tiene profundidad axial \SI{2.803}{\metre}; su punto alineado está clasificado como obstáculo,
+contribuye a la celda $(3,4)$ de \texttt{DepthGrid} y se proyecta en la celda inicial $(49,75)$
+del mapa. Los índices comienzan en cero. La celda angular agrega 105 puntos y tiene mínimo
+\SI{2.401}{\metre}: el punto señalado contribuye, pero no determina por sí solo ese mínimo.
+En el segundo instante, la misma ubicación del mapa participa en el riesgo posterior y aumenta
+las columnas centrales de \texttt{HapticGrid}. El contorno magenta vincula las representaciones;
+los bordes naranjas indican el aporte contextual.}
+\label{fig:metodo-trazabilidad-observacion}
+\end{figure}
+
+La asociación píxel--punto se verifica mediante intrínsecos y la transformación de gravedad
+registrada; también se comprueban el contador y el mínimo de la celda angular. Las filas usan
+la altura publicada durante la reproducción. Al agrupar se pierde la identidad individual de
+los puntos, y al proyectar al mapa se descarta su coordenada vertical. Por ello, el tramo
+posterior sigue una ubicación espacial, no un identificador persistente de objeto. La salida
+mostrada es la grilla lógica publicada, anterior a su serialización y a la frontera UART.
+
+Esta lámina utiliza la misma reproducción que los ejemplos de riesgo del recorrido completo;
+las nubes de diagnóstico permiten verificar la correspondencia entre sus representaciones.
