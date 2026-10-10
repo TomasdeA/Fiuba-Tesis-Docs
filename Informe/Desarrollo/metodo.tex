@@ -1,30 +1,34 @@
 % Método (cómo / por qué): decisiones algorítmicas que materializan la arquitectura.
 % No repite la topología de nodos ni los detalles operativos de implementación.
-Una vez establecidos los fundamentos y la arquitectura, este capítulo justifica las decisiones de
-procesamiento que materializan el recorrido ya presentado: qué mediciones se aceptan, cómo se
-reducen, qué evidencia se descarta o conserva y bajo qué condiciones modifica la salida. La
-exposición mantiene el orden incremental definido en la Sección~\ref{sec:intro-objetivo-tecnico}
-para mostrar qué limitación motiva cada decisión, sin volver a describir la topología de las tres
-versiones.
+El método define qué mediciones se aceptan, cómo se reducen y qué evidencia modifica la salida.
+Las decisiones siguen la evolución v0--v1--v2 para relacionar cada incorporación con la
+limitación que busca resolver.
 
-Los detalles de clases, parámetros ROS~2, archivos de configuración, ejecución y despliegue se
-reservan para el Capítulo~\ref{chap:implementacion}; el protocolo de evaluación y los valores
-medidos corresponden a los Capítulos~\ref{chap:experimentos} y~\ref{chap:resultados},
-respectivamente.
+El desarrollo comenzó en la PC de desarrollo, con margen de cómputo y herramientas de depuración
+para explorar alternativas de procesamiento y comprobar los objetivos funcionales de cada versión.
+Durante ese mismo proceso se abordó el traslado progresivo de v0, v1 y v2 a Raspberry Pi~5,
+manteniendo la salida lógica común y ajustando la carga de procesamiento mediante los parámetros
+del sistema. Las características de ambas plataformas se detallan en la
+Tabla~\ref{tab:plataformas-computo}.
+
+El traslado a Raspberry Pi~5 se orientó a preparar el módulo para las pruebas de integración con
+la segunda etapa háptica del proyecto. La implementación de esa interfaz física y su evaluación
+con actuadores y usuarios corresponden a un trabajo separado, fuera del alcance de esta tesis
+definido en la Sección~\ref{sec:intro-alcance}. Los detalles del despliegue se presentan en el
+Capítulo~\ref{chap:implementacion}; el desempeño y las restricciones de cada versión en ambas
+plataformas se analizan en el Capítulo~\ref{chap:resultados}.
 
 Las figuras reutilizan las escenas conceptuales definidas en el
 Capítulo~\ref{chap:experimentos}. Cuando se compara una alternativa de procesamiento, se conserva
-el mismo fotograma o tramo temporal para atribuir el cambio al método y no al entorno. Las pruebas
-de desempeño y su trazabilidad experimental se concentran en los capítulos posteriores.
+el mismo fotograma o tramo temporal para atribuir el cambio al método y no al entorno.
 
 \section{Versión v0: percepción frontal directa}
 \label{sec:metodo-v0}
 
 La v0 parte de una premisa deliberadamente simple: si una medición de profundidad cae dentro del
 rango útil, debe poder convertirse en una activación háptica con el menor procesamiento posible.
-Esta versión funciona como referencia de baja latencia y como punto de comparación para medir el
-costo y el beneficio de las capas posteriores. Sus fundamentos generales se desarrollan en la
-Sección~\ref{sec:mt-v0}.
+Esta versión minimiza las etapas de procesamiento y establece la referencia para comparar las
+incorporaciones posteriores.
 
 \subsection{Reducción de profundidad a \texttt{DepthGrid}}
 \label{sec:metodo-v0-depthgrid}
@@ -34,15 +38,10 @@ percepción y generación de comandos hápticos. En v0 se construye directamente
 imagen de profundidad, con 5 filas $\times$ 10 columnas, dimensión fijada por la salida prevista.
 Antes de acumular se descartan lecturas inválidas y muestras fuera del rango operativo.
 Cada celda conserva la profundidad mínima, la media, la máxima y la cantidad de muestras válidas.
-Para generar la intensidad háptica se utiliza la profundidad mínima de la región, es decir, el
-menor valor entre los píxeles aceptados. La elección de este estadístico y sus limitaciones se
-justifican en la Sección~\ref{sec:metodo-v0-intensidad}.
-
-La grilla no intenta describir toda la imagen. Su función en esta versión es entregar una señal
-frontal compacta, trazable y compatible con la matriz háptica, dejando explícita la diferencia entre
-celda sin evidencia, celda con una lectura cercana aislada y celda con soporte espacial más denso.
-La justificación perceptual y la reducción por regiones de interés se desarrollan en las
-secciones~\ref{sec:mt-sustitucion} y~\ref{sec:mt-representacion-compacta}.
+Estas estadísticas permiten distinguir una celda sin evidencia de una lectura cercana aislada o
+de una región con soporte espacial más denso. La reducción por regiones de interés se fundamenta
+en la Sección~\ref{sec:mt-representacion-compacta}; la elección de la distancia mínima para generar
+intensidad se justifica a continuación.
 
 La Figura~\ref{fig:metodo-reduccion-v0-casos-limite} aplica esta reducción a un único fotograma
 de E1-A, su configuración inicial multirrango. Las regiones A, B y C permiten seguir tres casos diferentes desde la imagen hasta la grilla:
@@ -73,35 +72,25 @@ representación pueda atribuirse al método y no a una disposición diferente de
 \end{figure}
 
 La comprobación del descarte de mediciones positivas menores que $z_{\min}$ se presenta en
-la Sección~\ref{sec:res-v0}. El umbral es una decisión de filtrado y no el límite físico del sensor.
+el Capítulo~\ref{chap:resultados}. El umbral es una decisión de filtrado y no el límite físico del sensor.
 
 \subsection{Conversión de distancia a intensidad}
 \label{sec:metodo-v0-intensidad}
 
-La etapa de generación háptica aplica a la salida de v0 el mapeo
-distancia--intensidad definido para el sistema. Como valor representativo de cada celda se
-adoptó la distancia mínima: esta decisión prioriza el obstáculo medido más cercano, incluso
-cuando ocupa solo una fracción de la región. El criterio es deliberadamente conservador para
-la asistencia ante obstáculos, aunque resulta más sensible que la media a mediciones atípicas
-cercanas; por esa razón, la validez y el rango de las muestras se controlan antes de su
-acumulación. Las celdas sin
-mediciones válidas quedan inactivas y las distancias por encima del máximo dejan de producir
-estímulo. En esta etapa no existe memoria espacial ni riesgo contextual, de modo que la señal
-háptica representa únicamente la percepción frontal instantánea. El mapeo utilizado se fundamenta
-en la Sección~\ref{sec:mt-representacion-compacta}.
+Para el mapeo distancia--intensidad se adoptó la distancia mínima de cada celda. Esta decisión
+prioriza el obstáculo medido más cercano, incluso cuando ocupa solo una fracción de la región. El
+criterio es deliberadamente conservador para la asistencia ante obstáculos, aunque resulta más
+sensible que la media a mediciones atípicas cercanas; por esa razón, la validez y el rango de las
+muestras se controlan antes de su acumulación. La conversión utiliza la ley lineal invertida y
+saturada de la Figura~\ref{fig:mt-distancia-intensidad}.
 
 El tercer panel de la Figura~\ref{fig:metodo-reduccion-v0-casos-limite} muestra esta transformación
 sobre la \texttt{DepthGrid} real de E1-A. Para representar exclusivamente el comando comunicado,
 tanto una celda sin evidencia como una medición situada fuera del alcance háptico se visualizan con
-intensidad cero. La curva empleada para convertir distancia en intensidad se presenta, sin
-repetirla aquí, en la Figura~\ref{fig:mt-distancia-intensidad} del
-Capítulo~\ref{chap:marco-teorico}.
-
-El rango perceptivo aceptado por los codificadores se extiende más allá del rango comunicado por
-la salida háptica. Por eso una medición válida pero más lejana que el alcance de estimulación
-permanece en \texttt{DepthGrid}, pero produce intensidad cero. El modelo conserva
-la diferencia conceptual entre ausencia de evidencia y una observación válida que no genera estimulación;
-la representación concreta de ambos estados se detalla en el Capítulo~\ref{chap:implementacion}.
+intensidad cero. En el mensaje, una celda sin mediciones válidas queda inactiva; una medición
+válida más allá del alcance de estimulación permanece en \texttt{DepthGrid}, aunque produzca
+intensidad cero. La representación de ambos estados se detalla en el
+Capítulo~\ref{chap:implementacion}.
 
 Esta línea base permitió aislar dos problemas: la activación persistente del suelo, porque el piso
 ocupa una parte importante del campo de profundidad, y la pérdida de contexto cuando un obstáculo
@@ -112,7 +101,8 @@ respectivamente.
 \label{sec:metodo-v1}
 
 La v1 conserva la representación compacta de v0, pero cambia la señal que la alimenta. En lugar de
-codificar profundidad cruda, primero separa la escena en suelo, obstáculos y techo. El objetivo es
+codificar profundidad cruda, primero separa la escena en suelo, obstáculos y región superior
+excluida. El objetivo es
 que la matriz háptica responda a elementos relevantes para la marcha, no a superficies esperadas
 como el piso ni a estructuras superiores que no representan colisión corporal inmediata. Los
 fundamentos de orientación, gravedad y segmentación de suelo se presentan en la
@@ -212,10 +202,9 @@ vertical se actualiza solo cuando la aceleración filtrada es compatible con una
 por gravedad. Si la norma se aleja de $1g$, se conserva la última orientación estable para evitar
 que movimientos de cabeza contaminen la segmentación.
 
-La señal se suaviza con el filtro IIR de la Ecuación~\ref{eq:iir-accel}. Las muestras incompatibles
-con una medición dominada por gravedad no actualizan la orientación, aunque se conservan como
-diagnóstico de movimiento. Los coeficientes, umbrales y frecuencia de operación utilizados se
-documentan en el Capítulo~\ref{chap:implementacion}.
+La señal se suaviza con el filtro IIR de la Ecuación~\ref{eq:iir-accel}. Las muestras rechazadas se
+conservan como diagnóstico de movimiento. Los coeficientes y umbrales utilizados se documentan
+en el Capítulo~\ref{chap:implementacion}.
 
 En la Figura~\ref{fig:metodo-gravity-alignment} se observa el efecto de esta transformación sobre
 E1-G, configuración con una superficie elevada. Antes de la alineación, la vertical de la nube depende
@@ -249,10 +238,7 @@ descomposición de Euler del cuaternión conjunto.
   \label{fig:metodo-gravity-alignment}
 \end{figure}
 
-Esta decisión mantiene la segmentación geométrica independiente de la odometría visual-inercial.
-v1 necesita conocer la vertical local, no estimar trayectoria. El yaw no interviene en la
-separación suelo-obstáculo, por lo que no se introduce en esta etapa. La estimación de roll y
-pitch a partir del acelerómetro y el filtrado inercial local se explican en las
+La vertical se obtiene sin estimar trayectoria ni yaw, conforme a la
 Sección~\ref{sec:mt-orientacion-gravitacional}.
 
 \subsection{Estimación robusta del suelo}
@@ -279,9 +265,7 @@ Durante la búsqueda de RANSAC se combina además con el término proporcional a
 Ecuación~\ref{eq:variable-tol}. Una vez refinado el plano, la clasificación final utiliza la
 tolerancia adaptativa global: acepta los puntos situados dentro de ella y también los que aparecen
 por debajo del plano. Esta asimetría evita convertir en obstáculos pequeñas penetraciones debidas
-al ruido. Esta política evita tanto una aceptación casi nula por subestimación del ruido como una tolerancia
-excesivamente amplia; sus límites concretos se documentan en el
-Capítulo~\ref{chap:implementacion}.
+al ruido. Las cotas y el valor de respaldo se documentan en el Capítulo~\ref{chap:implementacion}.
 
 La validez del plano no depende solo de encontrar muchos inliers. También se exige que su normal
 sea compatible con el eje vertical y que la calidad relativa supere un mínimo. Para evitar saltos
@@ -315,9 +299,8 @@ aceptado reemplaza el almacenado; si la revalidación falla, se ejecuta la búsq
   \label{fig:metodo-flujo-estimador-suelo}
 \end{figure}
 
-La Figura~\ref{fig:metodo-ground-ceiling-classification} muestra el resultado de esta clasificación
-sobre una escena real. Los puntos pertenecientes al piso quedan marcados como suelo, las estructuras
-superiores como techo y el resto de la escena permanece disponible como obstáculo potencial.
+La Figura~\ref{fig:metodo-ground-ceiling-classification} muestra las particiones resultantes sobre
+una escena real.
 
 \begin{figure}[htbp]
   \centering
@@ -338,13 +321,11 @@ superiores como techo y el resto de la escena permanece disponible como obstácu
   \label{fig:metodo-ground-ceiling-classification}
 \end{figure}
 
-Una vez validado el plano, los puntos se clasifican en tres conjuntos. Los compatibles con la tolerancia final o
-situados por debajo del plano se consideran suelo. Los puntos ubicados por encima de un margen respecto del plano horizontal de la
-cámara se descartan bajo la categoría operativa de región superior. En
-este contexto, el término no refiere únicamente al techo físico de la escena, sino a cualquier
-estructura ubicada por encima del margen configurado respecto de la cámara. Se excluyen bajo la hipótesis de
-que quedan fuera del volumen corporal protegido; esa hipótesis debe comprobarse para el montaje.
-El resto queda como obstáculo. Solo esta última partición alimenta la grilla háptica.
+La clasificación utiliza los tres conjuntos definidos en la Sección~\ref{sec:mt-ground-detection}.
+Solo la partición de obstáculos alimenta la grilla háptica; la región superior también se excluye
+de la evidencia libre destinada al mapa. El descarte solo es válido para un montaje en el que
+esa región queda fuera del volumen corporal protegido. Las condiciones de prueba se especifican
+en el Capítulo~\ref{chap:experimentos}.
 
 El panel (b) permite observar esta distinción en una situación menos evidente que un techo plano:
 parte de una estructura cuelga en la escena, pero permanece por encima de la altura de protección
@@ -367,13 +348,10 @@ para segmentar obstáculos.
 Esta realimentación estabiliza la ventana vertical del encoder de obstáculos. En lugar de fijar
 una altura nominal para todos los usuarios y montajes, el sistema adapta el límite inferior de la
 grilla al suelo observado, pero lo hace con suficiente inercia para no trasladar ruido de RANSAC a
-la salida háptica. La relación entre plano de suelo, altura de cámara y estabilidad temporal se
-vincula con la sección~\ref{sec:mt-ground-detection}.
+la salida háptica.
 
-El procedimiento completo se resume en la Figura~\ref{fig:metodo-realimentacion-altura}. La rama
-de rechazo es parte del método aunque una observación individual no produzca una altura nueva: ante
-un plano inválido o un salto no plausible se conserva el valor anterior, evitando que una falla
-transitoria desplace simultáneamente las cinco filas de salida.
+Ante un plano inválido o un salto no plausible se conserva la altura anterior. La
+Figura~\ref{fig:metodo-realimentacion-altura} resume el procedimiento.
 
 \begin{figure}[H]
   \centering
@@ -394,22 +372,15 @@ mientras que las columnas se asignan por ángulo horizontal. Esta elección desa
 háptica de la resolución de imagen y la vincula con direcciones espaciales percibidas por el
 usuario.
 
-Esta representación difiere de la utilizada en v0. En aquella versión, cada celda correspondía a
-una región rectangular de la imagen y su valor se obtenía como la mínima profundidad axial $z$ de
-sus píxeles. Esta elección era coherente con una reducción directa de la imagen, ya que $z$ es la
-magnitud entregada por el sensor. En v1, en cambio, la grilla se construye a partir de puntos
-tridimensionales agrupados por dirección angular. Por ello se adopta como valor de cada celda la
-mínima distancia radial $d=\sqrt{x^2+z^2}$: esta magnitud representa la separación real en el plano
-horizontal y evita que un obstáculo lateral sea considerado artificialmente más cercano por
-utilizar únicamente su componente frontal. El cambio no modifica el criterio conservador de
-conservar el obstáculo más próximo; modifica la definición de distancia para hacerla consistente
-con la representación espacial empleada en cada versión.
+Se mantiene el criterio de conservar el obstáculo más próximo, utilizando la distancia radial
+definida en la Sección~\ref{sec:metodo-v1-proyeccion}. Esta métrica representa la separación en el
+plano horizontal y evita asignar una proximidad artificial a obstáculos laterales por considerar
+solo su componente frontal.
 
 El encoder acumula primero sobre una resolución angular interna mayor, asociada al campo horizontal
 del sensor, y luego reduce esa representación a las columnas publicadas según la apertura activa.
 Así, cambiar la apertura no requiere reconstruir el pipeline ni modificar la dimensión final de la
-futura interfaz háptica. Para cada punto se usa distancia radial en el plano horizontal, lo que evita
-subestimar obstáculos laterales. La partición por ángulo y el uso de distancia radial se fundamentan
+futura interfaz háptica. La partición por ángulo se fundamenta
 en la Sección~\ref{sec:mt-representacion-compacta}.
 
 La salida incorpora una retención temporal breve de la última grilla no vacía. Si aparece un frame
@@ -421,10 +392,9 @@ La representación conserva cinco bandas verticales y diez columnas de salida. L
 fila cero corresponde al límite superior de la región corporal considerada y el límite inferior se
 adapta con la altura estimada de la cámara. Como $Y$ crece hacia abajo, estos límites corresponden
 respectivamente a $Y_{\min}$, fijo, y $Y_{\max}$, actualizado con la altura más un margen.
-El control de rango del codificador limita la componente frontal $z$ en el marco alineado con la
-gravedad, mientras que la celda conserva distancia radial $\sqrt{x^2+z^2}$. La apertura, la
-resolución angular interna y los límites métricos se exponen junto con los parámetros de implementación, ya que pueden
-modificarse sin alterar el método.
+El control de rango utiliza la componente frontal del marco alineado, según la
+Sección~\ref{sec:metodo-v1-proyeccion}. La apertura, la resolución angular interna y los límites
+métricos son parámetros de implementación modificables.
 
 La Figura~\ref{fig:metodo-codificacion-angular} ilustra la correspondencia entre la nube filtrada,
 los sectores angulares y las bandas verticales que producen el contrato de grilla común a las tres versiones.
@@ -454,12 +424,8 @@ existiendo.
 Los fundamentos de odometría, mapas locales y conciencia espacial se reúnen en la
 Sección~\ref{sec:mt-v2}.
 
-La estimación de pose se obtiene exclusivamente mediante odometría RGB-D, asistida por un prior de
-orientación inercial. Desde el punto de vista metodológico, esa
-odometría no reemplaza la percepción frontal: habilita ubicar observaciones sucesivas en un mismo
-marco local y estimar la velocidad necesaria para evaluar riesgo. El filtrado de suelo de v1 sigue
-operando con su alineación gravitacional propia. El rol de la orientación inercial, la odometría
-RGB-D, los marcos de referencia y la sincronización temporal se desarrolla en las
+La odometría RGB-D asistida por orientación inercial permite ubicar observaciones sucesivas en
+un marco común y estimar velocidad. Se utiliza la configuración fundamentada en la
 Sección~\ref{sec:mt-pose-coherencia-temporal}.
 
 Para incorporar una observación al mapa es necesario conocer dónde estaba el sistema cuando la
@@ -473,7 +439,7 @@ al marco odométrico.
 Cuando la odometría todavía no cubre el instante de la observación, el par de nubes espera en
 una cola acotada. No se extrapola: si no llega una pose válida dentro del tiempo de espera o si
 las poses vecinas están demasiado separadas, se descarta la observación. Los límites temporales
-y la gestión del búfer se documentan en la Sección~\ref{sec:impl-local-mapper}.
+y la gestión del búfer se documentan en el Capítulo~\ref{chap:implementacion}.
 
 \begin{figure}[H]
   \centering
@@ -489,12 +455,10 @@ y la gestión del búfer se documentan en la Sección~\ref{sec:impl-local-mapper
 
 El mapa local recibe dos tipos de evidencia derivados del mismo frame filtrado. Los puntos
 clasificados como obstáculo incrementan ocupación y los puntos de suelo aportan evidencia libre
-directa en sus celdas proyectadas. Además, el mapeador agrupa ambas clases por sectores angulares y
-conserva el retorno más cercano de cada sector. Las celdas recorridas desde el sensor hasta ese
-primer retorno se marcan como libres; el retorno conserva su clase original, libre si corresponde
-al suelo y ocupado si corresponde a un obstáculo.
-La interpretación probabilística de evidencia ocupada y libre se apoya en la
-Sección~\ref{sec:mt-mapa-local}.
+directa en sus celdas proyectadas. Esta última permite corregir una ocupación cuando una
+observación nueva contradice el estado previo. La interpretación probabilística se fundamenta en
+la Sección~\ref{sec:mt-mapa-local}; el barrido que completa espacio libre se describe en la
+Sección~\ref{sec:metodo-v2-ocupacion}.
 
 La clasificación de suelo, obstáculo y región superior se realiza todavía en 3D, utilizando
 $(X,Y,Z)$. La interfaz con el mapa, en cambio, conserva únicamente la posición horizontal de
@@ -507,22 +471,15 @@ sí interviene en la clasificación previa, pero no en la selección de la celda
 actualización. Esta reducción permite representar el entorno mediante un mapa 2D, aunque puede
 superponer observaciones que en la escena pertenecen a alturas diferentes.
 
-La reducción puede superponer en una misma celda evidencia procedente de alturas diferentes. Para
-resolver el conflicto dentro de un fotograma, la evidencia ocupada tiene prioridad sobre la libre.
-El suelo visible detrás de una estructura elevada, en cambio, conserva sus propias celdas libres
-porque se incorpora directamente y no depende de prolongar un rayo a través del obstáculo.
+Para resolver los conflictos dentro de un fotograma, la evidencia ocupada tiene prioridad sobre la
+libre. El suelo visible detrás de una estructura elevada, en cambio, conserva sus propias celdas
+libres porque se incorpora directamente y no depende de prolongar un rayo a través del obstáculo.
 
 La superficie elevada de E1-G constituye el caso complementario. Permanece dentro de la extensión
 vertical protegida y, por lo tanto, se clasifica como obstáculo aunque exista espacio por debajo.
 Al transferirse al mapeador, su posición horizontal $(X,Z)$ define destinos ocupados con
 independencia de la altura. Esta decisión conservadora reserva como ocupada toda columna espacial
-que interseca la región corporal considerada. Sin embargo, el suelo visible detrás de la
-estructura conserva sus propias celdas libres.
-
-Esta distinción evita que el mapa solo acumule positivos. Sin evidencia libre,
-un obstáculo que ya no está presente tendería a permanecer ocupado indefinidamente. Al incorporar
-evidencia directa de suelo, la grilla puede corregir ocupaciones antiguas cuando la observación
-actual contradice el estado previo.
+que interseca la región corporal considerada.
 
 La Figura~\ref{fig:metodo-evidencia-ocupada-libre} reúne la observación cruda, su clasificación 3D
 y la evidencia 2D de un cuadro aislado para dos casos complementarios. La reconstrucción parte
@@ -543,24 +500,18 @@ las naranjas son el aporte exclusivo del raycasting y las rojas son destinos ocu
   \label{fig:metodo-evidencia-ocupada-libre}
 \end{figure}
 
-Se asigna mayor magnitud a la evidencia ocupada que a una contradicción libre aislada. Esta
-asimetría prioriza
-la conservación de una advertencia frente a una contradicción libre aislada, un criterio inicial
-conservador para asistencia. No obstante, una confianza ocupada excesiva puede prolongar
+Se asigna mayor magnitud a la evidencia ocupada para priorizar la conservación de una advertencia
+frente a una contradicción libre aislada. Una confianza ocupada excesiva puede prolongar
 obstáculos inexistentes, mientras que una confianza libre excesiva puede borrar detecciones
-reales. Por ello, ambos incrementos se calibran conjuntamente con el umbral de ocupación mediante
-el experimento de la Sección~\ref{sec:exp-log-odds-calibration}; la configuración inicial y los
-valores seleccionados se documentan en los capítulos~\ref{chap:implementacion}
-y~\ref{chap:resultados}, respectivamente.
+reales. El procedimiento de calibración de ambos incrementos y del umbral de ocupación se
+describe en el Capítulo~\ref{chap:experimentos}, separado de la validación independiente.
 
 \subsection{Actualización de grilla de ocupación}
 \label{sec:metodo-v2-ocupacion}
 
-La memoria espacial se representa como una grilla local 2D actualizada con evidencia ocupada y
-libre. La actualización conserva tres reglas metodológicas: saturar la evidencia para evitar
-crecimiento indefinido, recorrer las celdas atravesadas por cada rayo y mantener un prior neutro
-para las regiones nuevas o descartadas. La actualización en log-odds y el trazado de rayos se
-describen en la Sección~\ref{sec:mt-mapa-local}.
+La actualización utiliza el log-odds y el trazado de rayos de la Sección~\ref{sec:mt-mapa-local}.
+La evidencia se satura para acotar su acumulación; las regiones nuevas o descartadas vuelven al
+prior neutro.
 
 Antes del trazado, cada punto 3D se transforma al índice de la celda que contiene su proyección
 sobre el plano del mapa. Los obstáculos que caen en una misma celda se deduplican, de modo que esa
@@ -592,8 +543,6 @@ nuevas celdas entrantes vuelven al prior neutro. La posición del sensor permane
 de la ventana. Además, se aplica un radio de olvido alrededor del sensor: aunque la ventana sea cuadrada, las celdas situadas
 fuera de ese círculo se reinicializan como desconocidas. De esta forma, el sistema conserva memoria
 útil en el entorno inmediato sin convertir el mapa local en una reconstrucción global.
-La elección de una representación local, deslizante y con olvido espacial se fundamenta en las
-Sección~\ref{sec:mt-mapa-local}.
 
 No se aplica decaimiento explícito por edad. Una ocupación pierde evidencia cuando observaciones directas de suelo la
 contradicen o desaparece al quedar fuera del radio de memoria o de la ventana deslizante. En
@@ -623,12 +572,12 @@ delimitan las ventanas locales. Todas las vistas comparten los límites de los e
 \subsection{Evaluación de riesgo fuera del campo frontal}
 \label{sec:metodo-v2-riesgo}
 
-La capa de conciencia espacial interpreta la grilla de ocupación como conjunto de celdas ocupadas
-y descarta activaciones aisladas mediante agrupamiento por conectividad. Cada componente restante
-se evalúa respecto de la pose y la velocidad del usuario. Un candidato solo genera riesgo si queda
-fuera de la apertura frontal ya comunicada, dentro de una banda de distancia útil, alineado con el
-corredor corporal, con velocidad de cierre positiva y con tiempo hasta colisión menor al horizonte
-configurado.
+La capa de conciencia espacial selecciona las celdas que superan el umbral de ocupación, las
+agrupa con vecindad de ocho conexiones y descarta componentes sin el soporte espacial mínimo.
+Cada componente restante se evalúa respecto de la pose y la velocidad del usuario. Un candidato
+solo genera riesgo si queda fuera de la apertura frontal ya comunicada, dentro de una banda de
+distancia útil, alineado con el corredor corporal, con velocidad de cierre positiva y con tiempo
+hasta colisión menor al horizonte configurado.
 
 El riesgo se separa en tres regiones semánticas: izquierda, derecha y posterior. En cada región se
 conserva el candidato más urgente, definido por mayor intensidad y, ante empate, menor tiempo hasta
@@ -637,18 +586,10 @@ producen valores mayores. Para evitar parpadeos alrededor del umbral de activaci
 histéresis sobre la velocidad de cierre. Mientras el contexto es válido y el canal permanece
 activo, se limita la pendiente temporal de la intensidad. Al desactivarse el canal o invalidarse
 el contexto, la intensidad contextual pasa directamente a cero, sin una rampa de apagado.
-Estos criterios corresponden al modelo de conciencia espacial y tiempo hasta colisión presentado
-en la Sección~\ref{sec:mt-riesgo-contextual}.
-
-La comprobación sobre mensajes registrados y la figura de los tres sectores se presentan en
-la Sección~\ref{sec:res-riesgo}. Aquí se define el criterio de selección, sin asumir que una
-activación publicada corresponda necesariamente a un riesgo físico correctamente localizado.
-
-La selección combina un umbral de ocupación, vecindad de ocho conexiones y una cantidad mínima de
-celdas por componente. La apertura frontal efectiva se excluye del análisis contextual para no
-duplicar la señal de v1. El corredor incorpora el radio corporal y la incertidumbre debida a la
-discretización del mapa. La conversión de TTC a intensidad satura los riesgos más inmediatos y
-anula los que quedan fuera del horizonte temporal adoptado.
+El corredor corporal y la conversión de TTC a intensidad utilizan las relaciones de la
+Sección~\ref{sec:mt-riesgo-contextual}, que incorporan el radio corporal, la discretización del
+mapa y la saturación en los extremos del horizonte temporal. La correspondencia entre las
+activaciones y los riesgos físicos se analiza en el Capítulo~\ref{chap:resultados}.
 
 La velocidad puede obtenerse del dato publicado por la odometría o de la derivada de poses.
 Se prefiere la primera cuando ambas fuentes plausibles son consistentes; ante discrepancia se
@@ -665,48 +606,29 @@ modo degradado.
 \subsection{Fusión háptica de percepción y contexto}
 \label{sec:metodo-v2-fusion}
 
-La fusión final no intenta reconstruir una segunda imagen de profundidad. La percepción frontal y
-el riesgo contextual tienen naturalezas distintas: la primera describe distancias por celda. El
-segundo describe peligro por región. Por eso la v2 superpone el riesgo contextual sobre zonas
-predefinidas de la matriz háptica: canales laterales sobre columnas extremas y canal posterior
-sobre columnas centrales. En cada celda se conserva la intensidad máxima entre la señal frontal y
-la contextual.
+Para conservar una única matriz de salida, v2 asigna el riesgo izquierdo al borde izquierdo, el
+derecho al borde derecho y el posterior a las columnas centrales. En cada celda se aplica el máximo
+entre intensidad frontal y contextual definido en la Sección~\ref{sec:mt-riesgo-contextual}.
 
-La asignación adoptada aplica el riesgo izquierdo al borde izquierdo, el derecho al borde derecho
-y el posterior a la zona central. La última intensidad contextual válida puede conservarse durante
-una ventana breve. Esta persistencia evita un apagado
-instantáneo ante una actualización aislada ausente, pero no reemplaza la comprobación de vigencia
-de mapa y odometría.
+La última intensidad contextual válida puede conservarse durante una ventana breve. Esta
+persistencia evita un apagado instantáneo ante una actualización aislada ausente, pero no reemplaza
+la comprobación de vigencia de mapa y odometría.
 
 Esta regla mantiene una propiedad de la salida lógica: una intensidad mayor nunca se reduce
 por la llegada de otra capa de información. La señal contextual complementa a la frontal cuando el
 obstáculo ya no está en el campo comunicado, pero no anula la respuesta instantánea ante obstáculos
 visibles.
-La regla de superposición háptica se fundamenta en la Sección~\ref{sec:mt-riesgo-contextual}.
-
-La fusión conserva intensidades numéricas, pero no demuestra equivalencia perceptual entre
-una escala basada en distancia y otra basada en TTC. La interpretación del canal posterior,
-superpuesto en columnas centrales, requiere validación en la segunda etapa del proyecto.
+La comparación entre ambas escalas y la interpretación del canal posterior conservan las
+limitaciones perceptuales expuestas en esa sección.
 
 \section{Síntesis del método resultante}
 \label{sec:metodo-alcance}
 
-El método queda definido por cinco decisiones principales. Primero, separar percepción
-instantánea y memoria espacial para que el sistema pueda degradar a una respuesta frontal de baja
-latencia. Segundo, depurar suelo y techo antes de codificar obstáculos, evitando estímulos
-permanentes que no aportan asistencia a la marcha. Tercero, mantener \texttt{DepthGrid} como
-contrato compacto entre percepción y generación de comandos hápticos. Cuarto, modelar el riesgo contextual por regiones
-semánticas en lugar de forzarlo a una grilla de profundidad. Quinto, fusionar por máximo para que
-la capa contextual solo agregue advertencias y no debilite la percepción frontal.
-
-Los detalles de ejecución, parámetros YAML, protocolo UART, herramientas de depuración y despliegue
-en Raspberry Pi corresponden al Capítulo~\ref{chap:implementacion}. La discusión de compromisos,
-limitaciones y alternativas evaluadas se desarrolla en el Capítulo~\ref{chap:discusion}.
-
-La salida física no forma parte de esta metodología. El resultado final del método perceptual es una
-grilla de intensidades lógicas. Su adaptación y serialización pertenecen a Implementación; la
-recepción de la trama, el accionamiento de motores y la evaluación perceptual de la interfaz
-corporal corresponden a la segunda etapa del proyecto.
+La cadena resultante mantiene una salida frontal compacta en \texttt{DepthGrid}: v0 la obtiene
+directamente de la profundidad y v1 retira suelo y región superior antes de codificar los
+obstáculos. V2 conserva esa ruta y añade advertencias regionales derivadas de la memoria local.
+La fusión por máximo produce una única matriz lógica sin atenuar la intensidad frontal; cuando
+el contexto vence, la salida continúa con la percepción instantánea.
 
 La Figura~\ref{fig:metodo-trazabilidad-observacion} reúne las representaciones sobre una
 misma adquisición. El píxel de profundidad es una entrada común a las versiones; la proyección
