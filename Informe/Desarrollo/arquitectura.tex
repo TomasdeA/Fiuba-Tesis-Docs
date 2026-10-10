@@ -2,37 +2,32 @@
 \section{Arquitectura general}
 \label{sec:arquitectura-general}
 
-El sistema se compone de un conjunto de nodos ROS~2 que se ejecutan sobre una Raspberry Pi~5,
-orquestados por el archivo de lanzamiento \code{nav.launch.py} del paquete \texttt{nav\_bringup}.
-Todos los nodos de procesamiento quedan contenidos en la misma unidad de cómputo y se comunican
-exclusivamente a través del middleware DDS (\code{rmw\_cyclonedds\_cpp}). La frontera de la
-implementación física se ubica en la transmisión UART: el sistema genera y serializa los comandos
-de intensidad, pero no incluye el receptor, la electrónica de potencia ni los actuadores.
-Distintos nodos de visualización del paquete (\texttt{output\_viewer}) pueden ejecutarse
-opcionalmente en una PC separada, suscribiéndose a los mismos tópicos a través de la red DDS. La
-topología completa del sistema en su versión final integra percepción instantánea, conciencia
-espacial y mapeo local, tal como se muestra en la \Cref{fig:arquitectura-v2}.
+El sistema se organiza en nodos ROS~2 orquestados por \code{nav.launch.py}, del paquete
+\texttt{nav\_bringup}. La configuración de despliegue para Raspberry Pi~5 concentra los nodos de
+procesamiento en una unidad de cómputo y utiliza DDS (\code{rmw\_cyclonedds\_cpp}) para
+comunicarlos. La misma arquitectura se emplea en la PC de desarrollo; la
+Tabla~\ref{tab:plataformas-computo} identifica ambos equipos. Los perfiles de ejecución y las
+restricciones de la plataforma embebida se analizan en el Capítulo~\ref{chap:resultados}.
 
-Esta organización responde a los condicionantes planteados en la introducción: concentra en la
-Raspberry Pi~5 el recorrido funcional necesario para producir la salida lógica, emplea
-representaciones compactas entre etapas y permite trasladar las herramientas opcionales de
-visualización y depuración a una computadora externa. Además, conserva la percepción frontal como
-ruta independiente de la odometría y del mapa local, de modo que la memoria espacial de v2 aporta
-información contextual sin sustituir la observación instantánea.
+Los nodos de visualización de \texttt{output\_viewer} pueden ejecutarse opcionalmente en un equipo
+de visualización separado, suscribiéndose a los mismos tópicos a través de la red DDS. La topología
+completa del sistema en su versión final integra percepción instantánea, conciencia espacial y
+mapeo local, tal como se muestra en la Figura~\ref{fig:arquitectura-v2}.
 
-El Anexo~\ref{anexo:trazabilidad} muestra la correspondencia entre la arquitectura, las decisiones
-metodológicas y el código fuente mediante un mapeo nodo → tópicos → archivos fuente.
+La percepción frontal constituye una ruta independiente de la odometría y del mapa local. La
+memoria espacial de v2 aporta información contextual a esa ruta antes de producir la salida lógica
+destinada al enlace UART, que constituye la frontera del sistema definida en la
+Sección~\ref{sec:intro-alcance}.
+
+El Anexo~\ref{anexo:trazabilidad} reúne los nodos, sus paquetes y los tópicos de entrada y salida.
 
 \section{Comparación de la topología entre versiones}
 \label{sec:arq-versiones}
 
-Los diagramas de esta sección ofrecen una vista de conjunto de las tres configuraciones
-incrementales definidas en la Sección~\ref{sec:intro-objetivo-tecnico}. Su propósito es mostrar
-qué bloques se mantienen, se reemplazan o se agregan en cada versión; los tópicos, tipos de
-mensaje e interfaces de cada nodo se detallan posteriormente en la
-Sección~\ref{sec:arq-flujos-versiones}. La implementación conserva los modos \code{raw} y
-\code{filtered}, seleccionados mediante \code{pipeline\_mode}, para ejecutar y comparar las
-configuraciones alcanzadas en v0 y v1.
+Los diagramas muestran los bloques que se mantienen, reemplazan o agregan en cada versión; sus
+interfaces se detallan en la Sección~\ref{sec:arq-flujos-versiones}. La implementación conserva los
+modos \code{raw} y \code{filtered}, seleccionados mediante \code{pipeline\_mode}, para ejecutar y
+comparar las configuraciones alcanzadas en v0 y v1.
 
 \subsection{Topología de v0: percepción directa}
 La versión inicial utiliza exclusivamente la percepción instantánea: imagen de profundidad de la
@@ -110,7 +105,7 @@ qué parámetros, mientras que la lógica de procesamiento permanece en los paqu
 
 El paquete \texttt{output\_viewer} agrupa componentes auxiliares desacoplados del procesamiento
 principal mediante tópicos ROS~2. Por ello pueden ejecutarse de forma opcional en el equipo de
-cómputo principal o en una PC conectada a la misma red DDS. El nodo
+cómputo principal o en una computadora conectada a la misma red DDS. El nodo
 \code{depth\_grid\_heatmap} representa la distribución espacial de intensidades y el estado de las
 celdas de \code{/perception/haptic\_grid}, como matriz o como proyección del campo frontal, y puede
 incorporar los indicadores de riesgo lateral y posterior de
@@ -123,31 +118,31 @@ Las restantes capacidades cubren distintos niveles del diagnóstico. El nodo
 profundidad, nube de obstáculos y grilla. El nodo \code{odometry\_path} transforma la odometría en
 una trayectoria acumulada, mientras que la configuración provista para RViz2 integra nubes
 intermedias, marcos de referencia, mapa, trayectoria e imagen de la cámara. Estas interfaces
-permiten observar el funcionamiento y localizar degradaciones entre etapas, pero no participan en
-la generación del comando háptico ni sustituyen su validación perceptual. Los detalles de
-implementación y operación se reservan para sus capítulos correspondientes; la trazabilidad de
-tópicos, tipos de mensaje y componentes se presenta en el
-Anexo~\ref{anexo:trazabilidad}.
+permiten localizar degradaciones entre etapas y pueden deshabilitarse durante la ejecución sin
+interrumpir la generación del comando háptico.
 
 \subsection{Adquisición y adaptación de tópicos}
 \label{sec:arq-sensor}
 
-El driver de la cámara, lanzado mediante \code{rs\_launch.py} del paquete \code
-{realsense2\_camera}, publica los flujos del sensor bajo el espacio de nombres
-\code{/camera/camera/}. En lo que sigue, para evitar repetición, ese prefijo se abrevia como
-\code{RS/}. En esta interfaz conviene distinguir entre nombre de tópico y tipo de mensaje: por
+En \code{nav.launch.py} se inicia el driver del paquete \code{realsense2\_camera}
+mediante el ejecutable \code{realsense2\_camera\_node}. Los flujos del sensor se publican
+con el prefijo \code{/camera/camera/}, que se abrevia como \code{RS/} en lo que sigue.
+
+En esta interfaz conviene distinguir entre nombre de tópico y tipo de mensaje: por
 ejemplo, \code{RS/depth/image\_rect\_raw}, \code{RS/color/image\_raw} y
 \code{RS/aligned\_depth\_to\_color/image\_raw} son tópicos de imagen, todos transportados con
 tipo \code{sensor\_msgs/Image}, mientras que \code{RS/depth/camera\_info} y
 \code{RS/color/camera\_info} son tópicos distintos que publican parámetros intrínsecos con tipo
 \code{sensor\_msgs/CameraInfo}. De forma análoga, las mediciones inerciales llegan por tópicos
 específicos del driver y utilizan \code{sensor\_msgs/Imu} como tipo de mensaje.
+La Tabla~\ref{tab:realsense-plataformas} identifica las versiones de las bibliotecas de adquisición
+utilizadas en los contenedores de la PC de desarrollo y de Raspberry Pi~5.
 
 Cada nodo se suscribe mediante un nombre local, independiente del driver (por ejemplo,
 \code{depth/image}, \code{accel} o \code{rgb/image}), y los archivos de lanzamiento remapean ese
 nombre al tópico efectivo de RealSense. De esta forma, la selección de la fuente queda fuera de la
 lógica de procesamiento y no se crea una segunda copia de las imágenes. La
-\Cref{tab:remapper} documenta los remapeos que componen las configuraciones integradas.
+Tabla~\ref{tab:remapper} documenta los remapeos que componen las configuraciones integradas.
 
 \begin{table}[htbp]
 \centering
@@ -161,7 +156,7 @@ lógica de procesamiento y no se crea una segunda copia de las imágenes. La
  & \texttt{depth/camera\_info} & \texttt{RS/depth/camera\_info} \\
  & \texttt{accel} & \texttt{RS/accel/sample} \\
 \texttt{imu\_filter\_madgwick} & \texttt{imu/data\_raw} & \texttt{RS/imu} \\
-\texttt{rtabmap\_odom} & \texttt{rgb/image} & \texttt{RS/color/image\_raw} \\
+\texttt{rgbd\_odometry} & \texttt{rgb/image} & \texttt{RS/color/image\_raw} \\
  & \texttt{rgb/camera\_info} & \texttt{RS/color/camera\_info} \\
  & \texttt{depth/image} & \texttt{RS/aligned\_depth\_to\_color/image\_raw} \\
  & \texttt{imu} & \texttt{/imu/data\_filtered} \\
@@ -177,28 +172,21 @@ unificada que el controlador RealSense habilita para v2 mediante
 \end{table}
 
 Los remapeos de \texttt{depth\_to\_matrix}, \texttt{imu\_filter\_madgwick} y
-\texttt{rtabmap\_odom} se declaran en \code{nav.launch.py}. Los de
+\texttt{rgbd\_odometry}, del paquete \texttt{rtabmap\_odom}, se declaran en \code{nav.launch.py}. Los de
 \texttt{depth\_obstacle\_filter} se declaran en su lanzador incluido, que lee de su archivo de
 parámetros los nombres RealSense usados como destino. Por tanto, el contrato desacoplado es la
 entrada local de cada nodo. Las herramientas de diagnóstico y grabación que necesitan observar el
 flujo global emplean los nombres del driver.
 
-La separación de entradas inerciales sigue la evolución del sistema. En v1,
-\texttt{depth\_obstacle\_filter} consume solamente \code{RS/accel/sample} para estimar la
-vertical local; no utiliza el giróscopo ni Madgwick. En v2 se habilita además la IMU unificada
-\code{RS/imu}, formada a partir del acelerómetro y el giróscopo. Madgwick la convierte en
-\code{/imu/data\_filtered}, que se entrega como entrada auxiliar a la odometría RGB-D de
-RTAB-Map.
+En v1 se utiliza \code{RS/accel/sample}; v2 habilita además \code{RS/imu} para alimentar la rama
+Madgwick--RTAB-Map. El papel de ambas entradas se explica en la
+Sección~\ref{sec:mt-pose-coherencia-temporal}.
 
 \section{Nodos y flujo de mensajes por versión}
 \label{sec:arq-flujos-versiones}
 
-Esta sección describe las interfaces que materializan las configuraciones comparadas en la
-Sección~\ref{sec:arq-versiones}: qué nodo produce cada representación, qué mensajes intercambia y
-qué componentes consumen la salida. Las tres versiones conservan un contrato de salida común,
-pero modifican progresivamente la fuente de la información espacial. V0 obtiene la grilla
-directamente de la profundidad; v1 la construye a partir de obstáculos filtrados y alineados con
-gravedad; v2 mantiene la ruta frontal de v1 y agrega memoria local y riesgo contextual.
+Las interfaces siguientes precisan el productor, el consumidor y el contenido de cada mensaje
+en las topologías anteriores. Las tres versiones comparten la salida \texttt{HapticGrid}.
 
 \subsection{Flujo de v0: profundidad y salida háptica}
 \label{sec:arq-percepcion}
@@ -212,10 +200,7 @@ El nodo \code{depth\_to\_matrix} (paquete \texttt{depth\_grid\_encoder}) suscrib
 \code{hardware\_manager} recibe la matriz de intensidades para transmitirla por UART.
 \label{sec:arq-hardware}
 Este nodo no procesa distancias: adapta la salida lógica al rango configurado y la serializa para
-el microcontrolador. La frontera física del sistema se ubica en esa transmisión, ya que el receptor,
-la electrónica de potencia y los actuadores quedan fuera del alcance de la tesis. Esta versión
-establece la cadena funcional de referencia que conservan las versiones posteriores. El escalado,
-el formato de trama y el control de frecuencia se describen en el
+el microcontrolador. El escalado, el formato de trama y el control de frecuencia se describen en el
 Capítulo~\ref{chap:implementacion}.
 
 La Figura~\ref{fig:mensajes-v0} explicita el contrato de datos de esta ruta. Cada flecha indica el
@@ -249,10 +234,8 @@ obstáculos es consumida por \code{obstacle\_grid\_encoder}, del paquete
 \code{/perception/depth\_grid}. De este modo, v0 y v1 ofrecen el mismo contrato \texttt{DepthGrid}
 a las etapas posteriores, aunque lo construyen a partir de fuentes diferentes.
 
-La Figura~\ref{fig:mensajes-v1} muestra ese reemplazo sin presentar v1 como una cadena
-independiente. Las salidas funcionales hacia el codificador son la nube de obstáculos, expresada
-en el marco alineado con gravedad, y la altura de cámara. El resultado vuelve a ser el mismo tipo
-\texttt{DepthGrid} de v0, por lo que la generación háptica y la interfaz de salida no cambian.
+La Figura~\ref{fig:mensajes-v1} destaca las dos entradas del codificador: la nube de obstáculos
+en el marco alineado con gravedad y la altura de cámara.
 
 \begin{figure}[H]
   \centering
@@ -263,9 +246,7 @@ en el marco alineado con gravedad, y la altura de cámara. El resultado vuelve a
   \label{fig:mensajes-v1}
 \end{figure}
 
-La separación entre el filtrado geométrico de v1 y la rama de odometría de v2 evita que la
-percepción frontal dependa de la disponibilidad del mapa local. Los criterios de proyección,
-alineación, clasificación y codificación se describen en las
+Los criterios de proyección, alineación, clasificación y codificación se describen en las
 Secciones~\ref{sec:metodo-v1-proyeccion} a~\ref{sec:metodo-v1-angular}.
 
 \subsection{Flujo de v2: odometría, mapeo y fusión contextual}

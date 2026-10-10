@@ -1,13 +1,5 @@
-Los fundamentos se agrupan según la versión en la que cada herramienta se incorpora al sistema; la
-motivación y el alcance de v0, v1 y v2 se establecen en la
-Sección~\ref{sec:intro-objetivo-tecnico}.
-
-Este capítulo explica el significado de las representaciones y transformaciones utilizadas.
-La correspondencia concreta entre nodos, mensajes de entrada y mensajes de salida se muestra,
-para v0, v1 y v2, en las Figuras~\ref{fig:mensajes-v0}, \ref{fig:mensajes-v1} y
-\ref{fig:mensajes-v2} del Capítulo~\ref{chap:arquitectura}. Esta separación permite presentar los
-fundamentos sin repetir la topología de software y mantener la relación entre cada concepto y los
-datos que circulan por ROS~2.
+Los fundamentos siguen el orden v0--v1--v2: medición y reducción de profundidad, interpretación
+geométrica de la escena y acumulación de observaciones.
 
 El procesamiento realizado por el sistema consiste en una secuencia de transformaciones y
 reducciones de información. Una imagen de profundidad asigna una distancia a cada píxel. Al
@@ -33,22 +25,17 @@ información que se conserva o se descarta en cada transformación.
 \section{Fundamentos de la versión v0: percepción directa, ROS~2 y salida háptica}
 \label{sec:mt-v0}
 
-La versión v0 establece la cadena mínima del sistema: adquirir profundidad con la Intel
-RealSense D435i, reducir esa información a una representación compacta, convertirla a
-comandos de intensidad háptica y preparar su transmisión hacia el futuro hardware de actuación.
-Esta sección presenta los
-fundamentos teóricos que sostienen esa primera etapa, desde la sustitución sensorial hasta la
-comunicación serie embebida. El objetivo es mostrar cómo una medición densa del entorno
-puede convertirse en una señal discreta y de baja latencia sin perder la estructura espacial
-necesaria para la asistencia a la movilidad.
+La primera transformación vincula una medición densa del entorno con una señal táctil discreta.
+Sus fundamentos abarcan la sustitución sensorial, la geometría de la cámara, la reducción espacial
+y la comunicación de los comandos resultantes.
 
 \subsection{Sustitución sensorial y neuroplasticidad}
 \label{sec:mt-sustitucion}
 
-El principio de sustitución sensorial fue establecido experimentalmente por Bach-y-Rita
-et al.\ \cite{BachyRita1969}: una cámara proyectaba patrones de estimulación sobre la espalda
-del usuario
-mediante una matriz de $20\times20$ actuadores mecánicos, permitiendo a personas ciegas
+La sustitución sensorial consiste en comunicar información habitualmente asociada a un sentido
+mediante estímulos de otro. En el experimento de Bach-y-Rita et al.\ \cite{BachyRita1969},
+una cámara proyectaba patrones de estimulación sobre la espalda del usuario mediante una matriz
+de $20\times20$ actuadores mecánicos, permitiendo a personas ciegas
 reconocer objetos y figuras a través del tacto. Este resultado demostró que el cerebro puede
 reorganizarse para interpretar señales de modalidades no originales cuando recibe información
 espacial consistente, fenómeno conocido como neuroplasticidad sensorial.
@@ -62,12 +49,9 @@ táctiles consistentes que el usuario pueda aprender a interpretar.
 \subsection{Percepción RGB-D y geometría de cámara}
 \label{sec:mt-rgbd}
 
-Este bloque vincula el principio de medición del sensor con la representación geométrica que
-utiliza el pipeline. Primero se explica cómo la D435i obtiene profundidad y bajo qué condiciones
-esa medición puede degradarse; luego se definen los marcos, la pose y el modelo de proyección que
-permiten transformar un píxel de profundidad en un punto tridimensional. Esta secuencia separa
-dos fuentes de error diferentes: las limitaciones físicas de la medición y una interpretación
-incorrecta de sus coordenadas.
+Transformar un píxel de profundidad en una posición tridimensional requiere conocer tanto el
+principio físico de medición como la geometría calibrada de la cámara. Ambos permiten distinguir
+un error del sensor de una interpretación incorrecta de las coordenadas.
 
 \subsubsection{Principio físico de la cámara Intel RealSense D435i}
 
@@ -213,9 +197,8 @@ mínimo, incorporar persistencia temporal y verificar coherencia con el plano de
 ROS~2 proporciona mecanismos para dividir un sistema robótico en componentes y comunicar esos
 componentes dentro de una computadora o a través de una red \cite{ROS}. Esta separación permite
 que adquisición, percepción, mapeo, visualización y salida se desarrollen como módulos distintos.
-La arquitectura concreta del sistema se presenta en el Capítulo~\ref{chap:arquitectura}; aquí se
-introducen únicamente los conceptos necesarios para comprender cómo circulan los datos y qué
-factores pueden afectar su entrega y latencia.
+Las interfaces y políticas de entrega determinan cómo circulan los datos y qué factores pueden
+afectar su latencia.
 
 \subsubsection{Modelo de comunicación e interfaces}
 
@@ -244,7 +227,7 @@ implementación de RMW adapta esa interfaz al middleware elegido. En este sistem
 DDS se ocupa del descubrimiento de participantes, la serialización y el transporte de los datos.
 El descubrimiento distribuido permite que los nodos se encuentren sin un servidor maestro
 central. El identificador de dominio, \texttt{ROS\_DOMAIN\_ID}, limita qué participantes pueden
-descubrirse entre sí. De esta forma, el procesamiento puede ejecutarse en la Raspberry Pi y la
+descubrirse entre sí. De esta forma, el procesamiento puede ejecutarse en la Raspberry Pi~5 y la
 visualización en otra computadora, siempre que exista conectividad y ambas pertenezcan al mismo
 dominio. La Figura~\ref{fig:mt-capas-ros2} resume las capas de software que intervienen desde la
 aplicación hasta el sistema operativo.
@@ -482,33 +465,23 @@ decimales separados por espacios y terminados con \texttt{\textbackslash n}; es 
 fácil de depurar, pero menos eficiente. En binario compacto, cada intensidad puede codificarse
 en un \texttt{uint8}; al agregar longitud y CRC-8 se obtiene una trama más robusta y eficiente
 \cite{smbus2000}. La elección depende del ancho de banda, la facilidad de inspección y la
-necesidad de detectar errores. El formato, baudrate y alcance físico adoptados se describen en las
-Secciones~\ref{sec:arq-hardware} y~\ref{sec:impl-uart}; aquí interesa únicamente que el tiempo de
-serialización forma parte del presupuesto de latencia del sistema.
+necesidad de detectar errores. El tiempo de transmisión forma parte del presupuesto de latencia;
+el formato y el baudrate adoptados se documentan en el Capítulo~\ref{chap:implementacion}.
 
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v1: orientación, gravedad y suelo}
 \label{sec:mt-v1}
 
-La versión v1 parte de la solución funcional establecida en v0 y conserva su salida compacta, pero
-mejora la interpretación previa de las mediciones al modificar la fuente de la grilla: en
-lugar de codificar profundidad cruda, primero proyecta la imagen a una nube 3D, la alinea con
-la gravedad y separa suelo, obstáculos y una región superior excluida. La teoría de esta etapa combina
-representaciones de orientación, filtrado inercial y estimación robusta de planos. En esta
-versión no se utiliza Madgwick de forma deliberada: la decisión de diseño es estimar
-solamente la vertical necesaria para remover el suelo, evitando incorporar una estimación
-completa de orientación cuando no aporta a la salida háptica y puede aumentar latencia,
-dependencias y costo computacional.
+Distinguir suelo y obstáculos requiere una referencia vertical estable pese a la inclinación de
+la cámara. Las representaciones de orientación y el filtrado inercial permiten establecer esa
+referencia; la estimación robusta de planos permite reconocer el suelo dentro de la nube 3D.
 
 \subsection{Orientación y alineación gravitacional}
 \label{sec:mt-orientacion-gravitacional}
 
-La clasificación de suelo y obstáculos requiere expresar la nube respecto de la vertical, no
-respecto de una cámara cuya inclinación cambia con la cabeza del usuario. Para fundamentar esa
-transformación se presentan primero las convenciones angulares y la limitación de los ángulos de
-Euler; después se describe la rotación mediante cuaterniones, la estimación de la vertical con el
-acelerómetro y el filtrado necesario para que las aceleraciones propias de la marcha no se
-interpreten directamente como cambios de orientación.
+La orientación relaciona los ejes de la cámara con la vertical. Para representarla se utilizan
+ángulos de Euler y cuaterniones; para estimar la vertical se aprovecha la componente gravitatoria
+de la señal del acelerómetro.
 
 \subsubsection{Ángulos de cámara y convención óptica}
 
@@ -759,7 +732,7 @@ representante. Una elección habitual consiste en utilizar el promedio aritméti
   \sum_{\mathbf{p}_i \in V_{\mathbf{k}}} \mathbf{p}_i,
 \]
 es decir, el centroide de las muestras del voxel \cite{hornung2013octomap}. Como se esquematiza
-en la \Cref{fig:mt-voxel-grid-centroides}, solo los puntos contenidos en una celda ocupada
+en la Figura~\ref{fig:mt-voxel-grid-centroides}, solo los puntos contenidos en una celda ocupada
 aportan al representante de esa celda. No se conserva el mínimo, el máximo ni la profundidad más
 cercana: el filtro suaviza localmente la nube y reduce la cantidad de puntos. Esta propiedad es
 apropiada para estimar geometría dominante, como el plano del suelo, pero puede atenuar detalles
@@ -794,7 +767,7 @@ Esta relación permite controlar el compromiso entre robustez y tiempo de cómpu
 El modelo no requiere que el suelo coincida con un valor constante exacto de altura. Si el piso
 presenta una pendiente moderada, el conjunto de puntos puede seguir explicándose mediante un plano
 inclinado; la condición relevante para RANSAC es la distancia de cada muestra al plano candidato,
-no la igualdad de una coordenada particular. La \Cref{fig:mt-ransac-plano-inliers} ilustra esta
+no la igualdad de una coordenada particular. La Figura~\ref{fig:mt-ransac-plano-inliers} ilustra esta
 idea sobre un corte bidimensional, usando la convención geométrica adoptada en el sistema.
 
 \begin{figure}[ht]
@@ -876,9 +849,7 @@ Con este criterio, el plano no se estima a partir de toda la nube por igual. La 
 concentra en la región donde es esperable observar el piso y evalúa la calidad dentro de esa
 región, incorporando además una tolerancia compatible con el ruido de profundidad.
 
-Estos recursos proporcionan los fundamentos para construir un estimador robusto, pero su orden
-y sus condiciones de aceptación dependen del método adoptado. El procedimiento utilizado, incluidos
-la reutilización temporal, los caminos de fallo y la clasificación final, se presenta en la
+La combinación de estos recursos y sus condiciones de aceptación se describen en la
 Sección~\ref{sec:metodo-v1-suelo}.
 
 \subsubsection{Clasificación geométrica y región superior excluida}
@@ -887,20 +858,17 @@ Una vez obtenido el plano, la distancia con signo permite separar los puntos com
 el suelo de los obstáculos. Se etiqueta como suelo un punto dentro de la tolerancia o situado
 por debajo del plano estimado. Entre los restantes, los puntos cuya coordenada satisface
 $Y<-\Delta_c$ se asignan a una región superior excluida; los demás se conservan como obstáculos.
-El valor adoptado para $\Delta_c$ se especifica en la Sección~\ref{sec:metodo-v1-suelo}.
 
 Esta región no constituye una detección semántica de techos. Reúne cualquier medición situada
 más de $\Delta_c$ por encima de la cámara y puede contener ramas, carteles u otros elementos
 elevados. Se mantiene el término \texttt{CEILING} únicamente al referirse a la etiqueta del
 mensaje o del código. Estos puntos se excluyen tanto de la nube de obstáculos como de la
-evidencia libre enviada al mapa. Su descarte debe validarse experimentalmente, porque la
-clasificación y la posterior proyección 2D pueden perder información sobre obstáculos elevados.
+evidencia libre enviada al mapa. El efecto de este descarte se analiza en el
+Capítulo~\ref{chap:resultados}, dado que la clasificación y la posterior proyección 2D pueden
+perder información sobre obstáculos elevados.
 
-La aplicación de esta clasificación sobre una escena real se muestra en las
-Figuras~\ref{fig:metodo-gravity-alignment}
-y~\ref{fig:metodo-ground-ceiling-classification}. La primera permite observar el cambio de
-marco previo a la estimación; la segunda muestra la separación resultante entre suelo, región
-superior excluida y los puntos conservados como obstáculos.
+La Sección~\ref{sec:metodo-v1-suelo} aplica esta clasificación a escenas reales y precisa la
+hipótesis de montaje utilizada para excluir la región superior.
 
 \subsubsection{Realimentación de la altura de cámara}
 
@@ -917,33 +885,22 @@ la distinción se debe a que el eje $Y$ crece hacia abajo desde la cámara. De e
 filas se distribuyen entre la región superior protegida y el suelo observado. Esta realimentación
 modifica la asignación vertical, pero no altera la matriz final de 5 filas por 10 columnas.
 
-El procedimiento adoptado para validar y realimentar esta altura se presenta en la
-Sección~\ref{sec:metodo-v1-altura}; su evaluación experimental se define en el bloque v1 del
-Capítulo~\ref{chap:experimentos}.
+El procedimiento de aceptación y filtrado se describe en la Sección~\ref{sec:metodo-v1-altura}.
 
 % ---------------------------------------------------------------
 \section{Fundamentos de la versión v2: odometría, mapa local y conciencia espacial}
 \label{sec:mt-v2}
 
-La versión v2 parte de la percepción filtrada alcanzada en v1 y agrega memoria espacial para cubrir
-su principal limitación restante. Para que un obstáculo siga influyendo cuando abandona
-el campo frontal, las observaciones locales deben transformarse a un marco común, actualizar
-una grilla de ocupación y evaluarse junto con la velocidad del usuario. En la configuración
-final, esta etapa se apoya en \texttt{imu\_filter\_madgwick}, \texttt{rtabmap\_odom},
-\texttt{local\_mapper} y
-\texttt{spatial\_awareness}.
-
-Esta incorporación requiere distinguir el movimiento incremental usado para acumular mediciones
-del problema más amplio de construir y corregir un mapa global.
+Recordar un obstáculo requiere ubicar observaciones sucesivas en un marco común. La estimación de
+movimiento permite esa asociación; el mapa acumula evidencia y la velocidad del usuario permite
+evaluar su relevancia para una posible colisión.
 
 \subsection{Estimación de pose y coherencia temporal}
 \label{sec:mt-pose-coherencia-temporal}
 
-Acumular observaciones exige conocer no solo cuánto se movió la cámara, sino también a qué
-instante corresponde cada pose y en qué convención están expresados sus ejes. Por eso el bloque
-distingue primero odometría de localización y SLAM, y luego reúne las tres condiciones de la pose
-usada por el mapa: orientación inercial filtrada, desplazamiento RGB-D y asociación temporal de
-ambas mediciones dentro de marcos compatibles.
+La pose usada para acumular observaciones debe expresar posición y orientación en ejes
+compatibles y corresponder al instante de la medición. Estas condiciones vinculan la estimación
+de movimiento con los marcos de referencia y la sincronización temporal.
 
 \subsubsection{Odometría, localización, mapeo y SLAM}
 
@@ -961,14 +918,10 @@ completo de cierre de lazo y optimización global.
 
 \subsubsection{Filtro de Madgwick para orientación IMU}
 
-La incorporación de Madgwick corresponde a v2, no a v1. En v1 la señal inercial relevante es
-el acelerómetro, porque permite estimar la vertical local a partir de la gravedad con bajo
-costo. En v2, en cambio, la odometría necesita una orientación IMU filtrada que combine
-acelerómetro y giróscopo. Para esta versión, el controlador de la D435i se configura con
-\texttt{unite\_imu\_method=1}: además de los flujos inerciales separados, publica el tópico
-unificado \texttt{/camera/camera/imu} que consume Madgwick. La orientación de ese mensaje no
-constituye por sí misma una estimación filtrada utilizable por la odometría; Madgwick publica el
-cuaternión resultante en \texttt{/imu/data\_filtered}.
+En v2, Madgwick estima una orientación filtrada a partir del acelerómetro y el giróscopo.
+La IMU unificada del sensor aporta esas mediciones; su publicación por el driver no equivale
+por sí misma a una estimación de orientación. Las conexiones entre driver, filtro y odometría
+se documentan en la Sección~\ref{sec:arq-sensor}.
 
 El problema es que ninguna de las dos mediciones inerciales resuelve por sí sola la orientación
 de forma robusta. El giróscopo describe bien los cambios rápidos de orientación, pero su
@@ -1052,11 +1005,9 @@ Madgwick~\cite{MadgwickInternalReport2010}.
 
 Sin magnetómetro, la gravedad no hace observable el yaw absoluto. Por eso, en este sistema
 la corrección de la rama superior limita principalmente la deriva de roll y pitch, mientras
-que la evolución horizontal debe provenir de las correspondencias visuales. La implementación
-produce el cuaternión de \texttt{/imu/data\_filtered}, utilizado para inicializar y regular
-\texttt{rgbd\_odometry}; este acoplamiento no constituye una optimización visual-inercial
-conjunta. La elección de Madgwick responde, además, a su bajo costo de cálculo por muestra,
-adecuado para ejecución embebida.
+que la evolución horizontal debe provenir de las correspondencias visuales. La orientación
+filtrada actúa como entrada auxiliar de la odometría RGB-D, sin una optimización visual-inercial
+conjunta. Madgwick presenta, además, un bajo costo de cálculo por muestra.
 
 \subsubsection{Odometría RGB-D con RTAB-Map}
 
@@ -1069,17 +1020,10 @@ transformación rígida que mejor explica esas correspondencias produce un incre
 Las asociaciones incorrectas deben rechazarse como valores atípicos; la falta de textura, las
 oclusiones y el desenfoque por movimiento pueden reducir o interrumpir el seguimiento.
 
-RTAB-Map puede operar como biblioteca de SLAM y mapeo, pero en este sistema se usa su
-odometría RGB-D como fuente local de pose. La salida se publica como
-\texttt{nav\_msgs/Odometry} y se remapea a \texttt{nav\_odom}. El marco \texttt{odom} no
-representa un sistema global absoluto; es un marco local continuo, con origen definido al
-inicio de la ejecución y con deriva acumulada a largo plazo. Esta propiedad es suficiente para
-un mapa local de corto alcance, porque la coherencia requerida abarca segundos y metros
-recientes, no un mapa permanente de todo lo recorrido previamente.
-
-La secuencia concreta utilizada para documentar esta operación debe obtenerse de datos reales;
-su incorporación se plantea en la Sección~\ref{sec:metodo-v2} como evidencia del método
-adoptado, no como fundamento general de la odometría visual.
+El marco \texttt{odom} no representa un sistema global absoluto; es un marco local continuo, con
+origen definido al inicio de la ejecución y con deriva acumulada a largo plazo. Esta propiedad es
+suficiente para un mapa local de corto alcance, porque la coherencia requerida abarca segundos y
+metros recientes, no un mapa permanente de todo lo recorrido previamente.
 
 \subsubsection{Marcos de referencia y convención REP-103}
 
@@ -1114,10 +1058,6 @@ $(w,x,y,z)$, y después se proyecta la dirección frontal sobre el plano $XZ$ pa
 Estas expresiones fijan tanto el orden del cuaternión como el sentido de la transformación y
 evitan interpretar un cambio de base como movimiento físico adicional.
 
-La verificación de estas convenciones contra los marcos TF publicados forma parte del método de
-integración de v2 y se ubica en la Sección~\ref{sec:metodo-v2}, donde puede contrastarse con
-RViz sin convertir una convención específica del sistema en una propiedad general de ROS.
-
 \subsubsection{Sincronización temporal de observaciones y odometría}
 
 El mapa local combina observaciones y poses producidas a frecuencias distintas. Asociar datos solo
@@ -1135,12 +1075,8 @@ Sección~\ref{sec:metodo-v2}.
 \subsection{Representación y actualización del mapa local}
 \label{sec:mt-mapa-local}
 
-La memoria espacial de v2 se construye como una ventana local de ocupación, no como un mapa
-permanente del entorno. Las subsecciones siguientes justifican esa representación y describen
-las operaciones que le dan significado: acumular evidencia probabilística, marcar espacio libre
-a lo largo de cada rayo, desplazar la ventana con el usuario y limitar la persistencia de
-observaciones antiguas. En conjunto, estas operaciones determinan qué recuerda el sistema y
-durante cuánto tiempo esa memoria continúa siendo confiable.
+La memoria de v2 utiliza una ventana de ocupación de tamaño finito. Su actualización combina
+evidencia probabilística, observaciones de espacio libre y desplazamiento de la ventana.
 
 \subsubsection{Representaciones espaciales locales}
 
@@ -1211,7 +1147,7 @@ presentan en las Secciones~\ref{sec:metodo-v2-evidencia} y~\ref{sec:metodo-v2-oc
 El valor de log-odds es la representación interna del mapeador. Una celda jamás observada debe
 distinguirse de otra observada cuya evidencia se encuentra equilibrada: ambas pueden tener
 probabilidad $0{,}5$, pero solo la segunda contiene información. La codificación concreta en
-\texttt{nav\_msgs/OccupancyGrid} se describe en la Sección~\ref{sec:impl-local-mapper}.
+\texttt{nav\_msgs/OccupancyGrid} se describe en el Capítulo~\ref{chap:implementacion}.
 
 La extensión de la ventana no implica que exista una medición en toda esa superficie. La
 cámara aporta observaciones dentro de su campo de visión y alcance; la zona posterior y las
@@ -1280,24 +1216,15 @@ real, no en un punto artificial ubicado en el límite del rango.
 
 \subsubsection{Ventana local deslizante y olvido espacial}
 
-La memoria espacial se mantiene en una ventana finita. Cuando la odometría indica
-desplazamiento del sensor, la grilla se desplaza una cantidad entera de celdas y las celdas
-nuevas se reinicializan con prior neutro. Para evitar pérdida de resolución a bajas
-velocidades, los desplazamientos sub-celda se acumulan hasta superar el tamaño de celda.
+La ventana se centra en la posición estimada del usuario y conserva sus ejes alineados con
+\texttt{odom}. Cuando la odometría indica una traslación, su contenido se desplaza una cantidad
+entera de celdas y las nuevas regiones se reinicializan con prior neutro. Un acumulador conserva
+los desplazamientos menores que el tamaño de celda hasta completar una celda. Un giro cambia la
+transformación de las observaciones nuevas al marco común, pero no rota la ventana.
 
-Además del corrimiento de ventana, se emplea un radio de olvido local: las celdas demasiado
-alejadas del sensor vuelven al prior. Este mecanismo impide que observaciones viejas dominen
-indefinidamente y mantiene el mapa enfocado en la región útil para navegación inmediata.
-
-La ventana está centrada alrededor de la posición estimada del usuario, pero sus ejes
-permanecen alineados con \texttt{odom}: no gira con cada cambio de yaw. La traslación desplaza
-los contenidos por una cantidad entera de celdas y un acumulador conserva las fracciones
-menores que $0{,}10$ m hasta completar una celda. Las posiciones de los obstáculos se rotan y
-trasladan al marco común antes de actualizar la grilla.
-
-El corrimiento entero, la acumulación subcelda y la conservación de los ejes de
-\texttt{odom} son decisiones del método de actualización adoptado; su diagrama se presenta en
-la Sección~\ref{sec:metodo-v2-ocupacion}.
+El radio de olvido reinicializa además las celdas demasiado alejadas del sensor, aunque todavía
+pertenezcan a la ventana. Ambos mecanismos limitan espacialmente la memoria; su aplicación se
+describe en la Sección~\ref{sec:metodo-v2-ocupacion}.
 
 \subsubsection{Filtrado espacial y temporal}
 
@@ -1326,7 +1253,8 @@ La capa de conciencia espacial evalúa riesgos fuera del campo frontal ya comuni
 grilla háptica. Para no interpretar ruido aislado como un objeto, las celdas suficientemente
 ocupadas pueden agruparse en componentes conexas y descartarse los grupos sin soporte espacial.
 Esta operación es una heurística: mejora robustez ante activaciones aisladas, pero puede omitir
-obstáculos delgados, de modo que sus umbrales requieren validación.
+obstáculos delgados. El efecto de sus umbrales sobre la detección se analiza en el
+Capítulo~\ref{chap:resultados}.
 
 Para cada celda candidata se calcula su posición relativa respecto de la pose del usuario y se
 descarta si cae dentro de la apertura frontal observable, región ya atendida
@@ -1409,11 +1337,6 @@ sola que se conserve el riesgo físicamente más urgente: la intensidad frontal 
 distancia y la contextual de TTC. Su comparación presupone que ambas escalas 0--100 fueron
 calibradas de manera compatible. Asimismo, la codificación posterior en columnas centrales es
 una convención que debe verificarse con usuarios y con el dispositivo físico del proyecto.
-
-La obtención de las tres matrices reproducibles corresponde a la validación funcional de v2 y
-se especifica en el bloque experimental de memoria espacial y riesgo contextual. Aquí se
-mantiene únicamente la definición de la operación de fusión y la advertencia sobre la
-compatibilidad de escalas.
 
 \subsection{Métricas de evaluación para percepción y mapeo}
 \label{sec:mt-metrics}

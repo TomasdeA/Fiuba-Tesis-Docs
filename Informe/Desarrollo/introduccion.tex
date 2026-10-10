@@ -17,31 +17,44 @@ Sin embargo, gran parte de esas soluciones se basa en sensores puntuales de cort
 restringe la cantidad y calidad de información espacial disponible para el usuario. En contraste,
 los sensores de profundidad por visión estéreo activa, como la familia Intel RealSense
 \cite{RS-D400}, permiten obtener una medición densa con información tridimensional dentro de su
-campo de visión. Su adecuación a una plataforma portátil y de baja latencia debe evaluarse junto
-con el procesamiento ejecutado sobre el hardware embebido.
+campo de visión. Su adecuación a una plataforma portátil y de baja latencia depende también
+del procesamiento ejecutado sobre el hardware embebido.
 
 Este trabajo parte del principio de neuroplasticidad sensorial, según el cual el cerebro puede
 reorganizarse para aprovechar de manera más eficiente los sentidos restantes cuando la visión está
 reducida o ausente \cite{BachyRita1969}.
 A partir de este principio, el proyecto global busca desarrollar un sistema portátil capaz de
-traducir información espacial visual en estímulos hápticos para asistir la navegación.
+traducir información espacial visual en estímulos hápticos, es decir, táctiles, para asistir la
+navegación.
 
-Los trabajos académicos que combinan cámaras RGB-D con retroalimentación háptica
-\cite{Lee2016RGBD, Zhang2021DVIO} muestran que el enfoque es técnicamente viable. Por otro lado,
-productos como el \emph{SuperBrain~1} \cite{SeventhSense2024SuperBrain} muestran el nivel de
-funcionalidad que puede alcanzar un sistema comercial.
+Los trabajos académicos que combinan cámaras RGB-D, que entregan imágenes de color y profundidad,
+con retroalimentación háptica \cite{Lee2016RGBD, Zhang2021DVIO} muestran que el enfoque es
+técnicamente viable. Por otro lado, productos como el \emph{SuperBrain~1}
+\cite{SeventhSense2024SuperBrain} muestran el nivel de funcionalidad que puede alcanzar un sistema
+comercial.
 
 Esta tesis estudia cómo obtener una representación local compacta de obstáculos mediante una cámara
-RGB-D, primero en una computadora de desarrollo y luego evaluando su ejecución en Raspberry Pi~5, sin pretender reproducir el alcance funcional ni el nivel de validación
-de un producto comercial. El Capítulo~\ref{chap:estado-arte} analiza estas soluciones en detalle y
-compara el enfoque adoptado en esta tesis con ellas.
+RGB-D y dispone de una configuración de despliegue para Raspberry Pi~5.
+
+La Tabla~\ref{tab:plataformas-computo}, en el Capítulo~\ref{chap:experimentos}, detalla las
+características de los dos equipos utilizados en el trabajo. En el resto del informe,
+\emph{PC de desarrollo} designa la computadora empleada para implementar, depurar y comprobar
+los objetivos funcionales de cada versión, mientras que \emph{Raspberry Pi~5} designa el equipo
+utilizado para el despliegue embebido del módulo de percepción.
+
+\begin{samepage}
+El trabajo comenzó en la PC de desarrollo y el traslado a la plataforma embebida se abordó por
+versiones durante ese mismo proceso, según la estrategia del Capítulo~\ref{chap:metodo}.
+Los antecedentes que orientan estas decisiones se comparan en el Capítulo~\ref{chap:estado-arte}.
+
+\end{samepage}
 
 \begin{figure}[htbp]
   \centering
   \includegraphics[width=0.85\textwidth]{_Imagenes/arquitectura/Arquitectura-global.png}
   \caption{Visión general del sistema de asistencia sensorial desarrollado en esta tesis.
-           La Raspberry Pi~5 representa el destino embebido propuesto para generar una representación compacta del entorno
-           destinada a una futura interfaz háptica portada por el usuario.}
+           La Raspberry Pi~5 representa la plataforma embebida del módulo de percepción, cuya
+           salida compacta se destina a la interfaz háptica de la segunda etapa del proyecto.}
   \label{fig:intro-arquitectura-general}
 \end{figure}
 
@@ -50,11 +63,9 @@ compara el enfoque adoptado en esta tesis con ellas.
 Una persona con ceguera o baja visión que se desplaza por un entorno desconocido puede beneficiarse
 de información actualizada sobre obstáculos ubicados desde el suelo hasta la altura de la cabeza.
 El bastón blanco, el perro guía y los dispositivos electrónicos ofrecen capacidades
-complementarias, pero no comunican el entorno con la misma cobertura, resolución ni modalidad. Los
-dispositivos basados en ultrasonido o sensores puntuales ofrecen información espacial acotada
-\cite{Petsiuk2019UltrasoundNavigation, Santos2023}; los sistemas con cámaras de profundidad aportan
-mediciones más densas, a costa de una mayor demanda de procesamiento
-\cite{Lee2016RGBD, Zhang2021DVIO}.
+complementarias, pero no comunican el entorno con la misma cobertura, resolución ni modalidad.
+Los sistemas con cámaras de profundidad aportan mediciones densas, a costa de una mayor demanda
+de procesamiento \cite{Lee2016RGBD, Zhang2021DVIO}.
 
 El problema de ingeniería que aborda esta tesis es, por lo tanto, transformar información
 tridimensional del entorno en una representación compacta destinada a una interfaz háptica,
@@ -62,28 +73,26 @@ manteniendo acotados el retardo, la variación temporal y el consumo de recursos
 bajo qué condiciones puede ejecutarse en una plataforma embebida.
 
 El proyecto global está orientado a una solución portátil. La presente tesis se limita al módulo
-de percepción y procesamiento, por lo que no evalúa la portabilidad del dispositivo completo, que
-depende además de la fuente de alimentación, la electrónica de actuación, los actuadores y el soporte
-corporal.
+de percepción y procesamiento, por lo que no evalúa la portabilidad del dispositivo completo.
+La Sección~\ref{sec:intro-alcance} precisa qué componentes y evaluaciones quedan fuera de esta tesis.
 
 El diseño del módulo de percepción está condicionado por la plataforma embebida disponible, la
 necesidad de generar información reciente durante la marcha y la continuidad de la detección. En
 particular:
 \begin{itemize}
-  \item \textbf{Plataformas de evaluación:} la computadora de desarrollo permite establecer
-        primero la referencia funcional y computacional de v0, v1 y v2. Después se evalúa la
-        Raspberry Pi~5 \cite{RaspberryPi}, sin depender de una GPU discreta, con la misma
-        configuración y, si resulta necesario, con perfiles de menor carga. La prueba debe
-        determinar qué capacidades sostiene, cuáles requiere limitar y si los recursos
-        disponibles resultan insuficientes.
-  \item \textbf{Desempeño temporal:} el módulo deberá producir información con un retardo y una
+  \item \textbf{Plataformas de evaluación:} la PC de desarrollo se utiliza para implementar y
+        comprobar la funcionalidad de cada versión. La Raspberry Pi~5 \cite{RaspberryPi} es la
+        plataforma embebida para su traslado progresivo, sin depender de una GPU discreta,
+        conservando la arquitectura y ajustando la carga de procesamiento cuando los recursos lo
+        requieren.
+  \item \textbf{Desempeño temporal:} el módulo debe producir información con un retardo y una
         tasa de actualización compatibles con su uso previsto durante la marcha. La evaluación
-        abarcará desde la adquisición de la imagen hasta la publicación de la salida lógica.
-  \item \textbf{Continuidad de la percepción:} la salida deberá evitar variaciones espurias y
-        pérdidas intermitentes de obstáculos. En la versión con mapeo local se evaluará además el
+        abarca desde la adquisición de la imagen hasta la publicación de la salida lógica.
+  \item \textbf{Continuidad de la percepción:} la salida debe evitar variaciones espurias y
+        pérdidas intermitentes de obstáculos. En la versión con mapeo local se evalúa además el
         compromiso entre conservar observaciones relevantes y eliminar ocupaciones que hayan
         dejado de ser válidas.
-  \item \textbf{Capacidad de detección:} el módulo deberá detectar obstáculos relevantes dentro de
+  \item \textbf{Capacidad de detección:} el módulo debe detectar obstáculos relevantes dentro de
         la región espacial y el rango de operación definidos para el sistema.
 \end{itemize}
 
@@ -111,7 +120,7 @@ visualizarlos y deja implementada su transmisión mediante UART.
 Esta tesis aborda exclusivamente la primera etapa: captar el entorno y generar una representación
 local compacta a partir de percepción RGB-D. El foco se sitúa en transformar la medición cruda de
 profundidad en información espacial destinada a navegación asistida y caracterizar su retardo,
-estabilidad temporal y consumo de recursos en PC, y evaluar posteriormente la viabilidad embebida.
+estabilidad temporal y consumo de recursos en la PC de desarrollo y en Raspberry Pi~5.
 
 \subsection{Objetivo técnico}
 \label{sec:intro-objetivo-tecnico}
@@ -119,31 +128,28 @@ estabilidad temporal y consumo de recursos en PC, y evaluar posteriormente la vi
 El objetivo técnico es desarrollar un módulo que transforme mediciones de profundidad en una
 representación espacial compacta y en una matriz lógica de intensidades destinada a la segunda
 etapa del proyecto. Para materializar y evaluar ese objetivo se adoptan ROS~2 \cite{ROS}, una cámara
-Intel RealSense D435i \cite{RS-D400}, una PC de referencia y una Raspberry Pi~5 como
-plataforma embebida a evaluar.
+Intel RealSense D435i \cite{RS-D400}, la PC de desarrollo y una Raspberry Pi~5 como
+plataforma embebida objetivo.
 
-Específicamente, el módulo deberá desarrollarse en tres niveles incrementales:
+El desarrollo del módulo se organiza en tres niveles incrementales:
 \begin{itemize}
   \item \textbf{v0 (percepción instantánea):} procesar imágenes de profundidad mediante reducción
         de dimensionalidad para producir una grilla estructurada de baja resolución con
         estadísticas por celda (distancia mínima, media y conteo de puntos válidos), y publicar
         dicha salida en tópicos ROS~2 estandarizados, visualizarla sin depender del hardware físico
-        y serializarla para su transmisión mediante UART. Esta versión establece la referencia
-        funcional directa con la cual comparar el costo de las etapas posteriores;
+        y serializarla para su transmisión mediante UART.
   \item \textbf{v1 (percepción filtrada):} incorporar etapas de filtrado de la medición para
         mejorar la relevancia de la señal destinada a navegación asistida, suprimiendo
         contribuciones espurias del entorno y estabilizando la representación ante variaciones de
-        pose del portador. Su efecto sobre las activaciones falsas y la consistencia de la salida
-        se evaluará experimentalmente;
+        pose del portador.
   \item \textbf{v2 (mapeo local):} implementar una capa de mapeo de corto alcance basada en
         grillas de ocupación log-odds \cite{Elfes1989, Thrun2005}, con memoria temporal de
-        obstáculos, mecanismo de desplazamiento de una ventana local con ejes fijos en el marco odométrico
-        y odometría RGB-D asistida por orientación inercial. Su capacidad para conservar información sobre obstáculos fuera del campo frontal se
-        evaluará en los escenarios definidos para v2.
+        obstáculos, mecanismo de desplazamiento de una ventana local con ejes fijos en el marco
+        odométrico y odometría RGB-D asistida por orientación inercial.
 \end{itemize}
 
-Los parámetros numéricos y umbrales de decisión se refinarán mediante una fase de calibración y
-pruebas experimentales, descritas en el Capítulo~\ref{chap:experimentos}.
+La calibración de parámetros y las pruebas de costo, detección y continuidad de cada versión
+se describen en el Capítulo~\ref{chap:experimentos}.
 
 \section{Contribuciones}
 
@@ -152,68 +158,63 @@ Los principales aportes técnicos de esta tesis son:
 \begin{itemize}
   \item una arquitectura incremental que permite comparar una transformación directa de
         profundidad con una interpretación geométrica filtrada y con una extensión dotada de
-        memoria espacial, manteniendo una interfaz lógica común;
+        memoria espacial, manteniendo una interfaz lógica común.
   \item una estrategia de filtrado geométrico alineada con la gravedad para estudiar la reducción
-        de activaciones producidas por piso y techo sobre cómputo embebido;
+        de activaciones producidas por piso y techo sobre cómputo embebido.
   \item una representación compacta que separa la percepción métrica frontal del riesgo contextual
-        y permite verificar ambas señales sin depender de la interfaz háptica física;
+        y permite verificar ambas señales sin depender de la interfaz háptica física.
   \item un esquema de memoria local y fusión que permite estudiar la continuidad de la advertencia cuando un
-        obstáculo previamente observado sale del campo de visión;
+        obstáculo previamente observado sale del campo de visión.
   \item un protocolo experimental reproducible para caracterizar error, detección, latencia,
         estabilidad temporal y consumo de recursos.
 \end{itemize}
 
 \section{Alcance}
+\label{sec:intro-alcance}
 
 El alcance de esta tesis comprende:
 \begin{itemize}
   \item el diseño, implementación y validación experimental de la etapa de captación del entorno
-        del sistema de asistencia sensorial;
-  \item la integración del módulo desarrollado con el ecosistema ROS~2, la generación y visualización
-        de la matriz de intensidades y su serialización para transmisión mediante UART;
+        del sistema de asistencia sensorial.
+  \item la integración del módulo desarrollado con el ecosistema ROS~2, la generación y
+        visualización de la matriz de intensidades y su serialización para transmisión mediante
+        UART.
   \item la generación de representaciones compactas de un mapa de ocupación para navegación
-        asistida, con evaluación posterior de su ejecución embebida;
+        asistida, con caracterización de su ejecución embebida.
   \item la caracterización cuantitativa del desempeño del sistema en términos de precisión, latencia
         y consumo de recursos.
 \end{itemize}
 
-Esta tesis incluye la generación de la matriz de intensidades hápticas, su publicación mediante
-mensajes ROS~2, su visualización mediante una interfaz virtual y la implementación del enlace UART
-previsto para integrarla con el hardware de actuación. Quedan \emph{fuera} de su alcance el diseño
-y la implementación de la interfaz háptica física (microcontrolador receptor, electrónica de
-potencia, actuadores y soporte corporal), así como su caracterización y la validación con usuarios
-finales.
+La frontera de la implementación se ubica en la transmisión UART. Quedan \emph{fuera} del alcance
+el diseño y la implementación de la interfaz háptica física (microcontrolador receptor, electrónica
+de potencia, actuadores y soporte corporal), así como su caracterización y la validación con
+usuarios finales. La portabilidad del dispositivo completo depende además de la alimentación y del
+montaje corporal, que se resuelven junto con esa interfaz física.
 
-La Raspberry Pi~5 es la plataforma embebida disponible para la segunda fase de evaluación. Su
-uso no presupone que pueda sostener todas las versiones ni sus perfiles más exigentes. Un
-resultado válido de esta tesis es delimitar su funcionamiento, documentar las restricciones
-necesarias o justificar, mediante mediciones, la necesidad de mayor capacidad de cómputo o memoria.
+El sistema dispone de una configuración de despliegue para Raspberry Pi~5 y de parámetros para
+ajustar la resolución, la frecuencia y la carga de procesamiento. Los perfiles de operación, sus
+restricciones y las exigencias de cómputo y memoria se analizan en el
+Capítulo~\ref{chap:resultados}.
 
 \section{Organización del documento}
 
 
-La organización del documento sigue la evolución v0--v1--v2 definida en la
-Sección~\ref{sec:intro-objetivo-tecnico}. Cada capítulo analiza estas versiones desde una
-perspectiva diferente para evitar repetir su descripción.
+El documento sigue la evolución v0--v1--v2 desde sus fundamentos hasta la evaluación.
 
 El Capítulo~\ref{chap:estado-arte} revisa el estado del arte en dispositivos de asistencia sensorial
 con retroalimentación háptica y en técnicas de mapeo local y evitación de obstáculos en robótica
 móvil, y compara el enfoque adoptado con las soluciones existentes.
 El Capítulo~\ref{chap:marco-teorico} desarrolla los fundamentos teóricos del sistema:
-percepción de profundidad por estereoscopía activa, modelo de cámara \emph{pinhole}, reducción
-espacial mediante partición en regiones de interés, grillas de ocupación log-odds, algoritmo de
-Bresenham, estimación de orientación con IMU y protocolo de comunicación serie.
+percepción de profundidad, geometría de cámara, orientación, representaciones espaciales y
+comunicación.
 El Capítulo~\ref{chap:arquitectura} describe la arquitectura modular del sistema implementada en
 ROS~2 y los cambios de topología introducidos en cada versión.
 El Capítulo~\ref{chap:metodo} justifica las decisiones de procesamiento y los criterios mediante los
 cuales las mediciones afectan la salida.
 El Capítulo~\ref{chap:implementacion} expone la implementación concreta en C++ y Python sobre ROS~2,
-describiendo los nodos principales (\texttt{depth\_to\_matrix\_node}, \texttt{local\_mapper\_node},
-\texttt{haptic\_grid\_generator}, \texttt{hardware\_manager}) y las interfaces definidas.
+con las estructuras de datos, parámetros y mecanismos de ejecución.
 El Capítulo~\ref{chap:experimentos} presenta la metodología experimental, los escenarios de prueba y
-las métricas de evaluación utilizadas: error RMS de profundidad, latencia \emph{end-to-end},
-precisión y \textit{recall} de detección de obstáculos, estabilidad temporal por celda y consumo de
-recursos.
+las métricas de evaluación.
 El Capítulo~\ref{chap:resultados} expone los resultados empíricos obtenidos y su análisis
 cuantitativo.
 Finalmente, los Capítulos~\ref{chap:discusion}, \ref{chap:conclusiones} y~\ref{chap:futuro} discuten

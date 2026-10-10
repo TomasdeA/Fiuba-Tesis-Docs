@@ -8,22 +8,21 @@ espacial, memoria temporal y plataforma de cómputo. La selección no pretende s
 sostener afirmaciones sobre toda la bibliografía disponible; las conclusiones se limitan a los
 trabajos incluidos y citados en las secciones siguientes.
 
-El principio de sustitución sensorial, cuya base experimental se describe en el
-Capítulo~\ref{chap:marco-teorico} (\Cref{sec:mt-sustitucion}), constituye el fundamento común de
-los dispositivos electrónicos de asistencia a la movilidad revisados en este capítulo. Desde los
-primeros arreglos de $20\times20$ taxeles (píxeles táctiles) de Bach-y-Rita \cite{BachyRita1969},
-la evolución técnica puede leerse como una continuidad: se parte de soluciones con sensado puntual
-y se avanza hacia sistemas con percepción densa mediante cámaras de profundidad, en búsqueda de
-mejor resolución espacial sin perder portabilidad ni baja latencia.
+El trabajo pionero de Bach-y-Rita et al.\ \cite{BachyRita1969}, publicado en 1969, mostró la
+posibilidad de comunicar información de una imagen mediante matrices de taxeles (píxeles táctiles).
+Este antecedente ofrece un punto de partida para la evolución de las interfaces visual-táctiles
+revisadas en este capítulo. El experimento y su fundamento se desarrollan en la
+Sección~\ref{sec:mt-sustitucion}.
 
-A partir del trabajo de Bach-y-Rita, se desarrolló una amplia variedad de dispositivos electrónicos
-de ayuda a la movilidad (\emph{Electronic Travel Aids}, ETA). Dakopoulos y Bourbakis
-\cite{Dakopoulos2010} presentan una revisión exhaustiva de estos sistemas, clasificándolos según el
-tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de retroalimentación
-(auditivo, háptico, voz) y la zona del cuerpo en la que presentan la estimulación (mano, muñeca,
-torso, cabeza). A partir de estos antecedentes, los sistemas de asistencia revisados se dividen en
-dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que incorporan
-percepción densa y, en algunos casos, mapeo local.
+En el ámbito de la movilidad, los dispositivos electrónicos de ayuda
+(\emph{Electronic Travel Aids}, ETA) utilizan canales sensoriales alternativos para comunicar
+el entorno, con distintas formas de sensado y realimentación.
+Dakopoulos y Bourbakis \cite{Dakopoulos2010} presentan una revisión exhaustiva de estos sistemas,
+clasificándolos según el tipo de sensor (ultrasónico, infrarrojo, láser, cámara), el mecanismo de
+retroalimentación (auditivo, háptico, voz) y la zona del cuerpo en la que presentan la estimulación
+(mano, muñeca, torso, cabeza). A partir de estos antecedentes, los sistemas de asistencia revisados
+se dividen en dos grupos: sistemas sin RGB-D, basados en sensado puntual, y sistemas con RGB-D, que
+incorporan percepción densa y, en algunos casos, mapeo local.
 
 \subsection{Criterios de adopción}
 \label{subsec:ea-criterios}
@@ -39,12 +38,15 @@ entrenamiento extenso. A estos criterios se agregan dos dimensiones técnicas ad
 para el presente trabajo: \emph{resolución espacial} del sensor y \emph{memoria temporal} en la
 representación del entorno.
 
+\begin{samepage}
 En esta comparación, el carácter vestible describe la forma de uso y no implica necesariamente
 cómputo embebido ni autonomía técnica. Se marca como satisfecho cuando la fuente presenta el
 prototipo como un equipo corporal que puede utilizarse durante la marcha, y como parcialmente
 satisfecho cuando, aunque los sensores y la interfaz se portan sobre el cuerpo, el conjunto depende
 de una computadora convencional. El criterio de manos libres se evalúa de manera independiente,
 según la necesidad de manipular el sistema durante su operación.
+
+\end{samepage}
 
 \subsection{Sistemas sin RGB-D (sensado puntual)}
 \label{subsec:ea-propuestas}
@@ -76,13 +78,9 @@ ninguna forma de acumulación temporal de observaciones.
 \subsection{Sistemas con RGB-D (percepción densa)}
 \label{sec:ea-rgbd}
 
-La incorporación de sensores de profundidad por estereoscopía activa en dispositivos de asistencia
-representa una continuidad natural de los ETA, orientada a superar la baja resolución de los
-sensores puntuales sin abandonar los criterios de adopción discutidos en la \Cref{subsec:ea-criterios}.
-Los sistemas revisados a continuación muestran distintos niveles de madurez dentro de esa misma
-línea evolutiva, desde retroalimentación directa sobre el fotograma instantáneo, pasando por integración
-de mapeo local con fusión inercial, hasta productos comerciales que consolidan el enfoque, como se
-discute en la \Cref{subsec:ea-superbrain}.
+Las cámaras de profundidad amplían la resolución espacial disponible. Los siguientes antecedentes
+permiten comparar cómo se aprovecha esa información: como realimentación del fotograma actual o
+como entrada de una representación persistente del entorno.
 
 \subsubsection{Percepción instantánea sin memoria temporal}
 \label{subsec:ea-percepcion-instantanea}
@@ -103,10 +101,8 @@ interiores y exteriores.
 Yang et al.\ emplean las mediciones de actitud de la MPU6050 para compensar la orientación de la
 nube de puntos durante la segmentación del suelo, pero no estiman el desplazamiento del usuario ni
 implementan una etapa de mapeo local. La representación final se obtiene directamente del fotograma
-instantáneo, por lo que toda información sobre obstáculos se pierde en cuanto estos abandonan el
-campo de visión de la cámara. Esto impide acumular un historial de observaciones que podría ser
-utilizado por una lógica de evitación de colisiones para anticipar obstáculos que, aunque ya no
-sean visibles en ese instante, sigan siendo relevantes para la trayectoria del usuario.
+instantáneo, por lo que los obstáculos dejan de estar representados en cuanto abandonan el
+campo de visión de la cámara.
 
 \subsubsection{Sistemas con mapeo local e integración inercial}
 \label{subsec:ea-mapeo-inercial}
@@ -162,55 +158,35 @@ Según la información pública del fabricante, el dispositivo no requiere el us
 interfiere con la audición y se porta sobre el cuerpo. Estos atributos permiten analizarlo respecto
 de los criterios de adopción, aunque la simplicidad de uso requiere evidencia con usuarios y no se
 infiere únicamente de su descripción comercial. Su costo se encuentra en el orden de miles de
-euros y su desarrollo demandó más de diez años. Esto marca una diferencia importante de alcance
-respecto del prototipo académico desarrollado en esta tesis. En consecuencia, no se plantea
-una equivalencia funcional con esta tesis. El \emph{SuperBrain~1} se utiliza como referencia de las
-capacidades que puede alcanzar una solución madura, mientras que este trabajo estudia un
-subconjunto acotado: percepción local, salida lógica compacta y ejecución en hardware embebido.
-Las funciones avanzadas del producto, como el \emph{zoom} con inteligencia artificial y la cámara
-térmica, se proponen como líneas de trabajo futuro en el Capítulo~\ref{chap:futuro}.
+euros y su desarrollo demandó más de diez años. Se utiliza como referencia de una solución madura;
+el prototipo de esta tesis se concentra en percepción local y salida lógica compacta, con el
+alcance definido en la Sección~\ref{sec:intro-alcance}.
 
 \subsection{Síntesis comparativa de los sistemas revisados}
 \label{subsec:ea-sintesis-comparativa}
 
-Los sistemas sin RGB-D revisados en la \Cref{subsec:ea-propuestas} comparten dos limitaciones
-fundamentales: en primer lugar, utilizan sensores puntuales o de muy bajo número de haces, lo que
-limita la representación de la distribución tridimensional de obstáculos en el campo visual del
-usuario. En segundo lugar, esas mediciones aisladas aportan poca información geométrica para
-estimar el movimiento del usuario por sí solas. Esto no impide obtener odometría mediante una IMU,
-una cámara u otro sensor adicional, pero los sistemas puntuales aquí revisados no incorporan esas
-fuentes ni una memoria espacial. Como resultado, el conocimiento sobre el entorno se descarta entre
-fotogramas y no puede utilizarse para
-inferir la presencia de obstáculos que hayan salido momentáneamente del campo sensado. Esta doble
-restricción dificulta la detección de obstáculos a altura de cabeza, la anticipación a geometrías
-complejas y la posibilidad de implementar lógicas de evitación de colisiones que operen sobre
-información acumulada.
-
-En contraste, los sistemas con RGB-D incorporan cámaras de profundidad para aumentar la resolución
-espacial y, en algunos casos, añadir memoria temporal mediante mapeo local. Esta evolución
-tecnológica se expresa en la Tabla~\ref{tab:comparacion-eta}, que consolida la evaluación de todos
-los sistemas de asistencia revisados en este capítulo, desde los basados en sensores puntuales hasta los de
-cámara de profundidad y el producto comercial \emph{SuperBrain~1}, respecto de los criterios de
-Dakopoulos y Bourbakis~\cite{Dakopoulos2010} y las dos dimensiones técnicas adicionales. La tabla
-evidencia la progresión desde soluciones de baja resolución y sin memoria temporal hacia sistemas
-con percepción densa y acumulación de historial, con el nivel de inversión que cada etapa conlleva.
+La Tabla~\ref{tab:comparacion-eta} reúne los antecedentes según los criterios de adopción y las
+dos dimensiones técnicas adicionales. Los sistemas puntuales ofrecen una salida sencilla, pero
+escasa resolución y ninguna memoria espacial en los casos revisados. Las propuestas RGB-D
+permiten aumentar la cobertura y, cuando incorporan estimación de movimiento, conservar
+observaciones. La mayor cantidad de información exige más procesamiento y una codificación
+comprensible para el usuario.
 
 La clasificación es cualitativa y se limita a las capacidades descritas por cada fuente. Se
 considera resolución muy baja cuando el sistema entrega una única distancia o dirección, y alta
 cuando conserva una medición densa del campo observado. La memoria temporal se marca únicamente
 cuando el trabajo describe una representación persistente del entorno; si la fuente no documenta
-esa capacidad, se marca como no satisfecha. La última fila corresponde
-al proyecto global, que integra el módulo de percepción y mapeo desarrollado en esta tesis con la
-interfaz háptica física implementada en la segunda etapa. Por eso los criterios de adopción se
-evalúan sobre el dispositivo completo, mientras que la resolución espacial y la memoria temporal
-provienen del aporte específico de esta tesis.
+esa capacidad, se marca como no satisfecha. La última fila reúne las características previstas
+del proyecto global al integrar percepción e interfaz física. Sus criterios de adopción son
+objetivos de diseño sujetos a la validación del dispositivo completo; la resolución espacial y
+la memoria temporal corresponden al módulo desarrollado en esta tesis.
 
 \begin{table}[htbp]
 \centering
 \caption{Comparación de sistemas de asistencia sensorial para personas ciegas según los criterios
 de Dakopoulos y Bourbakis~\cite{Dakopoulos2010} y dos criterios técnicos adicionales.
 \checkmark: satisfecho; $\sim$: parcialmente satisfecho; \texttimes: no satisfecho. La fila
-«Proyecto global» considera la integración de las dos etapas del proyecto.}
+«Proyecto global» describe los objetivos de diseño para la integración de las dos etapas.}
 \label{tab:comparacion-eta}
 \begin{tabularx}{\linewidth}{Xcccccc}
 \toprule
@@ -230,11 +206,9 @@ Proyecto global                                         & \checkmark & \checkmar
 \section{Mapeo local y evitación de obstáculos en robótica móvil}
 \label{sec:ea-mapeo}
 
-La revisión de los dispositivos de asistencia presentada en las secciones anteriores muestra que
-las limitaciones de resolución y de memoria temporal provienen, en parte, de no explotar las
-técnicas de mapeo local consolidadas en el campo de la robótica móvil. Esta sección revisa
-dichos enfoques y sus representaciones de ocupación probabilística, que constituyen el fundamento
-del módulo de mapeo desarrollado en esta tesis.
+Conservar un obstáculo después de perderlo de vista requiere ubicar las observaciones sucesivas
+en una representación común. Las técnicas de robótica móvil siguientes ofrecen alternativas
+para construir esa memoria con un costo de procesamiento acotado.
 
 \subsection{Mapas locales reactivos}
 \label{subsec:ea-mapas-reactivos}
@@ -324,34 +298,24 @@ Odometría RGB-D adoptada & Imagen RGB, profundidad y orientación IMU & \texttt
 A partir de los trabajos revisados se identifican cuatro limitaciones relevantes:
 
 \begin{enumerate}
-    \item \textbf{Resolución espacial insuficiente:} los ETA dominantes emplean sensores puntuales
-    que no permiten representar la distribución tridimensional de obstáculos en el campo visual del
-    usuario \cite{Dakopoulos2010, Santos2023, Petsiuk2019UltrasoundNavigation}. En particular, la
-    ausencia de cobertura vertical impide detectar obstáculos a la altura de la cabeza, como ramas,
-    cables o señales colgantes, que escapan al alcance del bastón blanco y requieren información
-    espacial en el eje vertical.
+    \item \textbf{Resolución espacial insuficiente:} los sistemas puntuales revisados emplean
+    sensores que no permiten representar la distribución tridimensional de obstáculos en el campo
+    visual del usuario \cite{Dakopoulos2010, Santos2023, Petsiuk2019UltrasoundNavigation}. En
+    particular, la ausencia de cobertura vertical impide detectar obstáculos a la altura de la
+    cabeza, como ramas, cables o señales colgantes, que escapan al alcance del bastón blanco y
+    requieren información espacial en el eje vertical.
 
     \item \textbf{Ausencia de acumulación temporal de observaciones:} los sistemas basados en
     cámara de profundidad como el de Yang et al.\ \cite{Yang2016} generan retroalimentación
-    directamente desde el fotograma instantáneo, sin conservar historial de observaciones. La
-    consecuencia más relevante no es la incapacidad de resolver oclusiones en profundidad, ya que
-    una representación 2D con memoria temporal como la de esta tesis tampoco reconstruye zonas no
-    visibles, sino la pérdida de información sobre obstáculos que han salido del campo de visión de
-    la cámara. Un usuario que gira la cabeza o que avanza dejando un objeto fuera del encuadre
-    pierde instantáneamente ese dato; sin acumulación temporal no es posible implementar lógicas de
-    evitación que operen sobre el historial reciente del entorno, lo que limita estructuralmente
-    la utilidad del sistema para anticipar colisiones con objetos que ya no están siendo
-    observados en ese instante.
+    directamente desde el fotograma instantáneo. Al girar la cabeza o avanzar, el usuario puede
+    dejar fuera del encuadre un obstáculo todavía relevante para su trayectoria. La memoria
+    permite conservar esa observación, aunque no reconstruye zonas nunca observadas ni resuelve
+    por sí sola las oclusiones en profundidad.
 
-    \item \textbf{Costo y accesibilidad del hardware:} el producto \emph{SuperBrain~1}
-    \cite{SeventhSense2024SuperBrain} muestra que la percepción densa y la realimentación háptica
-    vestible pueden integrarse en una solución comercial, pero su costo se encuentra en el orden de
-    miles de euros y su maduración demandó más de diez años. Entre los trabajos académicos
-    revisados, Lee y Medioni~\cite{Lee2016RGBD} emplean una computadora portátil y Zhang et
-    al.~\cite{Zhang2021DVIO} una plataforma robótica embebida. Estos antecedentes no permiten
-    trasladar directamente sus resultados a un dispositivo corporal basado en Raspberry Pi~5; por
-    ello, esta tesis debe caracterizar experimentalmente el costo computacional de su propia
-    configuración.
+    \item \textbf{Costo y accesibilidad del hardware:} las plataformas de los antecedentes
+    difieren de un dispositivo corporal basado en Raspberry Pi~5. Sus prestaciones no pueden
+    trasladarse directamente al prototipo. El costo computacional de la configuración adoptada
+    se analiza en el Capítulo~\ref{chap:resultados}.
 
     \item \textbf{Necesidad de baja latencia:} las métricas temporales publicadas por los trabajos
     revisados no son directamente comparables, porque pueden referirse a frecuencia del sensor,
@@ -361,21 +325,12 @@ A partir de los trabajos revisados se identifican cuatro limitaciones relevantes
     antes de que el usuario alcance su posición. Por ello, el retardo debe analizarse en relación
     con la velocidad de desplazamiento, la distancia de detección y el tiempo disponible para
     reaccionar, no solo con la frecuencia nominal de un nodo. Esta tesis incluye la latencia extremo
-    a extremo entre las métricas del Capítulo~\ref{chap:experimentos}; el umbral de aceptación se
-    definirá antes de interpretar los resultados.
+    a extremo entre las métricas del Capítulo~\ref{chap:experimentos}; el umbral de aceptación
+    se fija antes de interpretar los resultados.
 \end{enumerate}
 
-La presente tesis aborda estas cuatro brechas mediante la adaptación y validación de técnicas de
-percepción y mapeo local propias de la robótica móvil al dominio de la asistencia sensorial
-portátil. A diferencia de Lee y Medioni~\cite{Lee2016RGBD}, cuyo sistema apunta a la navegación
-global con planificación de rutas, el enfoque adoptado en esta tesis se centra en la conciencia
-local de obstáculos y en la generación de una representación háptica compacta, priorizando la
-ejecución sobre una plataforma de cómputo embebido. Se adopta una representación de baja resolución
-de 5 filas $\times$ 10 columnas, compatible con arreglos de actuadores hápticos de baja complejidad y con las
-restricciones de ancho de banda y cómputo de plataformas embebidas, con un compromiso explícito
-entre resolución espacial y frecuencia de actualización en línea con la discusión de la
-\Cref{subsec:ea-mapas-reactivos}. La cobertura vertical se obtiene durante el procesamiento 3D,
-antes de proyectar los obstáculos; la grilla 2D conserva ocupación sobre el plano horizontal y
-aporta memoria temporal, pero no mantiene información de altura. La plataforma Raspberry Pi~5
-permite evaluar el costo computacional sobre hardware embebido, y la configuración de movimiento
-adoptada se describe en la \Cref{subsec:ea-odometria}.
+Estas limitaciones orientan el trabajo hacia una percepción local con salida compacta y memoria
+reciente de obstáculos. Frente a la navegación global con planificación de rutas de Lee y
+Medioni~\cite{Lee2016RGBD}, se prioriza el entorno inmediato y la preparación para cómputo
+embebido. La evolución v0--v1--v2 permite incorporar primero la interpretación geométrica y luego
+la memoria, comparando el costo y el beneficio de cada capacidad.
