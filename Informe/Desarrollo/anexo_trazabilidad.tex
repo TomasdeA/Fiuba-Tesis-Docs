@@ -1,5 +1,7 @@
 % Anexo: Trazabilidad nodo -> tópicos -> archivo fuente
-A continuación se exponen tres tablas de referencia que relacionan los nodos principales del sistema, sus paquetes y los tópicos ROS~2 relevantes de entrada y salida. Esta trazabilidad facilita identificar, para cada bloque funcional descrito en los capítulos de Arquitectura, Método e Implementación (capítulos~\ref{chap:arquitectura}, \ref{chap:metodo} y~\ref{chap:implementacion}), qué información consume y qué información publica. Las Tablas~\ref{tab:anexo-trazabilidad-adquisicion}, \ref{tab:anexo-trazabilidad-mapeo} y \ref{tab:anexo-trazabilidad-salida} corresponden a la configuración v2 completa del sistema, esto es, \emph{pipeline} \emph{filtered}, odometría \texttt{rtabmap\_odom} y activación de \texttt{spatial\_awareness}.
+A continuación se exponen cuatro tablas de referencia que relacionan los nodos principales del sistema, sus paquetes, los tópicos ROS~2 relevantes de entrada y salida y los archivos que implementan o integran cada nodo. Esta trazabilidad facilita identificar, para cada bloque funcional descrito en los capítulos de Arquitectura, Método e Implementación (capítulos~\ref{chap:arquitectura}, \ref{chap:metodo} y~\ref{chap:implementacion}), qué información consume, qué información publica y dónde se concreta su implementación. Las Tablas~\ref{tab:anexo-trazabilidad-adquisicion}, \ref{tab:anexo-trazabilidad-mapeo} y \ref{tab:anexo-trazabilidad-salida} corresponden a la configuración v2 completa del sistema: \code{pipeline\_mode:=filtered}, \code{use\_perception:=true}, \code{use\_local\_mapper:=true}, \code{odom\_source:=rtabmap\_odom} y \code{use\_spatial\_awareness:=true}. La odometría proviene del nodo \texttt{rgbd\_odometry}, del paquete \texttt{rtabmap\_odom}, cuya salida se remapea a \texttt{nav\_odom}.
+
+Las salidas de depuración de \texttt{depth\_obstacle\_filter} requieren \code{debug:=true}, desactivado por defecto; \texttt{ground\_evidence} se habilita mediante \code{publish\_local\_mapper\_interface}, que el lanzamiento integrado activa al habilitar el mapeador. Los marcadores de \texttt{spatial\_awareness} dependen de \code{publish\_debug\_markers}, activado en su YAML. El puente UART y el visualizador se habilitan mediante \code{use\_hw} y \code{use\_viz}, respectivamente. El control de apertura del visualizador se habilita con \code{aperture\_control\_enabled}, verdadero por defecto.
 
 \begin{table}[p]
     \centering
@@ -9,13 +11,13 @@ A continuación se exponen tres tablas de referencia que relacionan los nodos pr
         \hline
         \textbf{Nodo} & \textbf{Paquete} & \textbf{In} & \textbf{Out} \\
         \hline
-        \texttt{camera} (\texttt{realsense2\_camera\_node}) & \texttt{realsense2\_camera} & hardware & /camera/camera/imu (unificada para v2), /camera/camera/color/image\_raw, /camera/camera/color/camera\_info, /camera/camera/aligned\_depth\_to\_color/image\_raw, /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info \\
+        \texttt{camera} (\texttt{realsense2\_camera\_node}) & \texttt{realsense2\_camera} & hardware & /camera/camera/imu (unificada para v2), /camera/camera/accel/sample, /camera/camera/color/image\_raw, /camera/camera/color/camera\_info, /camera/camera/aligned\_depth\_to\_color/image\_raw, /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info; TF estáticas internas del sensor \\
         \addlinespace
         \texttt{imu\_filter\_madgwick} & \texttt{imu\_filter\_madgwick} & /camera/camera/imu & /imu/data\_filtered \\
         \addlinespace
         \texttt{rgbd\_odometry} & \texttt{rtabmap\_odom} & /camera/camera/color/image\_raw, /camera/camera/color/camera\_info, /camera/camera/aligned\_depth\_to\_color/image\_raw, /imu/data\_filtered & nav\_odom \\
         \addlinespace
-        \texttt{depth\_obstacle\_filter} & \texttt{depth\_obstacle\_filter} & /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info, /camera/camera/accel/sample & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/ground\_evidence, /depth\_obstacle\_filter/camera\_height, /depth\_obstacle\_filter/debug/* \\
+        \texttt{depth\_obstacle\_filter} & \texttt{depth\_obstacle\_filter} & /camera/camera/depth/image\_rect\_raw, /camera/camera/depth/camera\_info, /camera/camera/accel/sample & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/ground\_evidence, /depth\_obstacle\_filter/camera\_height; TF gravity\_aligned\_frame $\to$ camera\_depth\_optical\_frame; /depth\_obstacle\_filter/debug/* (opcional) \\
         \hline
     \end{tabularx}
     \caption{Trazabilidad de adquisición, prefiltrado IMU y percepción geométrica.}
@@ -32,9 +34,9 @@ A continuación se exponen tres tablas de referencia que relacionan los nodos pr
         \hline
         \texttt{local\_mapper} & \texttt{local\_mapper} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/ground\_evidence, nav\_odom, /depth\_obstacle\_filter/camera\_height & /local\_mapper/occupancy\_grid, TF odom $\to$ gravity\_aligned\_frame \\
         \addlinespace
-        \texttt{obstacle\_grid\_encoder} & \texttt{depth\_grid\_encoder} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/camera\_height & /perception/depth\_grid, /perception/depth\_grid/aperture\_state\_deg \\
+        \texttt{obstacle\_grid\_encoder} & \texttt{depth\_grid\_encoder} & /depth\_obstacle\_filter/obstacle\_cloud, /depth\_obstacle\_filter/camera\_height, /perception/depth\_grid/aperture\_deg & /perception/depth\_grid, /perception/depth\_grid/aperture\_state\_deg \\
         \addlinespace
-        \texttt{spatial\_awareness} & \texttt{spatial\_awareness} & /local\_mapper/occupancy\_grid, nav\_odom, /perception/depth\_grid/aperture\_state\_deg & /spatial\_awareness/collision\_risk, /spatial\_awareness/debug/markers \\
+        \texttt{spatial\_awareness} & \texttt{spatial\_awareness} & /local\_mapper/occupancy\_grid, nav\_odom, /perception/depth\_grid/aperture\_state\_deg & /spatial\_awareness/collision\_risk, /spatial\_awareness/debug/markers (opcional) \\
         \hline
     \end{tabularx}
     \caption{Trazabilidad de mapeo local, codificación de grilla y conciencia espacial.}
@@ -53,13 +55,50 @@ A continuación se exponen tres tablas de referencia que relacionan los nodos pr
         \addlinespace
         \texttt{hardware\_manager} (\texttt{grid\_to\_motor}) & \texttt{hardware\_manager} & /perception/haptic\_grid & Trama UART \\
         \addlinespace
-        \texttt{depth\_grid\_heatmap} & \texttt{output\_viewer} & /perception/haptic\_grid, /spatial\_awareness/collision\_risk & visualización \\
+        \texttt{depth\_grid\_heatmap} & \texttt{output\_viewer} & /perception/haptic\_grid, /spatial\_awareness/collision\_risk & visualización; /perception/depth\_grid/aperture\_deg (control opcional de apertura) \\
         \addlinespace
         \texttt{nav\_bringup} (\emph{launch}) & \texttt{nav\_bringup} & argumentos de ejecución y configuración general & orquestación del sistema completo \\
         \hline
     \end{tabularx}
     \caption{Trazabilidad de fusión háptica, salida, visualización y orquestación.}
     \label{tab:anexo-trazabilidad-salida}
+\end{table}
+
+La Tabla~\ref{tab:anexo-trazabilidad-fuentes} vincula cada nodo con su archivo fuente principal o, para los paquetes externos, con los archivos que definen su integración. Las rutas son relativas a \path{develop/nav_mapper/src/}.
+
+\begin{table}[p]
+    \centering
+    \scriptsize
+    \setlength{\extrarowheight}{2pt}
+    \begin{tabularx}{\textwidth}{L{3.2cm}X}
+        \hline
+        \textbf{Nodo o lanzador} & \textbf{Archivo fuente o referencia de integración} \\
+        \hline
+        \texttt{camera} & Paquete externo; integración en \path{nav_bringup/launch/nav.launch.py} \\
+        \addlinespace
+        \texttt{imu\_filter\_madgwick} & Paquete externo; integración en \path{nav_bringup/launch/nav.launch.py} \\
+        \addlinespace
+        \texttt{rgbd\_odometry} & Paquete externo; integración en \path{nav_bringup/launch/nav.launch.py} y configuración en \path{nav_bringup/config/rtabmap_odometry.yaml} \\
+        \addlinespace
+        \texttt{depth\_obstacle\_filter} & \path{depth_obstacle_filter/src/depth_obstacle_filter_node.cpp}; adaptación de tópicos en \path{depth_obstacle_filter/launch/depth_obstacle_filter.launch.py} \\
+        \addlinespace
+        \texttt{local\_mapper} & \path{local_mapper/src/occupancy_mapper_node.cpp}; actualización del mapa en \path{local_mapper/src/occupancy_mapper.cpp} \\
+        \addlinespace
+        \texttt{obstacle\_grid\_encoder} & \path{depth_grid_encoder/src/obstacle_grid_encoder_node.cpp} \\
+        \addlinespace
+        \texttt{spatial\_awareness} & \path{spatial_awareness/src/spatial_awareness_node.cpp}; evaluación de riesgo en \path{spatial_awareness/src/risk_evaluator.cpp} \\
+        \addlinespace
+        \texttt{haptic\_grid\_generator} & \path{haptic_grid_generator/src/haptic_grid_generator_node.cpp} \\
+        \addlinespace
+        \texttt{hardware\_manager} & \path{hardware_manager/src/grid_to_motor.cpp} \\
+        \addlinespace
+        \texttt{depth\_grid\_heatmap} & \path{output_viewer/output_viewer/output_viewer_node.py} \\
+        \addlinespace
+        \texttt{nav\_bringup} (\emph{launch}) & \path{nav_bringup/launch/nav.launch.py} \\
+        \hline
+    \end{tabularx}
+    \caption{Trazabilidad de nodos y archivos fuente o de integración.}
+    \label{tab:anexo-trazabilidad-fuentes}
 \end{table}
 
 % Nota: en la configuración v2 documentada, la odometría proviene exclusivamente de
