@@ -67,24 +67,24 @@ def main():
         front=np.zeros(len(dist),dtype=np.float32)
         lo,hi=np.float32(args.z_min),np.float32(args.z_max)
         front[valid]=(hi-np.clip(dist[valid],lo,hi))/(hi-lo)*np.float32(100)
-        actual=np.array(m.intensities,dtype=np.float32);actual_active=np.array(m.active)
+        actual=np.array(m.intensities,dtype=np.float32)
         delta=actual-front
         # Recorder ordering does not expose subscriber callback ordering. Search
         # recent published risks, allowing 10 ms recorder scheduling skew.
         indices=np.where((risk_rt<=rt+10_000_000)&(risk_rt>=rt-750_000_000))[0][::-1]
         match=None
         for j in indices:
-            rrt,r=risks[j];expected=front.copy().reshape(shape);enabled=valid.copy().reshape(shape)
+            rrt,r=risks[j];expected=front.copy().reshape(shape)
             if r.valid:
                 for key,cols in [('left',[0]),('right',[m.cols-1]),('rear',list(range((m.cols-2)//2,(m.cols-2)//2+2)))]:
                     v=getattr(r,key)
                     if v.active and v.intensity>0:
                         for col in cols:
-                            expected[:,col]=np.maximum(expected[:,col],np.clip(v.intensity,0,100));enabled[:,col]=True
-            if np.allclose(actual,expected.ravel(),atol=2e-4,rtol=0) and np.array_equal(actual_active,enabled.ravel()):
+                            expected[:,col]=np.maximum(expected[:,col],np.clip(v.intensity,0,100))
+            if np.allclose(actual,expected.ravel(),atol=2e-4,rtol=0):
                 match=dict(risk_t=stamp(r)-t0,regions=[key for key in ['left','right','rear'] if r.valid and getattr(r,key).active],
                     recorded_gap_s=(rt-rrt)*1e-9);break
-        frontal_match=np.allclose(actual,front,atol=2e-4,rtol=0) and np.array_equal(actual_active,valid)
+        frontal_match=np.allclose(actual,front,atol=2e-4,rtol=0)
         extra=int((delta>2e-4).sum())
         check=dict(t=ts-t0,extra_cells=extra,max_increase=float(delta.max()),
             matched_risk=match,frontal_only=bool(frontal_match),source_age_s=age(rt,ts))

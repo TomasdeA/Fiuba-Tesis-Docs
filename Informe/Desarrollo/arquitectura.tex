@@ -86,11 +86,12 @@ El paquete \texttt{custom\_interfaces} concentra los tipos de mensajes específi
 En la cadena de percepción frontal, \texttt{DepthGrid} modela una grilla compacta de celdas y
 \texttt{DepthCellStats} encapsula la estadística de cada celda (media, mínimo, máximo y conteo
 de puntos válidos). En la cadena de actuación, \texttt{HapticGrid} representa la salida final de
-intensidades hápticas con dos arreglos explícitos: \texttt{intensities} y \texttt{active}. Para
-la conciencia espacial, \texttt{DirectionalRisk} describe el riesgo por dirección
-(activación, intensidad, distancia, velocidad de cierre y tiempo hasta colisión) y
-\texttt{SpatialAwareness} agrupa los tres canales \texttt{left}, \texttt{right} y \texttt{rear}
-junto con una bandera de validez global. Esta separación reduce el acoplamiento entre nodos y evita incorporar información de riesgo dentro de un mensaje destinado a percepción.
+intensidades hápticas mediante el arreglo \texttt{intensities}. Para la conciencia espacial,
+\texttt{DirectionalRisk} describe el riesgo por dirección (activación, intensidad, distancia,
+velocidad de cierre y tiempo hasta colisión) y \texttt{SpatialAwareness} agrupa los tres canales
+\texttt{left}, \texttt{right} y \texttt{rear} junto con una bandera de validez global. Esta
+separación reduce el acoplamiento entre nodos y evita incorporar información de riesgo dentro de un
+mensaje destinado a percepción.
 
 La configuración de lanzamiento se centraliza en \code{nav.launch.py}, perteneciente al paquete
 \texttt{nav\_bringup}. Este archivo expone parámetros para habilitar o deshabilitar componentes y
