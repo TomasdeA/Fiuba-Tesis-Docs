@@ -1,0 +1,109 @@
+{
+  "method": "atan2(X,Z) in the recorded frame; finite points, .25 <= Z <= 5 m",
+  "scope": "Observed support only; revalidate profiles and orientation ranges.",
+  "bags": [
+    {
+      "bag": "/home/tomasdea/Tesis/docs/Informe/__Graficos/metodo/codificacion_angular/rosbag",
+      "database_sha256": "a4d5e760290857a3f56c6532916baba845b88457adfb84c9bc6114c2cc5c0adf",
+      "camera_info": [],
+      "clouds": [
+        {
+          "topic": "/depth_obstacle_filter/obstacle_cloud",
+          "frames": [
+            "gravity_aligned_frame"
+          ],
+          "nonempty_frames": 104,
+          "point_observations": 15911658,
+          "z_range_m": [
+            0.25,
+            5
+          ],
+          "left_deg": -54.278175354003906,
+          "right_deg": 52.7788200378418,
+          "max_abs_deg": 54.278175354003906,
+          "rounded_limit_deg": 55,
+          "frame_max_abs_percentiles_50_95_99_100": [
+            53.53635215759277,
+            54.10715465545654,
+            54.26304416656494,
+            54.278175354003906
+          ]
+        }
+      ]
+    },
+    {
+      "bag": "/home/tomasdea/Tesis/bags/experimentos_tesis/R01_estatica_multirango_calibracion_2",
+      "database_sha256": "e343a002a66d202789f1368577ea35671abeffc23882c51fcae629504d9eb1c4",
+      "camera_info": [
+        {
+          "topic": "/camera/camera/aligned_depth_to_color/camera_info",
+          "width": 1280,
+          "height": 720,
+          "fx": 906.3552856445312,
+          "cx": 653.70263671875,
+          "left_deg": -35.80077298865284,
+          "right_deg": 34.601915944324055,
+          "total_deg": 70.4026889329769
+        },
+        {
+          "topic": "/camera/camera/color/camera_info",
+          "width": 1280,
+          "height": 720,
+          "fx": 906.3552856445312,
+          "cx": 653.70263671875,
+          "left_deg": -35.80077298865284,
+          "right_deg": 34.601915944324055,
+          "total_deg": 70.4026889329769
+        },
+        {
+          "topic": "/camera/camera/depth/camera_info",
+          "width": 1280,
+          "height": 720,
+          "fx": 642.808837890625,
+          "cx": 651.4259033203125,
+          "left_deg": -45.381471899887714,
+          "right_deg": 44.31292800869627,
+          "total_deg": 89.69439990858399
+        }
+      ],
+      "clouds": []
+    },
+    {
+      "bag": "/home/tomasdea/Tesis/bags/experimentos_tesis/R03_completa",
+      "database_sha256": "d536aba68753264bfc82a67a58b08a9fc7bbda09439a1a777f059e7125adac66",
+      "camera_info": [
+        {
+          "topic": "/camera/camera/aligned_depth_to_color/camera_info",
+          "width": 1280,
+          "height": 720,
+          "fx": 906.3552856445312,
+          "cx": 653.70263671875,
+          "left_deg": -35.80077298865284,
+          "right_deg": 34.601915944324055,
+          "total_deg": 70.4026889329769
+        },
+        {
+          "topic": "/camera/camera/color/camera_info",
+          "width": 1280,
+          "height": 720,
+          "fx": 906.3552856445312,
+          "cx": 653.70263671875,
+          "left_deg": -35.80077298865284,
+          "right_deg": 34.601915944324055,
+          "total_deg": 70.4026889329769
+        },
+        {
+          "topic": "/camera/camera/depth/camera_info",
+          "width": 1280,
+          "height": 720,
+          "fx": 642.808837890625,
+          "cx": 651.4259033203125,
+          "left_deg": -45.381471899887714,
+          "right_deg": 44.31292800869627,
+          "total_deg": 89.69439990858399
+        }
+      ],
+      "clouds": []
+    }
+  ]
+}

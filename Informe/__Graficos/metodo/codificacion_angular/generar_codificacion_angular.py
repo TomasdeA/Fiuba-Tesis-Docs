@@ -132,9 +132,9 @@ def read_sample(args):
 
 
 def bin_index(values: np.ndarray, low: float, high: float, bins: int) -> np.ndarray:
-    """Replica binIndex() de C++ incluido su truncamiento hacia cero."""
+    """Replica binIndex() de C++ con comprobación previa de [low, high)."""
     indices = ((values - low) / (high - low) * bins).astype(np.int64)
-    indices[(indices < 0) | (indices >= bins)] = -1
+    indices[(values < low) | (values >= high) | (indices < 0) | (indices >= bins)] = -1
     return indices
 
 
@@ -257,19 +257,10 @@ def plot(points, grid, depth, result, args, aperture_deg: float, y_max: float):
             [0, max_range * math.sin(angle)], [0, max_range * math.cos(angle)],
             color="0.35", lw=1.2, ls="--",
         )
-    output_step_deg = 2.0 * aperture_deg / cols
-    effective_low_deg = -aperture_deg - output_step_deg
-    effective_low = math.radians(effective_low_deg)
-    top.plot(
-        [0, max_range * math.sin(effective_low)],
-        [0, max_range * math.cos(effective_low)],
-        color="crimson", lw=1.4, ls=":",
-        label=f"límite inferior efectivo ({effective_low_deg:g}°)",
-    )
     top.plot(0, 0, marker="^", color="black", ms=7)
     top.set_title(
         f"Vista superior: {result['high_cols']} sectores internos de {args.resolution_deg:g}° "
-        f"y reducción a {cols} columnas (apertura nominal ±{aperture_deg:g}°)"
+        f"y reducción a {cols} columnas (semiapertura ±{aperture_deg:g}°)"
     )
     top.set_xlabel("x [m]")
     top.set_ylabel("z [m]")
@@ -344,7 +335,7 @@ def parse_args():
     parser.add_argument("--cloud-index", type=int, default=30)
     parser.add_argument("--rows", type=int, default=5)
     parser.add_argument("--cols", type=int, default=10)
-    parser.add_argument("--sensor-aperture-deg", type=float, default=70.0)
+    parser.add_argument("--sensor-aperture-deg", type=float, default=55.0)
     parser.add_argument("--active-aperture-deg", type=float, default=45.0)
     parser.add_argument("--resolution-deg", type=float, default=1.0)
     parser.add_argument("--y-min", type=float, default=-0.20)

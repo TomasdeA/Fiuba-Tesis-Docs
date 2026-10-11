@@ -1,0 +1,26 @@
+{
+  "base_revision": "709cd7d",
+  "files": {
+    "depth_grid_encoder/config/obstacle_grid_encoder.yaml": {
+      "original_sha256": "8e4aef4387ccf7e73b72cecb8c5d11ca75b254ea48ef8f434bfbda2dcb774802",
+      "staged_sha256": "79512d9f60a8828c2b22525311f559a18382773f846b05469caeb02a7e699134"
+    },
+    "depth_grid_encoder/src/obstacle_grid_encoder_node.cpp": {
+      "original_sha256": "0779f38f17a959fba746d1bbb03d7b4346e2174cf97018644ca2e766746ac354",
+      "staged_sha256": "dca6bb2a83c99178cb4b52e52371f7f94b3e5be438995ac59d20c65cfa08dbce"
+    },
+    "output_viewer/output_viewer/output_viewer_node.py": {
+      "original_sha256": "97d4a9133d1806f57b0afd679f63e9ca73511edb62f83776a3b6f66ba54f0995",
+      "staged_sha256": "e20fd017974a30c036e8b6b519290a3dc32f7a7df67b4dcdd50676108bc1043a"
+    },
+    "output_viewer/launch/viewer.launch.py": {
+      "original_sha256": "0a1a612c3fcdf3eb23188d336b09d812edc1639b9e4780ccfefc60186fbc14b3",
+      "staged_sha256": "855b5f10e631691c5e182c6c2ca06b05ae696de639181f6c564409fda70613cb"
+    },
+    "nav_bringup/launch/nav.launch.py": {
+      "original_sha256": "d5dab10a43ef2e40eceddfbcdcd7638517f04cf284d4f08cf5a7caf3eca811f6",
+      "staged_sha256": "490dd15bc319a1fe673c7091f386d325b3e0ce7b599ccea56a690eaae1152f7f"
+    }
+  },
+  "verification": "__Graficos/metodo/codificacion_angular/salida/codificacion_angular.json"
+}
