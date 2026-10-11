@@ -362,9 +362,11 @@ a distintos usuarios y montajes. A partir de las estimaciones aceptadas, el sist
 límite inferior de la grilla al suelo observado, con suficiente inercia para no trasladar ruido
 de RANSAC a la salida háptica.
 
-Ante un plano inválido o un salto no plausible no se publica una nueva altura: el codificador
-conserva la última recibida y, antes de la primera estimación aceptada, utiliza el límite nominal
-configurado. Así, las filas no cambian de significado según cuál sea el punto más bajo visible
+Un salto aislado se rechaza; un cambio grande sostenido puede confirmarse mediante
+varias estimaciones coherentes y adaptarse con una transición gradual. Ante un plano inválido
+o un cambio todavía no confirmado se conserva la última altura publicada; antes de la primera
+estimación aceptada se utiliza el límite nominal configurado. Las constantes de confirmación y
+transición se detallan en el Capítulo~\ref{chap:implementacion}. Así, las filas no cambian de significado según cuál sea el punto más bajo visible
 en cada fotograma.
 
 Conservar la altura no sustituye la segmentación del suelo. Si no se obtiene un plano válido,
