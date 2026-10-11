@@ -267,7 +267,9 @@ y luego se mide la inclinación que el piso conserva dentro de ese marco. Para e
 plano alineado presenta una pendiente frontal de $+3{,}5^\circ$, una pendiente lateral de
 $-3{,}6^\circ$ y una inclinación tridimensional total cercana a $5{,}0^\circ$. Estas magnitudes
 describen el plano detectado después de compensar el roll y el pitch de la cámara; no describen una
-segunda rotación aplicada a ella.
+segunda rotación aplicada a ella. Las pendientes mostradas se obtuvieron mediante un ajuste del
+plano para elaborar la figura. Su comparación con el estimador del sistema se presenta en el
+Capítulo~\ref{chap:resultados}.
 
 La tolerancia adaptativa se acota y, si no puede estimarse, se reemplaza por un valor de respaldo.
 Durante la búsqueda de RANSAC se combina además con el término proporcional al alcance de la
@@ -594,12 +596,12 @@ delimitan las ventanas locales. Todas las vistas comparten los límites de los e
 
 La capa de conciencia espacial selecciona las celdas que superan el umbral de ocupación, las
 agrupa con vecindad de ocho conexiones y descarta componentes sin el soporte espacial mínimo.
-Cada componente restante se evalúa respecto de la pose y la velocidad del usuario. Un candidato
-solo genera riesgo si queda fuera de la apertura frontal comunicada por el codificador, más un
-margen angular de separación. Esta exclusión se actualiza al cambiar la apertura; no corresponde
-a un sector frontal fijo. Además, el candidato debe quedar dentro de una banda de distancia útil,
-alineado con el corredor corporal, con velocidad de cierre positiva y con tiempo
-hasta colisión menor al horizonte configurado.
+Cada componente restante se evalúa respecto de la pose y la velocidad del usuario. La región
+contextual sigue la apertura frontal comunicada por el codificador e incluye un margen de
+solapamiento hacia el interior de sus bordes, para evitar una franja sin cobertura entre ambas
+capas. Este límite se actualiza al cambiar la apertura. Dentro de esa región, un candidato solo
+genera riesgo si queda en la banda de distancia útil, alineado con el corredor corporal, con
+velocidad de cierre positiva y con tiempo hasta colisión menor al horizonte configurado.
 
 El riesgo se separa en tres regiones semánticas: izquierda, derecha y posterior. En cada región se
 conserva el candidato más urgente, definido por mayor intensidad y, ante empate, menor tiempo hasta
