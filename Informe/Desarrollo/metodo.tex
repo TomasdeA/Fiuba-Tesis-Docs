@@ -18,9 +18,12 @@ definido en la Sección~\ref{sec:intro-alcance}. Los detalles del despliegue se 
 Capítulo~\ref{chap:implementacion}; el desempeño y las restricciones de cada versión en ambas
 plataformas se analizan en el Capítulo~\ref{chap:resultados}.
 
-Las figuras reutilizan las escenas conceptuales definidas en el
-Capítulo~\ref{chap:experimentos}. Cuando se compara una alternativa de procesamiento, se conserva
-el mismo fotograma o tramo temporal para atribuir el cambio al método y no al entorno.
+Las figuras utilizan las escenas de ensayo cuyo protocolo se presenta en el
+Capítulo~\ref{chap:experimentos}. En la nomenclatura utilizada, E seguido de un número identifica
+la escena de ensayo, y las letras añadidas identifican configuraciones de esa escena, no versiones
+del algoritmo. Por ejemplo, E1-A designa la configuración A de la escena E1. Cuando se compara una
+alternativa de procesamiento, se conserva el mismo fotograma o tramo temporal para atribuir el
+cambio al método y no al entorno.
 
 \section{Versión v0: percepción frontal directa}
 \label{sec:metodo-v0}
@@ -58,7 +61,7 @@ se representa en blanco. Las mismas marcas se repiten sobre la grilla para hacer
 correspondencia entre entrada y salida. El mismo instante se procesa con v1 para que el cambio de
 representación pueda atribuirse al método y no a una disposición diferente del entorno.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{__Graficos/metodo/reduccion_v0_R01_fase_inicial/salida/reduccion_v0_R01_fase_inicial.png}
   \caption[Reducción v0 de la configuración E1-A]{Reducción de la configuración inicial
@@ -97,6 +100,7 @@ ocupa una parte importante del campo de profundidad, y la pérdida de contexto c
 sale del campo frontal luego de haber sido observado. Esas dos limitaciones motivan v1 y v2,
 respectivamente.
 
+\clearpage
 \section{Versión v1: filtrado geométrico de la escena}
 \label{sec:metodo-v1}
 
@@ -115,7 +119,7 @@ y región superior; en el centro, su reducción a una \texttt{DepthGrid} angular
 apreciar inmediatamente el salto funcional respecto de v0. Las subsecciones siguientes desarrollan
 en orden las decisiones que producen esta salida.
 
-\begin{figure}[H]
+\begin{figure}[htbp]
   \centering
   \includegraphics[width=\textwidth]{__Graficos/metodo/reduccion_v1_R01_fase_inicial/salida/reduccion_v1_R01_fase_inicial.png}
   \caption[Reducción v1 alineada y filtrada]{Reducción v1 del mismo instante de E1-A usado en
@@ -128,27 +132,26 @@ en orden las decisiones que producen esta salida.
   \label{fig:metodo-reduccion-v1-filtrado}
 \end{figure}
 
+\begin{samepage}
 \subsection{Proyección 3D y rango útil}
 \label{sec:metodo-v1-proyeccion}
 
-La v1 conserva el criterio de v0 de descartar mediciones inválidas y limitar la profundidad axial,
-con una diferencia en los extremos: v0 acepta el intervalo cerrado $[z_{\min},z_{\max}]$, mientras
-que el filtro de v1 exige $z_{\min}<Z<z_{\max}$. Con la configuración adoptada, una medición
-exactamente igual a \SI{0.25}{\metre} o \SI{5}{\metre} se acepta en v0 y se descarta en v1.
-Esta comprobación inicial utiliza la coordenada $Z$ del marco óptico de la cámara, antes de
-cualquier alineación con la gravedad; su significado sigue siendo el de profundidad axial del
-sensor.
+Tanto v0 como v1 descartan mediciones inválidas y limitan la profundidad axial al rango operativo
+configurado. Esta comprobación inicial utiliza la coordenada $Z$ del marco óptico de la cámara,
+antes de cualquier alineación con la gravedad; su significado sigue siendo el de profundidad
+axial del sensor.
 
-Las versiones difieren también en cómo reducen las mediciones. En v0, la profundidad axial de cada
-muestra aceptada se acumula directamente en una región rectangular de la imagen y se conserva el
-mínimo de esa región. En v1, la imagen se retroproyecta mediante el modelo de cámara a puntos
-métricos $(X,Y,Z)$; después del control inicial de rango, la nube válida se rota al marco alineado
-con la gravedad. Sobre esas
-coordenadas se estiman el suelo y las regiones verticales, y los obstáculos restantes se agrupan
-por ángulo horizontal y altura respecto del suelo. La distancia publicada deja así de ser la
-profundidad axial de un píxel y pasa a ser la distancia radial $\sqrt{X^2+Z^2}$ del obstáculo en el
-plano horizontal. La retroproyección y ambas métricas se desarrollan en la
-Sección~\ref{sec:mt-rgbd}.
+\end{samepage}
+
+A partir de ese control inicial, las versiones difieren en cómo reducen las mediciones. En v0,
+la profundidad axial de cada muestra aceptada se acumula directamente en una región rectangular de
+la imagen y se conserva el mínimo de esa región. En v1, la imagen se retroproyecta mediante el
+modelo de cámara a puntos métricos $(X,Y,Z)$; después del control inicial de rango, la nube válida
+se rota al marco alineado con la gravedad. Sobre esas coordenadas se estiman el suelo y las
+regiones verticales, y los obstáculos restantes se agrupan por ángulo horizontal y altura respecto
+del suelo. La distancia publicada deja así de ser la profundidad axial de un píxel y pasa a ser la
+distancia radial $\sqrt{X^2+Z^2}$ del obstáculo en el plano horizontal. La retroproyección y ambas
+métricas se desarrollan en la Sección~\ref{sec:mt-rgbd}.
 
 Antes de acumular la grilla frontal, el codificador aplica un segundo control de rango, esta vez
 sobre la componente $Z$ de la nube alineada con la gravedad. En esa etapa se aceptan ambos
@@ -157,9 +160,9 @@ puede descartarse en el codificador si la rotación cambia su componente frontal
 fuera del intervalo. Este segundo control se desarrolla en la
 Sección~\ref{sec:metodo-v1-angular}.
 
-Las mediciones que superan $z_{\max}$ tampoco se interpretan como obstáculos en v1. Sin embargo,
-incluso cuando se habilita la interfaz del mapeador local se mantiene ese descarte. La evidencia libre de v2 se obtiene del suelo observado y del recorrido anterior al
-primer retorno de cada sector angular.
+Las mediciones que superan $z_{\max}$ tampoco se interpretan como obstáculos en v1. Este descarte
+se mantiene al habilitar la interfaz del mapeador local, la evidencia libre de v2 se obtiene del
+suelo observado y del recorrido anterior al primer retorno de cada sector angular.
 
 Para acotar el costo antes de la segmentación, la reducción de carga se adelanta al nivel de
 imagen mediante submuestreo de píxeles. Además, la búsqueda de suelo se limita a una banda candidata
@@ -189,10 +192,16 @@ fotograma no se observaron mediciones positivas inferiores a $z_{\min}$.
   \label{fig:metodo-candidatos-v1-R01}
 \end{figure}
 
-También se implementó una reducción por vóxeles como alternativa al acotamiento directo de los
-candidatos de RANSAC. Como no integra la cadena adoptada, su configuración se describe
-en el Capítulo~\ref{chap:implementacion} y su comparación geométrica y temporal se reserva para los
-capítulos~\ref{chap:experimentos} y~\ref{chap:resultados}.
+La reducción por vóxeles se implementó para regularizar la densidad de los puntos usados
+en la búsqueda del plano: cada volumen agrupa sus muestras en un centroide. Esta alternativa puede
+reducir el trabajo de RANSAC, pero añade el costo de agrupar la nube y no reduce por sí misma el
+refinamiento ni la clasificación final, que utilizan los puntos originales. El perfil adoptado
+mantiene desactivada esa reducción y combina submuestreo de píxeles con un límite de puntos en la
+banda candidata. Son controles distintos: el primero reduce la entrada de toda la cadena; el
+segundo acota la búsqueda de suelo. La configuración se documenta en el
+Capítulo~\ref{chap:implementacion}; el protocolo de comparación de estas alternativas en la PC de
+desarrollo y Raspberry Pi~5 se presenta en el Capítulo~\ref{chap:experimentos}, y su costo y calidad
+geométrica se analizan en el Capítulo~\ref{chap:resultados}.
 
 \subsection{Alineación con gravedad}
 \label{sec:metodo-v1-gravedad}
@@ -238,9 +247,7 @@ descomposición de Euler del cuaternión conjunto.
   \label{fig:metodo-gravity-alignment}
 \end{figure}
 
-La vertical se obtiene sin estimar trayectoria ni yaw, conforme a la
-Sección~\ref{sec:mt-orientacion-gravitacional}.
-
+\begin{samepage}
 \subsection{Estimación robusta del suelo}
 \label{sec:metodo-v1-suelo}
 
@@ -249,6 +256,8 @@ en la cabeza. El eje vertical del marco alineado toma $Y$ positivo hacia abajo. 
 suelo se busca en una banda inferior de la nube, no alrededor del origen de la cámara. El método
 combina una banda candidata, tolerancia dependiente del ruido, RANSAC y validación geométrica. Los
 fundamentos de estas operaciones se presentan en la Sección~\ref{sec:mt-ground-detection}.
+
+\end{samepage}
 
 La Figura~\ref{fig:metodo-gravity-alignment} ilustra también esta etapa. Los puntos
 magenta son los inliers que sostienen la hipótesis de suelo y la línea negra discontinua es una
@@ -267,8 +276,8 @@ tolerancia adaptativa global: acepta los puntos situados dentro de ella y tambi�
 por debajo del plano. Esta asimetría evita convertir en obstáculos pequeñas penetraciones debidas
 al ruido. Las cotas y el valor de respaldo se documentan en el Capítulo~\ref{chap:implementacion}.
 
-La validez del plano no depende solo de encontrar muchos inliers. También se exige que su normal
-sea compatible con el eje vertical y que la calidad relativa supere un mínimo. Para evitar saltos
+Para aceptar el candidato de RANSAC no basta con encontrar muchos inliers, también se exige que su
+normal sea compatible con el eje vertical y que la calidad relativa supere un mínimo. Para evitar saltos
 cuando el suelo queda parcialmente visible, se conserva un plano previo válido y se lo reutiliza si
 continúa explicando la nube actual con suficiente soporte. Esta caché temporal reduce
 intermitencias sin convertir el plano en una constante: si deja de cumplir los criterios de
@@ -327,7 +336,8 @@ de la evidencia libre destinada al mapa. El descarte solo es válido para un mon
 esa región queda fuera del volumen corporal protegido. Las condiciones de prueba se especifican
 en el Capítulo~\ref{chap:experimentos}.
 
-El panel (b) permite observar esta distinción en una situación menos evidente que un techo plano:
+El panel (b) de la Figura~\ref{fig:metodo-ground-ceiling-classification} permite observar esta
+distinción en una situación menos evidente que un techo plano:
 parte de una estructura cuelga en la escena, pero permanece por encima de la altura de protección
 definida respecto de la cámara. Bajo el supuesto de montaje a la altura de la cabeza, esa geometría
 se trata como externa a la envolvente corporal considerada. Esto no garantiza ausencia de
@@ -345,13 +355,22 @@ publica solo cuando la variación supera un umbral. Además, la altura se actual
 plano de suelo cumple condiciones más estrictas de inclinación, calidad e inliers que las usadas
 para segmentar obstáculos.
 
-Esta realimentación estabiliza la ventana vertical del encoder de obstáculos. En lugar de fijar
-una altura nominal para todos los usuarios y montajes, el sistema adapta el límite inferior de la
-grilla al suelo observado, pero lo hace con suficiente inercia para no trasladar ruido de RANSAC a
-la salida háptica.
+Esta realimentación estabiliza la ventana vertical del encoder de obstáculos y permite adaptarla
+a distintos usuarios y montajes. A partir de las estimaciones aceptadas, el sistema ajusta el
+límite inferior de la grilla al suelo observado, con suficiente inercia para no trasladar ruido
+de RANSAC a la salida háptica.
 
-Ante un plano inválido o un salto no plausible se conserva la altura anterior. La
-Figura~\ref{fig:metodo-realimentacion-altura} resume el procedimiento.
+Ante un plano inválido o un salto no plausible no se publica una nueva altura: el codificador
+conserva la última recibida y, antes de la primera estimación aceptada, utiliza el límite nominal
+configurado. Así, las filas no cambian de significado según cuál sea el punto más bajo visible
+en cada fotograma.
+
+Conservar la altura no sustituye la segmentación del suelo. Si no se obtiene un plano válido,
+los puntos que no pertenecen a la región superior se consideran obstáculos; el piso no reconocido
+puede entonces producir activaciones en la grilla. La ausencia de una nueva altura no interrumpe
+por sí sola la salida háptica.
+
+La Figura~\ref{fig:metodo-realimentacion-altura} resume el filtrado y la actualización de la altura.
 
 \begin{figure}[H]
   \centering
@@ -383,11 +402,6 @@ Así, cambiar la apertura no requiere reconstruir el pipeline ni modificar la di
 futura interfaz háptica. La partición por ángulo se fundamenta
 en la Sección~\ref{sec:mt-representacion-compacta}.
 
-La salida incorpora una retención temporal breve de la última grilla no vacía. Si aparece un frame
-vacío aislado, la grilla anterior puede sostenerse durante una ventana corta. Esta decisión actúa
-como filtro anti-glitch ante fallas transitorias de segmentación, sin introducir memoria espacial
-de largo plazo. Esa responsabilidad queda reservada para v2.
-
 La representación conserva cinco bandas verticales y diez columnas de salida. La
 fila cero corresponde al límite superior de la región corporal considerada y el límite inferior se
 adapta con la altura estimada de la cámara. Como $Y$ crece hacia abajo, estos límites corresponden
@@ -412,6 +426,12 @@ motivo puede superar ligeramente \SI{5}{\metre}: el codificador limita la compon
 $Z$ en el marco alineado, mientras que la distancia radial aumenta para puntos laterales.
 Este resultado no implica que el filtro inicial haya admitido píxeles con profundidad axial
 fuera de su intervalo útil en el marco óptico de la cámara.
+
+El codificador de v1 incorpora una retención temporal breve de la última grilla no vacía. Si
+aparece un fotograma vacío aislado, la grilla anterior puede sostenerse durante una ventana corta
+para reducir intermitencias de la salida. v2 conserva este mismo mecanismo frontal y añade una
+memoria diferente: registra la ocupación en un mapa asociado a la odometría, en lugar de mantener
+únicamente la última grilla publicada.
 
 \section{Versión v2: memoria espacial y riesgo contextual}
 \label{sec:metodo-v2}
@@ -575,8 +595,10 @@ delimitan las ventanas locales. Todas las vistas comparten los límites de los e
 La capa de conciencia espacial selecciona las celdas que superan el umbral de ocupación, las
 agrupa con vecindad de ocho conexiones y descarta componentes sin el soporte espacial mínimo.
 Cada componente restante se evalúa respecto de la pose y la velocidad del usuario. Un candidato
-solo genera riesgo si queda fuera de la apertura frontal ya comunicada, dentro de una banda de
-distancia útil, alineado con el corredor corporal, con velocidad de cierre positiva y con tiempo
+solo genera riesgo si queda fuera de la apertura frontal comunicada por el codificador, más un
+margen angular de separación. Esta exclusión se actualiza al cambiar la apertura; no corresponde
+a un sector frontal fijo. Además, el candidato debe quedar dentro de una banda de distancia útil,
+alineado con el corredor corporal, con velocidad de cierre positiva y con tiempo
 hasta colisión menor al horizonte configurado.
 
 El riesgo se separa en tres regiones semánticas: izquierda, derecha y posterior. En cada región se
