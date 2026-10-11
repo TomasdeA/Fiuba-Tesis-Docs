@@ -398,11 +398,11 @@ definida en la Sección~\ref{sec:metodo-v1-proyeccion}. Esta métrica representa
 plano horizontal y evita asignar una proximidad artificial a obstáculos laterales por considerar
 solo su componente frontal.
 
-El encoder acumula primero sobre una resolución angular interna mayor, asociada al campo horizontal
-del sensor, y luego reduce esa representación a las columnas publicadas según la apertura activa.
-Así, cambiar la apertura no requiere reconstruir el pipeline ni modificar la dimensión final de la
-futura interfaz háptica. La partición por ángulo se fundamenta
-en la Sección~\ref{sec:mt-representacion-compacta}.
+El encoder acumula primero sobre una resolución angular interna mayor, dentro de un intervalo
+operativo definido a partir de observaciones en el marco alineado con gravedad, y luego reduce esa
+representación a las columnas publicadas según la apertura activa. Así, cambiar la apertura no
+requiere reconstruir el pipeline ni modificar la dimensión final de la futura interfaz háptica. La
+partición por ángulo se fundamenta en la Sección~\ref{sec:mt-representacion-compacta}.
 
 La representación conserva cinco bandas verticales y diez columnas de salida. La
 fila cero corresponde al límite superior de la región corporal considerada y el límite inferior se
@@ -422,6 +422,11 @@ los sectores angulares y las bandas verticales que producen el contrato de grill
   5 filas por 10 columnas.}
   \label{fig:metodo-codificacion-angular}
 \end{figure}
+
+Los valores de apertura utilizados en el código expresan semiaperturas: una selección de
+$45^\circ$ corresponde al intervalo frontal de $-45^\circ$ a $+45^\circ$.
+El límite operativo se caracteriza con datos registrados y se configura conjuntamente en
+el codificador y el visualizador, según el Capítulo~\ref{chap:implementacion}.
 
 La salida angular conserva la menor distancia radial $\sqrt{X^2+Z^2}$ de cada sector. Por este
 motivo puede superar ligeramente \SI{5}{\metre}: el codificador limita la componente frontal
